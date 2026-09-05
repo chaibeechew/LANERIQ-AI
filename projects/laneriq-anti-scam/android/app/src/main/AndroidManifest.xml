@@ -5,6 +5,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
+    <permission
+        android:name="ai.laneriq.antiscam.permission.READ_PROTECTION_STATUS"
+        android:protectionLevel="signature" />
+
     <application
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
@@ -29,6 +33,13 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="User-enabled anti-scam Guardian device-risk monitoring" />
         </service>
+
+        <provider
+            android:name=".ProtectionStatusProvider"
+            android:authorities="${applicationId}.protection"
+            android:exported="true"
+            android:grantUriPermissions="false"
+            android:readPermission="ai.laneriq.antiscam.permission.READ_PROTECTION_STATUS" />
 
         <receiver
             android:name=".BootReceiver"
