@@ -29,8 +29,10 @@ public class GuardianService extends Service {
     private ProtectionLeaseStore leaseStore;
     private LocalEventStore eventStore;
     private ResourceGovernor governor;
+    private EmergencyModeStore emergencyStore;
     private String lastAlertFingerprint = "";
     private int consecutiveHealthyTicks = 0;
+    private int consecutiveLowRiskTicks = 0;
 
     private final Runnable monitor = new Runnable() {
         @Override public void run() {
@@ -44,6 +46,7 @@ public class GuardianService extends Service {
         leaseStore = new ProtectionLeaseStore(this);
         eventStore = new LocalEventStore(this);
         governor = new ResourceGovernor(this);
+        emergencyStore = new EmergencyModeStore(this);
         createChannels();
     }
 
@@ -53,6 +56,7 @@ public class GuardianService extends Service {
         if (ACTION_STOP.equals(action)) {
             leaseStore.setUserOptedIn(false);
             leaseStore.serviceStopped("user-stop");
+            emergencyStore.clear();
             eventStore.recordOnce("guardian_stop", "user", 1_000L);
             handler.removeCallbacks(monitor);
             stopForeground(STOP_FOREGROUND_REMOVE);
@@ -96,11 +100,23 @@ public class GuardianService extends Service {
         DeviceRiskSnapshot snapshot = DeviceRiskSnapshot.capture(getContentResolver());
         boolean constrained = governor.shouldReduceBackgroundWork();
 
+        if (snapshot.signalCount >= 2) {
+            consecutiveLowRiskTicks = 0;
+            emergencyStore.refresh(EmergencyModeStore.Level.URGENT, snapshot.fingerprint);
+        } else if (snapshot.signalCount == 1) {
+            consecutiveLowRiskTicks = 0;
+            emergencyStore.refresh(EmergencyModeStore.Level.REVIEW, snapshot.fingerprint);
+        } else {
+            consecutiveLowRiskTicks++;
+            if (consecutiveLowRiskTicks >= 2) emergencyStore.clear();
+        }
+
         leaseStore.heartbeat(
                 snapshot.riskLevel,
-                "guardian,device-signals,event-dedup,resource-governor,lease-v2");
+                "guardian,device-signals,event-dedup,resource-governor,emergency-mode,lease-v2");
 
         ProtectionLeaseStore.Lease lease = leaseStore.read();
+        EmergencyModeStore.State emergency = emergencyStore.read();
         GuardianHealth.State health = GuardianHealth.evaluate(
                 lease.state,
                 snapshot.riskLevel,
@@ -117,41 +133,53 @@ public class GuardianService extends Service {
         }
 
         String summary;
-        switch (health) {
-            case HEALTHY:
-                summary = "Guardian active • no elevated local signals";
-                break;
-            case REVIEW_REQUIRED:
-                summary = "Guardian active • review needed • " + snapshot.summary;
-                break;
-            case DEGRADED:
-                summary = "Guardian degraded • protection state needs attention";
-                break;
-            case PAUSED:
-                summary = "Guardian paused";
-                break;
-            default:
-                summary = "Guardian status unknown • verification required";
-                break;
+        if (emergency.level == EmergencyModeStore.Level.URGENT) {
+            summary = "URGENT • remote-control risk signals • avoid banking/payments until reviewed";
+        } else {
+            switch (health) {
+                case HEALTHY:
+                    summary = "Guardian active • no elevated local signals";
+                    break;
+                case REVIEW_REQUIRED:
+                    summary = "Guardian active • review needed • " + snapshot.summary;
+                    break;
+                case DEGRADED:
+                    summary = "Guardian degraded • protection state needs attention";
+                    break;
+                case PAUSED:
+                    summary = "Guardian paused";
+                    break;
+                default:
+                    summary = "Guardian status unknown • verification required";
+                    break;
+            }
         }
         if (constrained) summary += " • reduced background cadence";
 
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         nm.notify(NOTIFICATION_ID, buildProtectionNotification(summary));
 
-        if (snapshot.signalCount > 0) {
-            if (!snapshot.fingerprint.equals(lastAlertFingerprint)) {
-                String eventId = eventStore.recordOnce(
-                        "risk_signal_set", snapshot.fingerprint, 120_000L);
-                if (eventId != null) {
+        if (snapshot.signalCount > 0 && !snapshot.fingerprint.equals(lastAlertFingerprint)) {
+            String eventId = eventStore.recordOnce(
+                    "risk_signal_set", snapshot.fingerprint, 120_000L);
+            if (eventId != null) {
+                if (snapshot.signalCount >= 2) {
+                    eventStore.recordOnce("emergency_mode", "urgent:" + snapshot.fingerprint, 120_000L);
+                    showAlert(
+                            "LANERIQ URGENT • pause payments",
+                            snapshot.summary +
+                                    ". Multiple technical remote-control risk signals are present. " +
+                                    "Do not approve transfers, payments, password recovery or remote-support requests until you review these settings. " +
+                                    "These signals are not proof of malware.");
+                } else {
                     showAlert(
                             "LANERIQ Guardian review needed",
                             snapshot.summary +
-                                    ". These signals are not proof of malware. Review them before banking or payments.");
+                                    ". This signal is not proof of malware. Review it before banking or payments.");
                 }
-                lastAlertFingerprint = snapshot.fingerprint;
             }
-        } else {
+            lastAlertFingerprint = snapshot.fingerprint;
+        } else if (snapshot.signalCount == 0) {
             lastAlertFingerprint = "";
         }
 
