@@ -28,8 +28,12 @@ public final class LocalThreatReputationStore {
         prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
 
+    /**
+     * Unverified/local cache admission. KNOWN_MALICIOUS is deliberately rejected
+     * until Android has a real signed reputation-evidence ingestion adapter.
+     */
     public void putDomain(String domain, Verdict verdict, String sourceVersion, long ttlMs) {
-        put("domain:" + ThreatIndicator.domainHash(domain), verdict, sourceVersion, ttlMs);
+        putUnverified("domain:" + ThreatIndicator.domainHash(domain), verdict, sourceVersion, ttlMs);
     }
 
     public Entry lookupDomain(String domain) {
@@ -37,20 +41,24 @@ public final class LocalThreatReputationStore {
     }
 
     public void putFileHash(String sha256, Verdict verdict, String sourceVersion, long ttlMs) {
-        put("file:" + ThreatIndicator.canonicalFileHash(sha256), verdict, sourceVersion, ttlMs);
+        putUnverified("file:" + ThreatIndicator.canonicalFileHash(sha256), verdict, sourceVersion, ttlMs);
     }
 
     public Entry lookupFileHash(String sha256) {
         return lookup("file:" + ThreatIndicator.canonicalFileHash(sha256));
     }
 
-    private void put(String key, Verdict verdict, String sourceVersion, long ttlMs) {
+    private void putUnverified(String key, Verdict verdict, String sourceVersion, long ttlMs) {
         if (verdict == null || verdict == Verdict.UNKNOWN) return;
+        if (!LocalReputationAdmissionPolicy.mayWriteUnverified(verdict)) {
+            throw new SecurityException("Strong reputation verdict requires verified signed evidence");
+        }
         long boundedTtl = Math.min(MAX_TTL_MS, Math.max(60_000L, ttlMs));
         long expires = System.currentTimeMillis() + boundedTtl;
         prefs.edit()
                 .putString(key + ":verdict", verdict.name())
-                .putString(key + ":source", sourceVersion == null ? "unknown" : sourceVersion)
+                .putString(key + ":source", sourceVersion == null ? "unverified-local" : sourceVersion)
+                .putBoolean(key + ":verified_strong", false)
                 .putLong(key + ":expires", expires)
                 .apply();
     }
@@ -59,22 +67,36 @@ public final class LocalThreatReputationStore {
         long now = System.currentTimeMillis();
         long expires = prefs.getLong(key + ":expires", 0L);
         if (expires <= now) {
-            prefs.edit()
-                    .remove(key + ":verdict")
-                    .remove(key + ":source")
-                    .remove(key + ":expires")
-                    .apply();
+            clearKey(key);
             return new Entry(Verdict.UNKNOWN, "none", 0L, false);
         }
-        Verdict verdict;
+
+        Verdict stored;
         try {
-            verdict = Verdict.valueOf(prefs.getString(key + ":verdict", Verdict.UNKNOWN.name()));
+            stored = Verdict.valueOf(prefs.getString(key + ":verdict", Verdict.UNKNOWN.name()));
         } catch (Exception ignored) {
-            verdict = Verdict.UNKNOWN;
+            stored = Verdict.UNKNOWN;
         }
+        boolean verifiedStrong = prefs.getBoolean(key + ":verified_strong", false);
+        Verdict verdict = LocalReputationAdmissionPolicy.sanitizeStoredVerdict(stored, verifiedStrong);
+        if (stored == Verdict.KNOWN_MALICIOUS && verdict != stored) {
+            // Remove any legacy/unproven strong record rather than silently trusting it.
+            clearKey(key);
+            return new Entry(Verdict.UNKNOWN, "legacy-unverified-strong-record-removed", 0L, false);
+        }
+
         return new Entry(verdict,
                 prefs.getString(key + ":source", "unknown"),
                 expires,
                 verdict != Verdict.UNKNOWN);
+    }
+
+    private void clearKey(String key) {
+        prefs.edit()
+                .remove(key + ":verdict")
+                .remove(key + ":source")
+                .remove(key + ":verified_strong")
+                .remove(key + ":expires")
+                .apply();
     }
 }
