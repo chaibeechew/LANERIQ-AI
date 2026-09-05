@@ -1,4 +1,5 @@
 import { clamp01 } from './contracts.mjs';
+import { isVerifiedMalwareEvidence } from './malware-evidence.mjs';
 
 export const AppRiskVerdict = Object.freeze({
   KNOWN_MALICIOUS: 'KNOWN_MALICIOUS',
@@ -9,13 +10,15 @@ export const AppRiskVerdict = Object.freeze({
 });
 
 /**
- * Evidence-based app/APK risk assessment. Metadata risk alone never becomes a
- * virus verdict. KNOWN_MALICIOUS requires dedicated evidence such as a trusted
- * malware-hash/reputation hit or validated scanner evidence.
+ * Evidence-based app/APK risk assessment.
+ *
+ * Critical truth boundary:
+ * - metadata/permission/remote-control risk can never create a malware verdict
+ * - KNOWN_MALICIOUS requires a verified signed malware-evidence token
+ * - a generic malware verdict is not automatically a specific "virus" classification
  */
 export function assessAppRisk({
-  knownMalwareHash = false,
-  trustedScannerMalicious = false,
+  malwareEvidence = null,
   signatureMismatch = false,
   unknownInstaller = false,
   dangerousPermissionScore = 0,
@@ -26,12 +29,15 @@ export function assessAppRisk({
   sideloaded = false,
   reputationRisk = 0,
 } = {}) {
-  if (knownMalwareHash || trustedScannerMalicious) {
+  if (isVerifiedMalwareEvidence(malwareEvidence)) {
     return {
       verdict: AppRiskVerdict.KNOWN_MALICIOUS,
       riskScore: 1,
-      virusClaimAllowed: true,
-      reason: knownMalwareHash ? 'known_malware_hash' : 'trusted_scanner_malicious_evidence',
+      malwareClaimAllowed: true,
+      virusClaimAllowed: false,
+      reason: 'verified_signed_malware_evidence',
+      evidenceId: malwareEvidence.evidenceId,
+      evidenceSourceType: malwareEvidence.sourceType,
     };
   }
 
@@ -50,6 +56,7 @@ export function assessAppRisk({
     return {
       verdict: AppRiskVerdict.HIGH_RISK,
       riskScore: score,
+      malwareClaimAllowed: false,
       virusClaimAllowed: false,
       reason: 'multiple_high_risk_app_signals',
     };
@@ -58,6 +65,7 @@ export function assessAppRisk({
     return {
       verdict: AppRiskVerdict.REVIEW,
       riskScore: score,
+      malwareClaimAllowed: false,
       virusClaimAllowed: false,
       reason: 'app_risk_signals_require_review',
     };
@@ -65,6 +73,7 @@ export function assessAppRisk({
   return {
     verdict: AppRiskVerdict.LOW_OBSERVED_RISK,
     riskScore: score,
+    malwareClaimAllowed: false,
     virusClaimAllowed: false,
     reason: 'no_high_risk_signal_found_in_available_evidence',
   };
@@ -76,7 +85,8 @@ export function appScanTruth({ platform = 'android', hasPackageBytes = false, ha
     deepBinaryScanAvailable: Boolean(hasPackageBytes),
     hashEvidenceAvailable: Boolean(hasHash),
     reputationEvidenceAvailable: Boolean(hasReputation),
+    mayClaimMalwareFree: false,
     mayClaimVirusFree: false,
-    note: 'Absence of detected risk is not proof that an app is virus-free.',
+    note: 'Absence of detected risk is not proof that an app is malware-free or virus-free.',
   });
 }
