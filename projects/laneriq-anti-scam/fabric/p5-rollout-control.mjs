@@ -1,4 +1,5 @@
 import { requireNonEmpty } from './contracts.mjs';
+import { verifyEd25519Policy } from './p5-policy-signature.mjs';
 
 const DEFAULT_STAGES = Object.freeze([0.01, 0.05, 0.25, 0.50, 1.0]);
 
@@ -12,7 +13,12 @@ export class RolloutController {
     this.policies = new Map();
   }
 
-  createPolicy({ id, version, signatureVerified = false } = {}) {
+  createSignedPolicy({ id, version, payload, publicKeyPem, signatureBase64 } = {}) {
+    const signatureVerified = verifyEd25519Policy({ payload, publicKeyPem, signatureBase64 });
+    return this.createPolicy({ id, version, signatureVerified, policyDigestSource: payload });
+  }
+
+  createPolicy({ id, version, signatureVerified = false, policyDigestSource = null } = {}) {
     id = requireNonEmpty(id, 'id');
     version = requireNonEmpty(version, 'version');
     if (!signatureVerified) throw new Error('unsigned policy rejected');
@@ -23,6 +29,7 @@ export class RolloutController {
       enabled: true,
       killed: false,
       rollbackVersion: null,
+      policyDigestSource,
       evidence: [],
     };
     this.policies.set(id, state);
@@ -35,6 +42,7 @@ export class RolloutController {
     const falsePositiveRate = Number(evidence.falsePositiveRate);
     const sampleSize = Number(evidence.sampleSize);
     const healthy = Number.isFinite(crashRate) && Number.isFinite(falsePositiveRate) && Number.isFinite(sampleSize) && sampleSize > 0 &&
+      crashRate >= 0 && falsePositiveRate >= 0 &&
       crashRate <= this.maxCrashRate && falsePositiveRate <= this.maxFalsePositiveRate;
     const record = { crashRate, falsePositiveRate, sampleSize, healthy, atMs: Date.now() };
     p.evidence.push(record);
