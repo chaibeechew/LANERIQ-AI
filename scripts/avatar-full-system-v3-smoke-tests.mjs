@@ -6,3 +6,4 @@ import './avatar-engineering-knowledge-contract-tests.mjs';
 import './laneriq-engineering-knowledge-contract-tests.mjs';
 import './laneriq-knowledge-fabric-v2-contract-tests.mjs';
 import './laneriq-operating-intelligence-contract-tests.mjs';
+import './laneriq-knowledge-control-plane-v45-contract-tests.mjs';
