@@ -43,6 +43,5 @@ test('Privacy First: backups remain disabled and cleartext traffic remains disab
 
 test('Privacy First: exported companion provider remains signature-permission protected', () => {
   assert.match(manifest, /android:protectionLevel="signature"/);
-  assert.match(manifest, /android:readPermission="ai\.laneriq\.antiscam\.permission\.READ_PROTECTION_STATUS"/);
-  assert.match(manifest, /android:writePermission="ai\.laneriq\.antiscam\.permission\.READ_PROTECTION_STATUS"/);
+  assert.match(manifest, /android:permission="ai\.laneriq\.antiscam\.permission\.READ_PROTECTION_STATUS"/);
 });
