@@ -10,23 +10,17 @@ import { ActiveActiveRegionSet } from '../p4-active-active.mjs';
 import { RolloutController } from '../p5-rollout-control.mjs';
 import { CapacityEvidenceLedger } from '../p6-capacity-evidence.mjs';
 import { signedPolicy } from './test-crypto.mjs';
+import { recordPassingCapacityStage } from './test-capacity.mjs';
 
 const TRUST = 'publisher-sha256:laneriq-test';
 
 test('P0 accepts only a fresh same-boot opted-in Guardian proof', () => {
   const now = 1_000_000;
   const result = verifyGuardianProof({
-    installationId: 'device-1',
-    sessionId: 'session-1',
-    publisherDigest: TRUST,
-    leaseEpoch: 4,
-    heartbeatSequence: 9,
-    heartbeatAtMs: now - 10_000,
-    leaseExpiresAtMs: now + 60_000,
-    bootSessionId: 'boot-a',
-    expectedBootSessionId: 'boot-a',
-    userOptedIn: true,
-    serviceEnabled: true,
+    installationId: 'device-1', sessionId: 'session-1', publisherDigest: TRUST,
+    leaseEpoch: 4, heartbeatSequence: 9, heartbeatAtMs: now - 10_000,
+    leaseExpiresAtMs: now + 60_000, bootSessionId: 'boot-a', expectedBootSessionId: 'boot-a',
+    userOptedIn: true, serviceEnabled: true,
   }, { nowMs: now });
   assert.equal(result.valid, true);
   assert.equal(result.state, ProtectionState.ACTIVE);
@@ -71,9 +65,7 @@ test('P1 Broker deduplicates same client operation', () => {
 });
 
 test('P2 routes to preferred healthy edge and falls back when unhealthy', () => {
-  const router = new RegionalEdgeRouter({ regions: [
-    { id: 'sea-1', priority: 1 }, { id: 'jp-1', priority: 2 },
-  ] });
+  const router = new RegionalEdgeRouter({ regions: [{ id: 'sea-1', priority: 1 }, { id: 'jp-1', priority: 2 }] });
   assert.equal(router.route({ preferredRegion: 'sea-1' }).region, 'sea-1');
   router.markHealth('sea-1', false, false);
   const fallback = router.route({ preferredRegion: 'sea-1' });
@@ -160,7 +152,7 @@ test('P5 kill switch prevents further promotion', () => {
   assert.equal(rollout.promote('engine-a').promoted, false);
 });
 
-test('P6 capacity claim starts at zero without evidence', () => {
+test('P6 capacity claim starts at zero without measured evidence', () => {
   const ledger = new CapacityEvidenceLedger();
   assert.equal(ledger.highestVerifiedCapacity(), 0);
   assert.equal(ledger.canClaim(1_000), false);
@@ -168,15 +160,15 @@ test('P6 capacity claim starts at zero without evidence', () => {
 
 test('P6 capacity evidence must be contiguous through the ladder', () => {
   const ledger = new CapacityEvidenceLedger();
-  ledger.record({ users: 1_000, peakRps: 100, p95Ms: 50, errorRate: 0, regionCount: 1, durationMinutes: 30, passed: true, evidenceId: 'e1' });
-  ledger.record({ users: 100_000, peakRps: 10_000, p95Ms: 100, errorRate: 0, regionCount: 2, durationMinutes: 30, passed: true, evidenceId: 'e3' });
+  recordPassingCapacityStage(ledger, 1_000, 'e1');
+  recordPassingCapacityStage(ledger, 100_000, 'e3');
   assert.equal(ledger.highestVerifiedCapacity(), 1_000);
   assert.equal(ledger.canClaim(100_000), false);
   assert.equal(ledger.nextRequiredStage(), 10_000);
 });
 
-test('P6 billion-scale flag remains false until the full evidence ladder passes', () => {
+test('P6 billion-scale flag remains false until the full measured evidence ladder passes', () => {
   const ledger = new CapacityEvidenceLedger();
-  ledger.record({ users: 1_000, passed: true, evidenceId: 'e1' });
+  recordPassingCapacityStage(ledger, 1_000, 'e1');
   assert.equal(ledger.summary().billionScaleVerified, false);
 });
