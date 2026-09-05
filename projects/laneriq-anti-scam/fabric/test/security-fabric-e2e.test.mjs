@@ -8,6 +8,7 @@ import { SecurityEventGraph } from '../p3-event-graph.mjs';
 import { ActiveActiveRegionSet } from '../p4-active-active.mjs';
 import { RolloutController } from '../p5-rollout-control.mjs';
 import { CapacityEvidenceLedger } from '../p6-capacity-evidence.mjs';
+import { signedPolicy } from './test-crypto.mjs';
 
 const TRUST = 'publisher-sha256:laneriq-test';
 
@@ -62,7 +63,8 @@ test('P0-P6 end-to-end: fresh Guardian -> trusted Broker -> edge failover -> cor
   assert.equal(regions.select({ preferredGroup: 'sea', write: true }).region, 'sea-b');
 
   const rollout = new RolloutController();
-  rollout.createPolicy({ id: 'remote-control-correlation', version: 'v1', signatureVerified: true });
+  const signed = signedPolicy({ id: 'remote-control-correlation', version: 'v1', action: 'review' });
+  rollout.createSignedPolicy({ id: 'remote-control-correlation', version: 'v1', ...signed });
   rollout.evaluate('remote-control-correlation', { crashRate: 0.001, falsePositiveRate: 0.0002, sampleSize: 25_000 });
   assert.equal(rollout.promote('remote-control-correlation').rolloutFraction, 0.05);
 
