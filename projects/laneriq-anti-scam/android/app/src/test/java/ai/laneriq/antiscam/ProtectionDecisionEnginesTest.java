@@ -11,6 +11,18 @@ public class ProtectionDecisionEnginesTest {
                 local, WebShieldPolicy.Reputation.KNOWN_MALICIOUS);
         assertEquals(WebShieldPolicy.Action.BLOCK, decision.action);
         assertTrue(decision.knownMaliciousEvidence);
+        assertFalse(decision.userOverrideAllowed);
+    }
+
+    @Test public void heuristicOnlyHighWebRiskStopsAtInterstitialNotKnownMalicious() {
+        SafeWebEvaluator.Result local = SafeWebEvaluator.evaluate(
+                "http://verify-bank-wallet-support-payment.example.com@127.0.0.1/refund");
+        assertEquals(SafeWebEvaluator.Decision.BLOCK, local.decision);
+        WebShieldPolicy.Decision decision = WebShieldPolicy.decide(
+                local, WebShieldPolicy.Reputation.UNKNOWN);
+        assertEquals(WebShieldPolicy.Action.INTERSTITIAL, decision.action);
+        assertFalse(decision.knownMaliciousEvidence);
+        assertTrue(decision.userOverrideAllowed);
     }
 
     @Test public void unknownWebDestinationIsNeverCalledSafe() {
@@ -29,12 +41,13 @@ public class ProtectionDecisionEnginesTest {
         assertFalse(result.malwareEvidencePresent);
     }
 
-    @Test public void dedicatedScannerEvidenceCanCreateMalwareVerdict() {
+    @SuppressWarnings("deprecation")
+    @Test public void legacyScannerBooleanCannotCreateMalwareVerdict() {
         AppRiskVerdict.Evidence evidence = new AppRiskVerdict.Evidence(
                 false, true, false, false, false, 0, false);
         AppRiskVerdict.Result result = AppRiskVerdict.evaluate(evidence);
-        assertEquals(AppRiskVerdict.Verdict.MALICIOUS, result.verdict);
-        assertTrue(result.malwareEvidencePresent);
+        assertNotEquals(AppRiskVerdict.Verdict.MALICIOUS, result.verdict);
+        assertFalse(result.malwareEvidencePresent);
     }
 
     @Test public void paymentFreezesOnWebPlusRemoteControlRisk() {
