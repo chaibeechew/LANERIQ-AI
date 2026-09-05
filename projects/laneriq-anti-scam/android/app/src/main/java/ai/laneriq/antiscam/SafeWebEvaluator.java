@@ -1,7 +1,6 @@
 package ai.laneriq.antiscam;
 
-import android.net.Uri;
-
+import java.net.URI;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -35,15 +34,16 @@ public final class SafeWebEvaluator {
 
         String candidate = raw.trim();
         if (!candidate.contains("://")) candidate = "https://" + candidate;
-        Uri uri;
+        URI uri;
         try {
-            uri = Uri.parse(candidate);
+            uri = new URI(candidate);
         } catch (Exception e) {
             return new Result(Decision.BLOCK, 100, "Malformed destination");
         }
 
         String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.US);
         String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.US);
+        String path = uri.getPath() == null ? "" : uri.getPath().toLowerCase(Locale.US);
         String full = candidate.toLowerCase(Locale.US);
         if (!("http".equals(scheme) || "https".equals(scheme)) || host.isEmpty()) {
             return new Result(Decision.BLOCK, 100, "Unsupported or malformed web destination");
@@ -59,7 +59,7 @@ public final class SafeWebEvaluator {
         if (full.contains("@")) score = add(score, 25, reasons, "credential-like URL syntax");
         if (full.contains("redirect=") || full.contains("url=http")) score = add(score, 12, reasons, "redirect parameter");
         for (String word : PHISHING_WORDS) {
-            if (host.contains(word) || uri.getPath() != null && uri.getPath().toLowerCase(Locale.US).contains(word)) {
+            if (host.contains(word) || path.contains(word)) {
                 score = add(score, 8, reasons, "phishing-style wording");
                 break;
             }
