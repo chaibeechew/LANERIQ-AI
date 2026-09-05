@@ -39,7 +39,7 @@
             android:authorities="${applicationId}.protection"
             android:exported="true"
             android:grantUriPermissions="false"
-            android:readPermission="ai.laneriq.antiscam.permission.READ_PROTECTION_STATUS" />
+            android:permission="ai.laneriq.antiscam.permission.READ_PROTECTION_STATUS" />
 
         <receiver
             android:name=".BootReceiver"
