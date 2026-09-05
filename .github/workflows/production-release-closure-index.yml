@@ -54,21 +54,22 @@ jobs:
     env:
       GITHUB_TOKEN: ${{ github.token }}
       LANERIQ_CLOSURE_SHA: ${{ github.sha }}
+      LANERIQ_BASE_SHA: ${{ github.event.before }}
       LANERIQ_PRODUCTION_URL: https://laneriq-ai.vercel.app
       LANERIQ_CLOSURE_MAX_ATTEMPTS: "180"
       LANERIQ_CLOSURE_RETRY_MS: "10000"
     steps:
-      - name: Checkout exact main SHA with first parent
+      - name: Checkout exact main SHA with full push history
         uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
-          fetch-depth: 2
-      - name: Verify exact main checkout identity
+          fetch-depth: 0
+      - name: Verify exact main and base identities
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$LANERIQ_CLOSURE_SHA"
-          git rev-parse HEAD^1 >/dev/null
+          git cat-file -e "$LANERIQ_BASE_SHA^{commit}"
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
@@ -98,6 +99,6 @@ jobs:
       - name: Truth boundary
         run: |
           echo "✓ Runtime closure does not equal Global Production completion."
-          echo "✓ This gate observes exact-SHA GitHub Actions, retained CI evidence receipts, and public Production runtime/deployment identity."
+          echo "✓ This gate observes the complete main push range, exact-SHA GitHub Actions, retained CI evidence receipts, and public Production runtime/deployment identity."
           echo "✓ It does not mutate deployments, Supabase, DNS, providers, devices, stores, Email, WhatsApp or SMS."
           echo "✓ Supabase LIVE schema/security, provider-LIVE output, physical-device behavior and other external evidence remain separately governed."
