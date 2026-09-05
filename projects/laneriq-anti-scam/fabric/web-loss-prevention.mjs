@@ -1,5 +1,6 @@
 import { clamp01 } from './contracts.mjs';
 import { isVerifiedWebEvidence } from './web-reputation-evidence.mjs';
+import { evidenceUsable } from './evidence-revocation.mjs';
 
 export const WebDecision = Object.freeze({
   ALLOW: 'ALLOW',
@@ -11,12 +12,13 @@ export const WebDecision = Object.freeze({
  * Decision core for in-app browser / DNS / VPN / URL reputation adapters.
  * It never treats lack of evidence as proof that a site is safe.
  *
- * A "known malicious" claim requires a verified signed web-evidence token.
- * Heuristics/model scores may still block a high-risk destination, but they
- * must not be relabeled as known-malicious evidence.
+ * A "known malicious" claim requires a verified signed web-evidence token
+ * that has not been revoked. Heuristics/model scores may still interrupt a
+ * high-risk destination, but they must not be relabeled as known-malicious.
  */
 export function evaluateWebRisk({
   webEvidence = null,
+  evidenceRevocations = null,
   phishingReputation = 0,
   localHeuristicRisk = 0,
   newlyRegisteredDomain = false,
@@ -25,7 +27,7 @@ export function evaluateWebRisk({
   bankingContext = false,
   remoteControlRisk = false,
 } = {}) {
-  if (isVerifiedWebEvidence(webEvidence)) {
+  if (isVerifiedWebEvidence(webEvidence) && evidenceUsable(webEvidence, evidenceRevocations)) {
     if (webEvidence.verdict === 'MALICIOUS') {
       return {
         decision: WebDecision.BLOCK,
@@ -64,8 +66,9 @@ export function evaluateWebRisk({
       reason: remoteControlRisk && (paymentContext || bankingContext)
         ? 'high_risk_destination_during_sensitive_remote_control_context'
         : 'high_web_risk',
-      claim: 'High-risk navigation blocked based on available security evidence.',
+      claim: 'High-risk navigation interrupted based on available security evidence.',
       knownMaliciousClaimAllowed: false,
+      evidenceRevoked: Boolean(webEvidence && evidenceRevocations?.isRevoked?.(webEvidence)),
     };
   }
 
@@ -76,15 +79,19 @@ export function evaluateWebRisk({
       reason: 'web_risk_requires_review',
       claim: 'Risk signals found. User review is required before continuing.',
       knownMaliciousClaimAllowed: false,
+      evidenceRevoked: Boolean(webEvidence && evidenceRevocations?.isRevoked?.(webEvidence)),
     };
   }
 
   return {
     decision: WebDecision.ALLOW,
     riskScore: score,
-    reason: 'no_high_risk_signal_found_in_this_check',
+    reason: webEvidence && evidenceRevocations?.isRevoked?.(webEvidence)
+      ? 'web_evidence_revoked_no_other_blocking_signal'
+      : 'no_high_risk_signal_found_in_this_check',
     claim: 'No high-risk signal found in this check; this is not a guarantee that the site is safe.',
     knownMaliciousClaimAllowed: false,
+    evidenceRevoked: Boolean(webEvidence && evidenceRevocations?.isRevoked?.(webEvidence)),
   };
 }
 
