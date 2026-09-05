@@ -1,0 +1,63 @@
+{
+  "policyVersion": 1,
+  "product": "LANERIQ AI",
+  "productionProjectRef": "uyizbmajxcvtkgzuoykg",
+  "principles": {
+    "futurePublicFunctionExecute": "explicit-grant-only",
+    "adminMutationTransport": "service-role-only",
+    "authenticatedSecurityDefiner": "deny-by-default-with-reviewed-self-service-allowlist",
+    "authorizationMetadata": "raw_app_meta_data",
+    "legalDraftSigning": "fail-closed"
+  },
+  "privilegedAdminLegacyV1": [
+    "admin_issue_buyout_license",
+    "admin_review_creator_support",
+    "admin_set_creator_support_mode"
+  ],
+  "privilegedAdminV2": [
+    "admin_issue_buyout_license_v2",
+    "admin_review_creator_support_v2",
+    "admin_set_creator_support_mode_v2"
+  ],
+  "authenticatedSecurityDefinerAllowlist": [
+    {
+      "name": "get_creator_support_status",
+      "identityBinding": "auth.uid()",
+      "callerSuppliedUserId": false,
+      "purpose": "Read only the signed-in creator's support state and code state."
+    },
+    {
+      "name": "get_project_migration_agreement",
+      "identityBinding": "auth.uid() + apps.owner_id + agreement.user_id",
+      "callerSuppliedUserId": false,
+      "purpose": "Read only the signed-in owner's migration agreement."
+    },
+    {
+      "name": "redeem_creator_support_code",
+      "identityBinding": "auth.uid() + creator_support_codes.user_id",
+      "callerSuppliedUserId": false,
+      "purpose": "Redeem a code only when it belongs to the signed-in user."
+    },
+    {
+      "name": "request_creator_support",
+      "identityBinding": "auth.uid() + owned unfinished project",
+      "callerSuppliedUserId": false,
+      "purpose": "Create a support request only for the signed-in individual creator."
+    }
+  ],
+  "disabledSecurityDefiner": [
+    {
+      "name": "sign_project_migration_agreement",
+      "requiredApiRoles": [],
+      "reason": "Draft legal signing remains disabled until qualified legal counsel approval and a server-only signing path."
+    }
+  ],
+  "externalSecurityBlockers": [
+    {
+      "id": "supabase-auth-leaked-password-protection",
+      "requiredForGlobalProduction": true,
+      "verified": false,
+      "reason": "Supabase LIVE advisor reports leaked password protection disabled; current connected Supabase actions do not expose Auth configuration mutation."
+    }
+  ]
+}
