@@ -19,6 +19,22 @@ public final class AppRiskVerdict {
             this.dangerousPermissionCount = Math.max(0, dangerousPermissionCount);
             this.remoteControlCapability = remoteControlCapability;
         }
+
+        /**
+         * Compatibility constructor for the earlier test/UI call shape.
+         * The first three booleans intentionally have zero authority and are
+         * ignored. They cannot manufacture a MALICIOUS verdict.
+         */
+        @Deprecated
+        public Evidence(boolean ignoredKnownMaliciousReputation,
+                        boolean ignoredScannerMalicious,
+                        boolean ignoredSandboxMalicious,
+                        boolean unknownSigner,
+                        boolean sideloaded,
+                        int dangerousPermissionCount,
+                        boolean remoteControlCapability) {
+            this(unknownSigner, sideloaded, dangerousPermissionCount, remoteControlCapability);
+        }
     }
 
     public static final class Result {
