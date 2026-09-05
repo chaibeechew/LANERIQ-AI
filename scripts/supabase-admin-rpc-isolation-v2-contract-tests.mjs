@@ -53,11 +53,13 @@ assert.doesNotMatch(migration,/revoke all on function public\.admin_set_creator_
 assert.doesNotMatch(migration,/revoke all on function public\.admin_issue_buyout_license\(uuid,text,text\) from [^;]*authenticated/i);
 assert.match(migration,/legacy v1 retained temporarily for rollback/i);
 
-// Future postgres-created functions in public fail closed. Every API RPC must opt in explicitly.
-for(const role of ["public","anon","authenticated","service_role"]){
-  assert.match(defaultsMigration,new RegExp(`revoke execute on functions from ${role}`));
+// Future public-schema functions fail closed for both roles that can create functions in this Supabase project.
+for(const owner of ["postgres","supabase_admin"]){
+  for(const role of ["public","anon","authenticated","service_role"]){
+    assert.match(defaultsMigration,new RegExp(`alter default privileges for role ${owner} in schema public\\s+revoke execute on functions from ${role}`));
+  }
 }
-assert.match(defaultsMigration,/alter default privileges for role postgres in schema public/);
+assert.match(defaultsMigration,/postgres or supabase_admin roles in public/i);
 assert.match(defaultsMigration,/Every future Data API RPC must opt in with an explicit GRANT/i);
 
 // Only reviewed, identity-bound user self-service SECURITY DEFINER functions may remain authenticated-callable.
@@ -111,7 +113,7 @@ assert.equal(leakedPassword.verifiedByThisGate,false);
 
 console.log("✓ Three privileged Admin RPC v2 functions are service-role-only and revalidate Admin actor identity");
 console.log("✓ Phase A1 remains zero-downtime: legacy v1 callers are retained until LIVE v2 verification");
-console.log("✓ Future postgres-created public functions default to no API EXECUTE and require explicit grants");
+console.log("✓ Future postgres- and supabase_admin-created public functions default to no API EXECUTE and require explicit grants");
 console.log("✓ Authenticated SECURITY DEFINER allowlist is limited to four auth.uid()-bound self-service RPCs");
 console.log("✓ Draft migration-agreement signing remains fully fail-closed pending legal approval");
 console.log("✓ Leaked-password protection is tracked as an unresolved Global Production security blocker");
