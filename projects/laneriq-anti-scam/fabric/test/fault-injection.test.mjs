@@ -9,6 +9,7 @@ import { ActiveActiveRegionSet } from '../p4-active-active.mjs';
 import { evaluatePartition } from '../p4-partition-policy.mjs';
 import { RolloutController } from '../p5-rollout-control.mjs';
 import { CapacityEvidenceLedger } from '../p6-capacity-evidence.mjs';
+import { signedPolicy } from './test-crypto.mjs';
 
 const TRUST = 'publisher-sha256:laneriq-test';
 
@@ -52,9 +53,10 @@ test('Fault: global control loss freezes policy promotion', () => {
   assert.equal(partition.allowPolicyPromotion, false);
 });
 
-test('Fault: unhealthy canary evidence cannot advance rollout', () => {
+test('Fault: unhealthy canary evidence cannot advance a signed rollout', () => {
   const rollout = new RolloutController();
-  rollout.createPolicy({ id: 'engine', version: '1', signatureVerified: true });
+  const signed = signedPolicy({ id: 'engine', version: '1', rule: 'review' });
+  rollout.createSignedPolicy({ id: 'engine', version: '1', ...signed });
   rollout.evaluate('engine', { crashRate: 0.02, falsePositiveRate: 0.01, sampleSize: 50_000 });
   assert.equal(rollout.promote('engine').promoted, false);
 });
