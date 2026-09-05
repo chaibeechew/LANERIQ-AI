@@ -9,7 +9,7 @@ import android.net.Uri;
 /**
  * Read-only, signature-permission-protected companion status surface for other
  * LANERIQ apps. It deliberately exposes only minimal protection state and no
- * raw local event log or private content.
+ * raw local event log, stable installation identifier, or private content.
  */
 public final class ProtectionStatusProvider extends ContentProvider {
     public static final String PATH_STATUS = "status";
@@ -18,6 +18,8 @@ public final class ProtectionStatusProvider extends ContentProvider {
     private static final String[] COLUMNS = new String[] {
             "schema_version",
             "state",
+            "claimable_active",
+            "same_boot_session",
             "lease_expires_at_ms",
             "heartbeat_sequence",
             "local_risk_level",
@@ -45,8 +47,10 @@ public final class ProtectionStatusProvider extends ContentProvider {
         ProtectionLeaseStore.Lease lease = new ProtectionLeaseStore(getContext()).read();
         MatrixCursor cursor = new MatrixCursor(COLUMNS, 1);
         cursor.addRow(new Object[] {
-                1,
+                2,
                 lease.state.name(),
+                lease.mayClaimGuardianActive() ? 1 : 0,
+                lease.sameBootSession ? 1 : 0,
                 lease.expiresAtMs,
                 lease.heartbeatSequence,
                 lease.localRiskLevel,
