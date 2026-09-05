@@ -100,15 +100,16 @@ public class GuardianService extends Service {
         DeviceRiskSnapshot snapshot = DeviceRiskSnapshot.capture(getContentResolver());
         boolean constrained = governor.shouldReduceBackgroundWork();
 
-        if (snapshot.signalCount >= 2) {
-            consecutiveLowRiskTicks = 0;
-            emergencyStore.refresh(EmergencyModeStore.Level.URGENT, snapshot.fingerprint);
-        } else if (snapshot.signalCount == 1) {
-            consecutiveLowRiskTicks = 0;
-            emergencyStore.refresh(EmergencyModeStore.Level.REVIEW, snapshot.fingerprint);
-        } else {
-            consecutiveLowRiskTicks++;
-            if (consecutiveLowRiskTicks >= 2) emergencyStore.clear();
+        EmergencyModeStore.State currentEmergency = emergencyStore.read();
+        EmergencyModePolicy.Decision emergencyDecision = EmergencyModePolicy.evaluate(
+                snapshot.signalCount,
+                currentEmergency.level,
+                consecutiveLowRiskTicks);
+        consecutiveLowRiskTicks = emergencyDecision.nextLowRiskTicks;
+        if (emergencyDecision.shouldClearStoredState) {
+            emergencyStore.clear();
+        } else if (emergencyDecision.level != EmergencyModeStore.Level.NONE) {
+            emergencyStore.refresh(emergencyDecision.level, snapshot.fingerprint);
         }
 
         leaseStore.heartbeat(
