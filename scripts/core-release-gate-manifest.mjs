@@ -39,10 +39,11 @@ const manifest={
   createdAt:new Date().toISOString()
 };
 const output="core-release-gate-manifest.json";
+const sidecar="core-release-gate-manifest.json.sha256";
 const bytes=`${JSON.stringify(manifest,null,2)}\n`;
 const digest=crypto.createHash("sha256").update(bytes).digest("hex");
 fs.writeFileSync(output,bytes,"utf8");
-fs.writeFileSync(`${output}.sha256`,`${digest}  ${output}\n`,"utf8");
+fs.writeFileSync(sidecar,`${digest}  ${output}\n`,"utf8");
 console.log(bytes);
 console.log(`CORE_RELEASE_GATE_MANIFEST_SHA256=${digest}`);
 if(process.env.GITHUB_STEP_SUMMARY)fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,`# LANERIQ Core Release Gate — PASS\n\n- Candidate SHA: \`${sha}\`\n- Evidence level: **CODE + CI + build**\n- Exact-file manifest SHA-256: \`${digest}\`\n- Production/runtime/external evidence: **not claimed by this gate**\n`,"utf8");
