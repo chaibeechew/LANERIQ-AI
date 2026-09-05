@@ -76,6 +76,28 @@ jobs:
       - name: Emit exact-SHA core release manifest
         run: node scripts/core-release-gate-manifest.mjs
 
+      - name: Upload exact-SHA Core Release evidence package
+        id: core_artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: laneriq-core-release-${{ env.LANERIQ_CANDIDATE_SHA }}-${{ github.run_id }}
+          path: |
+            core-release-gate-manifest.json
+            core-release-gate-manifest.json.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+          overwrite: false
+
+      - name: Record Core Release artifact receipt
+        shell: bash
+        run: |
+          {
+            echo "- Core Release artifact ID: \`${{ steps.core_artifact.outputs.artifact-id }}\`"
+            echo "- Core Release artifact digest: \`${{ steps.core_artifact.outputs.artifact-digest }}\`"
+            echo "- Retention: **30 days internal CI evidence**"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Truth boundary
         run: |
           echo "✓ Core Release Gate is an early, consolidated CODE + CI + build verdict for the exact candidate SHA."
