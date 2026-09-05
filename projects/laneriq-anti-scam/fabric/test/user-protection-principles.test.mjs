@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import { privacyTruth, validatePrivacyEnvelope } from '../privacy-first-policy.mjs';
 import { WebDecision, evaluateWebRisk, shouldFailClosedForSensitiveAction } from '../web-loss-prevention.mjs';
 import { AppRiskVerdict, assessAppRisk, appScanTruth } from '../app-risk-scanner.mjs';
+import { verifySignedMalwareEvidence } from '../malware-evidence.mjs';
 import { RemoteControlRisk, evaluateRemoteControlRisk, remoteControlTruth } from '../anti-remote-control.mjs';
+import { signedMalwareEvidence } from './test-crypto.mjs';
 
 test('Privacy First: default product mode forbids remote monitoring and raw private content upload', () => {
   const truth = privacyTruth();
@@ -53,13 +55,33 @@ test('Web protection: low observed risk never becomes a safety guarantee', () =>
   assert.match(result.claim, /not a guarantee/i);
 });
 
-test('App scanner: known malware hash may support a malicious verdict', () => {
-  const result = assessAppRisk({ knownMalwareHash: true });
+test('App scanner: only verified signed malware evidence may support a malicious verdict', () => {
+  const now = 1_000_000;
+  const bundle = signedMalwareEvidence({
+    evidenceId: 'mal-1',
+    sourceType: 'scanner',
+    indicatorType: 'apk_sha256',
+    indicatorHash: 'a'.repeat(64),
+    verdict: 'MALICIOUS',
+    issuedAtMs: now - 10_000,
+    expiresAtMs: now + 60_000,
+  });
+  const verified = verifySignedMalwareEvidence({ ...bundle, nowMs: now });
+  const result = assessAppRisk({ malwareEvidence: verified });
   assert.equal(result.verdict, AppRiskVerdict.KNOWN_MALICIOUS);
-  assert.equal(result.virusClaimAllowed, true);
+  assert.equal(result.malwareClaimAllowed, true);
+  assert.equal(result.virusClaimAllowed, false);
 });
 
-test('App scanner: risky permissions and remote-control capability do not by themselves become a virus claim', () => {
+test('App scanner: forged malware-like object cannot create malicious verdict', () => {
+  const result = assessAppRisk({
+    malwareEvidence: { verified: true, malicious: true, evidenceId: 'forged' },
+  });
+  assert.notEqual(result.verdict, AppRiskVerdict.KNOWN_MALICIOUS);
+  assert.equal(result.malwareClaimAllowed, false);
+});
+
+test('App scanner: risky permissions and remote-control capability do not by themselves become a malware claim', () => {
   const result = assessAppRisk({
     dangerousPermissionScore: 1,
     accessibilityService: true,
@@ -68,11 +90,13 @@ test('App scanner: risky permissions and remote-control capability do not by the
     sideloaded: true,
   });
   assert.ok([AppRiskVerdict.HIGH_RISK, AppRiskVerdict.REVIEW].includes(result.verdict));
+  assert.equal(result.malwareClaimAllowed, false);
   assert.equal(result.virusClaimAllowed, false);
 });
 
-test('App scanner truth never claims virus-free from incomplete Android/iOS evidence', () => {
+test('App scanner truth never claims malware-free or virus-free from incomplete Android/iOS evidence', () => {
   const truth = appScanTruth({ platform: 'android', hasHash: true, hasReputation: true });
+  assert.equal(truth.mayClaimMalwareFree, false);
   assert.equal(truth.mayClaimVirusFree, false);
 });
 
