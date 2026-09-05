@@ -19,6 +19,7 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.net.URI;
 import java.text.DateFormat;
 import java.util.Date;
 
@@ -57,7 +58,7 @@ public class MainActivity extends Activity {
         scroll.addView(root);
 
         root.addView(text("LANERIQ Anti Scam", 30, true));
-        TextView subtitle = text("Privacy-First Guardian + Anti-Scam Protection • 0.3.0-protection.1", 15, false);
+        TextView subtitle = text("Privacy-First Guardian + Anti-Scam Protection • 0.3.0-protection.2", 15, false);
         subtitle.setTextColor(Color.DKGRAY);
         root.addView(subtitle);
 
@@ -106,10 +107,10 @@ public class MainActivity extends Activity {
 
         protectionTools = card(
                 "Protection tools ready\n" +
-                "• Website check: local phishing/risk heuristics\n" +
-                "• App/APK/file check: local SHA-256 fingerprint\n" +
-                "• Remote-control check: local technical risk signals\n" +
-                "• Privacy Center: local-first data policy\n\n" +
+                "• Website check: local heuristics + privacy-safe reputation cache\n" +
+                "• App/APK/file check: SHA-256 + APK package/signer/permission evidence\n" +
+                "• Remote-control check: local technical risk + sensitive-action freeze policy\n" +
+                "• Privacy Center: local-first data enforcement\n\n" +
                 "A low-risk result is not a guarantee that a site or app is safe.");
         protectionTools.setTextSize(13);
         protectionTools.setTextIsSelectable(true);
@@ -122,11 +123,13 @@ public class MainActivity extends Activity {
                 "• Restart circuit breaker + boot/package restore\n" +
                 "• Developer Options / ADB / Accessibility risk snapshots\n" +
                 "• App install/update awareness\n" +
-                "• Safe Web local risk checks\n" +
-                "• User-selected APK/file SHA-256 fingerprinting\n" +
+                "• Safe Web local risk + offline reputation policy\n" +
+                "• User-selected APK signer/permission/capability inspection\n" +
+                "• Sensitive banking/payment action fail-closed policy\n" +
                 "• Bounded structured local event evidence\n" +
                 "• Power-save / thermal-aware cadence\n" +
                 "• Privacy-first minimal cloud contract\n\n" +
+                "System-wide Web Shield remains MANUAL_CHECK_ONLY until a real platform-compliant network filter is established. " +
                 "This test build does not claim CLEAN, virus-free, BANKING_SAFE, guaranteed theft prevention, guaranteed remote-control prevention, or unrestricted system-wide malware scanning.");
         note.setTextSize(13);
         root.addView(note);
@@ -146,32 +149,43 @@ public class MainActivity extends Activity {
 
         new AlertDialog.Builder(this)
                 .setTitle("Check suspicious website")
-                .setMessage("LANERIQ checks the URL locally first. This test build does not upload your browsing history.")
+                .setMessage("LANERIQ checks the destination locally first. This test build does not upload your browsing history.")
                 .setView(input)
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton("Check", (dialog, which) -> {
-                    SafeWebEvaluator.Result result = SafeWebEvaluator.evaluate(input.getText().toString());
+                    String raw = input.getText().toString();
+                    SafeWebEvaluator.Result local = SafeWebEvaluator.evaluate(raw);
+                    String host = extractHost(raw);
+                    LocalThreatReputationStore.Verdict cached = LocalThreatReputationStore.Verdict.UNKNOWN;
+                    if (!host.isEmpty()) {
+                        try {
+                            cached = new LocalThreatReputationStore(this).lookupDomain(host).verdict;
+                        } catch (Exception ignored) {
+                            cached = LocalThreatReputationStore.Verdict.UNKNOWN;
+                        }
+                    }
+                    WebShieldPolicy.Decision shield = WebShieldPolicy.decide(local, mapReputation(cached));
                     String label;
-                    switch (result.decision) {
+                    switch (shield.action) {
                         case BLOCK:
                             label = "BLOCK — do not open this destination";
                             break;
-                        case WARN:
-                            label = "WARNING — review before continuing";
+                        case INTERSTITIAL:
+                            label = "WARNING — stop and review before continuing";
                             break;
                         default:
-                            label = "CAUTION — no high-risk local signal found";
+                            label = "CAUTION — no blocking evidence found";
                             break;
                     }
                     protectionTools.setText(
                             "Website risk check\n" + label +
-                            "\nRisk score: " + result.score + "/100" +
-                            "\nReason: " + result.reason +
-                            "\n\nLow observed risk is not proof that a website is safe. Known-threat reputation and DNS/VPN blocking are separate evidence layers.");
-                    new LocalEventStore(this).recordOnce(
-                            "manual_web_check",
-                            result.decision.name(),
-                            5_000L);
+                            "\nLocal risk score: " + local.score + "/100" +
+                            "\nCached reputation: " + cached.name() +
+                            "\nDecision reason: " + shield.reason +
+                            "\n\nUnknown or low observed risk is not proof that a website is safe. " +
+                            "System-wide blocking remains unavailable until the network-protection Truth Gate has real tunnel/filter evidence.");
+                    String fingerprint = host.isEmpty() ? shield.action.name() : ThreatIndicator.domainHash(host);
+                    new LocalEventStore(this).recordOnce("manual_web_check", fingerprint, 5_000L);
                 })
                 .show();
     }
@@ -182,32 +196,77 @@ public class MainActivity extends Activity {
         intent.setType("*/*");
         try {
             startActivityForResult(intent, REQUEST_PICK_SECURITY_FILE);
-            protectionTools.setText("Opening the system file picker…\nSelect an APK or another file you want LANERIQ to fingerprint locally.");
+            protectionTools.setText("Opening the system file picker…\nSelect an APK or another file you want LANERIQ to inspect locally.");
         } catch (Exception e) {
             protectionTools.setText("File picker unavailable on this device state.");
         }
     }
 
     private void scanSelectedFile(Uri uri) {
-        protectionTools.setText("Scanning selected file locally…");
+        protectionTools.setText("Inspecting selected file locally…");
         new Thread(() -> {
             try {
                 String sha256 = SelectedFileHasher.sha256(getContentResolver(), uri);
                 new LocalEventStore(this).recordOnce("selected_file_hash", sha256, 30_000L);
-                runOnUiThread(() -> protectionTools.setText(
-                        "Selected app / APK / file check\n" +
-                        "SHA-256: " + sha256 +
-                        "\n\nThe file was fingerprinted locally. A hash alone does not prove the file is clean or malicious. " +
-                        "A malware verdict requires trusted reputation/scanner evidence."));
+                LocalThreatReputationStore.Entry reputation =
+                        new LocalThreatReputationStore(this).lookupFileHash(sha256);
+
+                try {
+                    SelectedApkInspector.Result apk = SelectedApkInspector.inspect(this, uri);
+                    boolean knownMalicious = reputation.verdict == LocalThreatReputationStore.Verdict.KNOWN_MALICIOUS;
+                    AppRiskVerdict.Result risk = AppRiskVerdict.evaluate(new AppRiskVerdict.Evidence(
+                            knownMalicious,
+                            false,
+                            false,
+                            apk.signerSha256.isEmpty(),
+                            false,
+                            apk.dangerousPermissionCount,
+                            apk.remoteControlCapabilitySignal));
+                    String signer = apk.signerSha256.isEmpty() ? "unavailable" : apk.signerSha256.get(0);
+                    runOnUiThread(() -> protectionTools.setText(
+                            "Selected APK assessment\n" +
+                            "Package: " + apk.packageName +
+                            "\nVersion: " + apk.versionName + " (" + apk.versionCode + ")" +
+                            "\nSHA-256: " + sha256 +
+                            "\nSigner SHA-256: " + signer +
+                            "\nDangerous permissions: " + apk.dangerousPermissionCount +
+                            "\nAccessibility service declared: " + apk.accessibilityServiceDeclared +
+                            "\nDevice admin declared: " + apk.deviceAdminServiceDeclared +
+                            "\nOverlay permission requested: " + apk.overlayPermissionRequested +
+                            "\nCached reputation: " + reputation.verdict.name() +
+                            "\n\nVerdict: " + risk.verdict.name() +
+                            "\nRisk score: " + risk.riskScore + "/100" +
+                            "\nReason: " + risk.reason +
+                            "\n\nPermission/capability risk alone never becomes a virus verdict. " +
+                            "MALICIOUS requires dedicated reputation/scanner/sandbox evidence."));
+                } catch (Exception notApkOrUnreadable) {
+                    runOnUiThread(() -> protectionTools.setText(
+                            "Selected file assessment\n" +
+                            "SHA-256: " + sha256 +
+                            "\nCached reputation: " + reputation.verdict.name() +
+                            "\n\nThe file was fingerprinted locally. It was not parsed as an APK package. " +
+                            "A hash alone does not prove the file is clean or malicious."));
+                }
             } catch (Exception e) {
                 runOnUiThread(() -> protectionTools.setText(
                         "Selected file check failed\nLANERIQ could not read this file from the system picker."));
             }
-        }, "laneriq-file-hash").start();
+        }, "laneriq-file-security-inspection").start();
     }
 
     private void runRemoteControlSafetyCheck() {
         DeviceRiskSnapshot risk = DeviceRiskSnapshot.capture(getContentResolver());
+        ProtectionLeaseStore.Lease lease = new ProtectionLeaseStore(this).read();
+        SensitiveActionGate.Decision bankingGate = SensitiveActionGate.evaluate(
+                SensitiveActionGate.Context.BANKING,
+                new SensitiveActionGate.Signals(
+                        false,
+                        false,
+                        risk.signalCount,
+                        false,
+                        lease.mayClaimGuardianActive()));
+        EmergencyProtection.Plan emergency = EmergencyProtection.from(bankingGate, risk.signalCount);
+
         String action = risk.signalCount >= 2
                 ? "Elevated technical risk signals found. Review Accessibility/Developer/ADB settings before banking or payment activity."
                 : risk.signalCount == 1
@@ -218,22 +277,27 @@ public class MainActivity extends Activity {
                 "Remote-control safety check\n" +
                 "Risk level: " + risk.riskLevel +
                 "\nSignals: " + risk.summary +
+                "\nBanking/payment gate: " + bankingGate.action.name() +
+                "\nEmergency level: " + emergency.level.name() +
                 "\n\n" + action +
                 "\n\nLANERIQ did not inspect your messages, photos, microphone audio or screen contents. " +
                 "This check cannot guarantee that remote control is impossible.");
 
-        if (risk.signalCount >= 2) {
+        if (bankingGate.action == SensitiveActionGate.Action.FREEZE) {
             new AlertDialog.Builder(this)
-                    .setTitle("Review high-risk device settings")
-                    .setMessage("LANERIQ found multiple technical risk signals. Open Accessibility settings now and review any service you do not recognize.")
+                    .setTitle("Sensitive action protection")
+                    .setMessage("LANERIQ would freeze its own banking/payment-sensitive flow under these signals. " +
+                            "Do not approve transfers or password recovery while remote-control risk remains. " +
+                            "Review Accessibility services now.")
                     .setNegativeButton("Later", null)
-                    .setPositiveButton("Open settings", (dialog, which) -> {
-                        try {
-                            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
-                        } catch (Exception ignored) {
-                            toast("Unable to open Accessibility settings");
-                        }
-                    })
+                    .setPositiveButton("Open settings", (dialog, which) -> openAccessibilitySettings())
+                    .show();
+        } else if (risk.signalCount >= 1) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Review device settings")
+                    .setMessage("LANERIQ found a technical risk signal. Review Accessibility settings and any remote-support app you did not intentionally authorize.")
+                    .setNegativeButton("Later", null)
+                    .setPositiveButton("Open settings", (dialog, which) -> openAccessibilitySettings())
                     .show();
         }
     }
@@ -245,15 +309,51 @@ public class MainActivity extends Activity {
                         "LANERIQ Anti Scam is designed local-first.\n\n" +
                         "Default policy:\n" +
                         "• No raw private message upload\n" +
-                        "• No password/cookie/auth-token collection\n" +
+                        "• No password/cookie/auth-token/private-key collection\n" +
                         "• No contact list upload by default\n" +
                         "• No photo/video/microphone monitoring\n" +
                         "• No full browsing-history upload\n" +
+                        "• No hidden screen-content monitoring\n" +
                         "• No cross-user mobile compute\n" +
-                        "• Security cloud receives only minimized threat fingerprints/technical risk features when that layer is enabled\n\n" +
+                        "• Domain reputation keys are stored as hashes\n" +
+                        "• Default cloud telemetry is restricted to allowlisted technical threat fields\n\n" +
                         "The Guardian monitors local technical security state, not your private content.")
                 .setPositiveButton("OK", null)
                 .show();
+    }
+
+    private void openAccessibilitySettings() {
+        try {
+            startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS));
+        } catch (Exception ignored) {
+            toast("Unable to open Accessibility settings");
+        }
+    }
+
+    private String extractHost(String raw) {
+        if (raw == null || raw.trim().isEmpty()) return "";
+        String value = raw.trim();
+        if (!value.contains("://")) value = "https://" + value;
+        try {
+            String host = new URI(value).getHost();
+            return host == null ? "" : host;
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private WebShieldPolicy.Reputation mapReputation(LocalThreatReputationStore.Verdict verdict) {
+        if (verdict == null) return WebShieldPolicy.Reputation.UNKNOWN;
+        switch (verdict) {
+            case KNOWN_MALICIOUS:
+                return WebShieldPolicy.Reputation.KNOWN_MALICIOUS;
+            case HIGH_RISK:
+                return WebShieldPolicy.Reputation.HIGH_RISK;
+            case KNOWN_BENIGN:
+                return WebShieldPolicy.Reputation.KNOWN_BENIGN;
+            default:
+                return WebShieldPolicy.Reputation.UNKNOWN;
+        }
     }
 
     private void startGuardian() {
@@ -295,6 +395,15 @@ public class MainActivity extends Activity {
                 governor.shouldReduceBackgroundWork(),
                 lease.recentRestartAttempts);
 
+        NetworkProtectionCapability.Evidence networkEvidence = new NetworkProtectionCapability.Evidence(
+                false,
+                lease.userOptedIn,
+                false,
+                false,
+                false,
+                true);
+        NetworkProtectionCapability.State networkState = NetworkProtectionCapability.evaluate(networkEvidence);
+
         String headline;
         if (lease.mayClaimGuardianActive() && GuardianHealth.mayClaimGuardianActive(health)) {
             headline = health == GuardianHealth.State.REVIEW_REQUIRED
@@ -307,6 +416,9 @@ public class MainActivity extends Activity {
                     break;
                 case DEGRADED_STALE:
                     headline = "PROTECTION DEGRADED — LEASE STALE";
+                    break;
+                case DEGRADED_CLOCK:
+                    headline = "PROTECTION DEGRADED — CLOCK EVIDENCE INVALID";
                     break;
                 case PAUSED:
                     headline = "GUARDIAN PAUSED";
@@ -332,6 +444,7 @@ public class MainActivity extends Activity {
                 "\n\nHealth gate: " + health.name() +
                 "\nLocal risk: " + lease.localRiskLevel +
                 "\nActive engines: " + lease.activeEngineSet +
+                "\nSystem-wide Web Shield: " + networkState.name() +
                 "\nLease epoch: " + lease.epoch +
                 "\nHeartbeat sequence: " + lease.heartbeatSequence +
                 "\nLease remaining: " + (lease.remainingMs / 1000L) + "s" +
@@ -342,7 +455,8 @@ public class MainActivity extends Activity {
                 "\nLocal evidence events: " + events.count() +
                 "\nPolicy: " + lease.policyVersion +
                 "\nReputation snapshot: " + lease.reputationSnapshotVersion +
-                "\n\nA stale, missing, sessionless or health-gated lease never displays Guardian Active.");
+                "\n\nA stale, missing, sessionless or health-gated lease never displays Guardian Active. " +
+                "System-wide Web Shield cannot display Active without real network-filter evidence.");
 
         eventLog.setText("Local bounded event log\n" + events.readLog());
     }
