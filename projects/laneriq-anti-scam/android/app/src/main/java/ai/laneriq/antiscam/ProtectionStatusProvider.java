@@ -9,7 +9,8 @@ import android.net.Uri;
 /**
  * Read-only, signature-permission-protected companion status surface for other
  * LANERIQ apps. It deliberately exposes only minimal protection state and no
- * raw local event log, stable installation identifier, or private content.
+ * raw local event log, stable installation identifier, URLs, package history,
+ * or private user content.
  */
 public final class ProtectionStatusProvider extends ContentProvider {
     public static final String PATH_STATUS = "status";
@@ -24,7 +25,10 @@ public final class ProtectionStatusProvider extends ContentProvider {
             "heartbeat_sequence",
             "local_risk_level",
             "active_engine_set",
-            "policy_version"
+            "policy_version",
+            "emergency_level",
+            "emergency_expires_at_ms",
+            "system_web_shield_state"
     };
 
     @Override public boolean onCreate() {
@@ -45,9 +49,19 @@ public final class ProtectionStatusProvider extends ContentProvider {
         }
 
         ProtectionLeaseStore.Lease lease = new ProtectionLeaseStore(getContext()).read();
+        EmergencyModeStore.State emergency = new EmergencyModeStore(getContext()).read();
+        NetworkProtectionCapability.State network = NetworkProtectionCapability.evaluate(
+                new NetworkProtectionCapability.Evidence(
+                        false,
+                        lease.userOptedIn,
+                        false,
+                        false,
+                        false,
+                        true));
+
         MatrixCursor cursor = new MatrixCursor(COLUMNS, 1);
         cursor.addRow(new Object[] {
-                2,
+                3,
                 lease.state.name(),
                 lease.mayClaimGuardianActive() ? 1 : 0,
                 lease.sameBootSession ? 1 : 0,
@@ -55,7 +69,10 @@ public final class ProtectionStatusProvider extends ContentProvider {
                 lease.heartbeatSequence,
                 lease.localRiskLevel,
                 lease.activeEngineSet,
-                lease.policyVersion
+                lease.policyVersion,
+                emergency.level.name(),
+                emergency.active ? emergency.expiresAtMs : 0L,
+                network.name()
         });
         return cursor;
     }
