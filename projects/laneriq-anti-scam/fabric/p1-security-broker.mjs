@@ -12,6 +12,7 @@ export class SecurityBroker {
 
   registerGuardianProof(proof = {}) {
     if (proof.publisherDigest !== this.trustedPublisherDigest) {
+      this.guardian = null;
       return { state: ProtectionState.UNKNOWN, reason: 'untrusted_guardian_publisher' };
     }
     const verified = verifyGuardianProof(proof, { nowMs: this.now() });
@@ -19,34 +20,24 @@ export class SecurityBroker {
       this.guardian = null;
       return { state: verified.state, reason: verified.reason };
     }
-    return this.registerGuardian({
-      publisherDigest: proof.publisherDigest,
-      installationId: verified.installationId,
-      sessionId: verified.sessionId,
-      leaseEpoch: verified.leaseEpoch,
-      heartbeatSequence: verified.heartbeatSequence,
-      leaseExpiresAtMs: verified.leaseExpiresAtMs,
-      state: verified.state,
-    });
+    return this.#acceptVerifiedGuardian(verified);
   }
 
-  registerGuardian(candidate = {}) {
-    if (candidate.publisherDigest !== this.trustedPublisherDigest) {
-      throw new Error('untrusted guardian publisher');
-    }
-    const installationId = requireNonEmpty(candidate.installationId, 'installationId');
-    const sessionId = requireNonEmpty(candidate.sessionId, 'sessionId');
-    const leaseExpiresAtMs = Number(candidate.leaseExpiresAtMs);
-    if (!Number.isFinite(leaseExpiresAtMs) || leaseExpiresAtMs <= 0) {
-      throw new Error('invalid guardian lease expiry');
+  #acceptVerifiedGuardian(verified) {
+    const installationId = requireNonEmpty(verified.installationId, 'installationId');
+    const sessionId = requireNonEmpty(verified.sessionId, 'sessionId');
+    const leaseExpiresAtMs = Number(verified.leaseExpiresAtMs);
+    if (!Number.isFinite(leaseExpiresAtMs) || leaseExpiresAtMs <= this.now()) {
+      this.guardian = null;
+      return { state: ProtectionState.DEGRADED, reason: 'verified_lease_not_fresh' };
     }
     this.guardian = Object.freeze({
       installationId,
       sessionId,
-      leaseEpoch: Number(candidate.leaseEpoch) || 0,
-      heartbeatSequence: Number(candidate.heartbeatSequence) || 0,
+      leaseEpoch: Number(verified.leaseEpoch),
+      heartbeatSequence: Number(verified.heartbeatSequence),
       leaseExpiresAtMs,
-      state: candidate.state === ProtectionState.ACTIVE ? ProtectionState.ACTIVE : ProtectionState.DEGRADED,
+      state: ProtectionState.ACTIVE,
     });
     return this.status();
   }
@@ -59,9 +50,6 @@ export class SecurityBroker {
     if (!this.guardian) return { state: ProtectionState.UNKNOWN, reason: 'guardian_unavailable' };
     if (this.now() > this.guardian.leaseExpiresAtMs) {
       return { state: ProtectionState.DEGRADED, reason: 'lease_expired' };
-    }
-    if (this.guardian.state !== ProtectionState.ACTIVE) {
-      return { state: ProtectionState.DEGRADED, reason: 'guardian_not_active' };
     }
     return {
       state: ProtectionState.ACTIVE,
