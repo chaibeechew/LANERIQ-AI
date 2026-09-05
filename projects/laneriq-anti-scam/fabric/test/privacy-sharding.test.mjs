@@ -5,8 +5,8 @@ import { RiskLevel } from '../contracts.mjs';
 import { minimizeTelemetry, containsDisallowedDefaultField, pseudonymizeInstallationId } from '../p2-privacy-envelope.mjs';
 import { selectRendezvousShard, mapKeysToShards } from '../p2-rendezvous-sharding.mjs';
 
-test('P2 privacy envelope pseudonymizes device identity and excludes raw private fields', () => {
-  const envelope = minimizeTelemetry({
+function safeEvent() {
+  return {
     eventId: 'e1',
     installationId: 'real-install-id',
     type: 'suspicious_domain',
@@ -16,15 +16,36 @@ test('P2 privacy envelope pseudonymizes device identity and excludes raw private
     source: 'guardian',
     regionHint: 'sea',
     evidence: ['a'],
+  };
+}
+
+test('P2 privacy envelope rejects raw private fields instead of silently dropping them', () => {
+  assert.throws(() => minimizeTelemetry({
+    ...safeEvent(),
     rawUrl: 'https://private.example/path?token=secret',
     rawText: 'private message',
-  }, { privacySalt: 'test-salt' });
+  }, { privacySalt: 'test-salt' }), /private telemetry field rejected/);
+});
 
+test('P2 privacy envelope pseudonymizes identity and emits only the allowlisted minimized shape', () => {
+  const envelope = minimizeTelemetry(safeEvent(), { privacySalt: 'test-salt' });
   assert.notEqual(envelope.devicePseudonym, 'real-install-id');
   assert.equal(Object.hasOwn(envelope, 'installationId'), false);
   assert.equal(Object.hasOwn(envelope, 'rawUrl'), false);
   assert.equal(Object.hasOwn(envelope, 'rawText'), false);
   assert.equal(containsDisallowedDefaultField(envelope), false);
+});
+
+test('P2 privacy envelope rejects password/token/screen-content fields', () => {
+  for (const [key, value] of [
+    ['password', 'secret'],
+    ['authToken', 'token'],
+    ['privateKey', 'key'],
+    ['screenContent', 'pixels/text'],
+    ['microphoneAudio', 'bytes'],
+  ]) {
+    assert.throws(() => minimizeTelemetry({ ...safeEvent(), [key]: value }, { privacySalt: 'test-salt' }));
+  }
 });
 
 test('P2 scoped pseudonym is deterministic for the same salt and changes across salts', () => {
