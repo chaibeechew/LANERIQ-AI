@@ -1,5 +1,6 @@
 import { clamp01 } from './contracts.mjs';
 import { isVerifiedMalwareEvidence } from './malware-evidence.mjs';
+import { evidenceUsable } from './evidence-revocation.mjs';
 
 export const AppRiskVerdict = Object.freeze({
   KNOWN_MALICIOUS: 'KNOWN_MALICIOUS',
@@ -14,11 +15,12 @@ export const AppRiskVerdict = Object.freeze({
  *
  * Critical truth boundary:
  * - metadata/permission/remote-control risk can never create a malware verdict
- * - KNOWN_MALICIOUS requires a verified signed malware-evidence token
+ * - KNOWN_MALICIOUS requires a verified signed malware-evidence token that is not revoked
  * - a generic malware verdict is not automatically a specific "virus" classification
  */
 export function assessAppRisk({
   malwareEvidence = null,
+  evidenceRevocations = null,
   signatureMismatch = false,
   unknownInstaller = false,
   dangerousPermissionScore = 0,
@@ -29,7 +31,7 @@ export function assessAppRisk({
   sideloaded = false,
   reputationRisk = 0,
 } = {}) {
-  if (isVerifiedMalwareEvidence(malwareEvidence)) {
+  if (isVerifiedMalwareEvidence(malwareEvidence) && evidenceUsable(malwareEvidence, evidenceRevocations)) {
     return {
       verdict: AppRiskVerdict.KNOWN_MALICIOUS,
       riskScore: 1,
@@ -75,7 +77,9 @@ export function assessAppRisk({
     riskScore: score,
     malwareClaimAllowed: false,
     virusClaimAllowed: false,
-    reason: 'no_high_risk_signal_found_in_available_evidence',
+    reason: malwareEvidence && evidenceRevocations?.isRevoked?.(malwareEvidence)
+      ? 'malware_evidence_revoked'
+      : 'no_high_risk_signal_found_in_available_evidence',
   };
 }
 
