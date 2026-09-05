@@ -46,11 +46,12 @@ jobs:
         run: node scripts/supabase-admin-rpc-isolation-v2-contract-tests.mjs
       - name: Truth boundary
         run: |
-          echo "✓ Phase A1 is additive CODE + migration-contract evidence only."
-          echo "✓ This gate does not mutate Production Supabase or claim LIVE ACL deployment."
-          echo "✓ Legacy v1 Admin RPC callers remain available until v2 is LIVE-verified and Phase A2 switches server callers."
-          echo "✓ Authenticated SECURITY DEFINER is deny-by-default except the reviewed auth.uid()-bound self-service allowlist."
-          echo "✓ Future postgres-created public functions require explicit role grants; default API EXECUTE is removed."
-          echo "✓ Draft migration-agreement signing remains API-disabled pending legal approval."
+          echo "✓ Phase A2 switches privileged Admin mutations to service-role v2 only after user-session Admin proof."
+          echo "✓ Each v2 RPC independently revalidates the supplied Admin actor in auth.users metadata."
+          echo "✓ There is no silent fallback to legacy authenticated Admin RPC v1 in server callers."
+          echo "✓ This gate does not mutate Production Supabase or prove that A1 v2 ACLs are LIVE; A1 LIVE verification is a release prerequisite."
+          echo "✓ Legacy v1 authenticated EXECUTE remains until Phase A2 is Production-verified and Phase B is separately released."
+          echo "✓ Future postgres- and supabase_admin-created public functions remain explicit-grant-only."
+          echo "✓ Reviewed auth.uid()-bound self-service RPCs remain intentional authenticated exceptions."
+          echo "✓ Draft migration-agreement signing remains fail-closed pending legal approval."
           echo "✓ Supabase leaked-password protection remains an unresolved Global Production blocker until LIVE-enabled and re-verified."
-          echo "✓ Phase B revocation of legacy authenticated EXECUTE is intentionally not performed here."
