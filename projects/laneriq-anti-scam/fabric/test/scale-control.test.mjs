@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { PressureState, evaluateBackpressure, admitByPriority } from '../p2-backpressure.mjs';
 import { EvidenceProvenanceLedger } from '../p3-evidence-provenance.mjs';
 import { PartitionMode, evaluatePartition } from '../p4-partition-policy.mjs';
-import { AuditChain } from '../p5-audit-chain.mjs';
+import { AuditChain, verifyAuditEntries } from '../p5-audit-chain.mjs';
 import { evaluateCapacityStage } from '../p6-cost-headroom.mjs';
 
 test('P2 backpressure sheds optional traffic before critical security paths', () => {
@@ -55,15 +55,18 @@ test('P5 audit chain verifies untampered control history', () => {
   audit.append({ actor: 'release-bot', action: 'CANARY_START', target: 'engine-v1', metadata: { fraction: 0.01 } });
   audit.append({ actor: 'release-bot', action: 'CANARY_PROMOTE', target: 'engine-v1', metadata: { fraction: 0.05 } });
   assert.equal(audit.verify().valid, true);
+  assert.equal(verifyAuditEntries(audit.snapshot()).valid, true);
 });
 
-test('P5 copied audit snapshot reveals tampering when reconstructed check differs', () => {
+test('P5 exported audit snapshot detects tampering', () => {
   const audit = new AuditChain();
   audit.append({ actor: 'release-bot', action: 'START', target: 'v1' });
+  audit.append({ actor: 'release-bot', action: 'PROMOTE', target: 'v1', metadata: { fraction: 0.05 } });
   const snapshot = audit.snapshot();
   snapshot[0].action = 'TAMPERED';
-  assert.notEqual(snapshot[0].action, audit.snapshot()[0].action);
-  assert.equal(audit.verify().valid, true);
+  const verification = verifyAuditEntries(snapshot);
+  assert.equal(verification.valid, false);
+  assert.equal(verification.index, 0);
 });
 
 test('P6 capacity stage requires 1.5x headroom, latency, error, cost and soak duration gates', () => {
