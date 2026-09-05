@@ -14,6 +14,8 @@ const ownDevice=decideLaneriqExecutionPath({mode:'zero',ownDeviceAvailable:true,
 assert.equal(ownDevice.path,'own_device');assert.equal(ownDevice.mobileCrossUserComputeAllowed,false);
 const hotDevice=decideLaneriqExecutionPath({mode:'zero',ownDeviceAvailable:true,userDeviceOptIn:true,thermalState:'serious',verifiedFreeRemote:true});
 assert.equal(hotDevice.path,'verified_free_remote');
+const unknownThermal=decideLaneriqExecutionPath({mode:'zero',ownDeviceAvailable:true,userDeviceOptIn:true,thermalState:'unknown',verifiedFreeRemote:true});
+assert.equal(unknownThermal.path,'verified_free_remote');assert.equal(unknownThermal.unknownThermalAllowsOwnDevice,false);
 const highRisk=decideLaneriqExecutionPath({deterministicAvailable:true,highRisk:true});assert.equal(decisionCanExecute(highRisk),false);assert.equal(decisionCanExecute(highRisk,{authorityApproved:true}),true);
 
 const notLive=evaluateCapabilityTruth({evidence:{configured:true,codeReady:true,contractPassed:true,previewVerified:true,exactSha:true,productionProbePassed:true},releaseControllerApproved:false});
@@ -30,10 +32,11 @@ const plan=buildAutonomousPlanV2({goal:'Deploy a production app with database mi
 assert.equal(plan.risk,'high');assert.equal(plan.productionIntent,true);assert.ok(plan.executionOrder.indexOf('authority_gate')<plan.executionOrder.indexOf('implement_candidate'));assert.ok(plan.executionOrder.indexOf('exact_sha_production_evidence')<plan.executionOrder.indexOf('release_candidate'));
 assert.deepEqual(nextPlannerSteps(plan,[]),['understand_goal']);
 
-const heal=buildSelfHealingPlanV2({mode:'zero',signals:[{type:'cost_spike',severity:'high'},{type:'migration_mismatch',severity:'critical'},{type:'security_incident',severity:'critical'}]});
+const heal=buildSelfHealingPlanV2({mode:'zero',signals:[{type:'cost_spike',severity:'high'},{type:'migration_mismatch',severity:'critical'},{type:'security_incident',severity:'critical'},{type:'provider_failure',severity:'high',verifiedFreeAvailable:false},{type:'provider_failure',severity:'high',verifiedFreeAvailable:true}]});
 assert.equal(heal.destructiveAutoRepairAllowed,false);assert.equal(heal.privilegeEscalationAllowed,false);assert.equal(heal.productionPromotionAllowed,false);
 const costRepair=heal.actions.find(x=>x.action==='pause_metered_work');assert.equal(evaluateRepairAction(costRepair).allowed,true);
 const securityRepair=heal.actions.find(x=>x.action==='security_repair_proposal');assert.equal(evaluateRepairAction(securityRepair).allowed,false);assert.equal(evaluateRepairAction(securityRepair,{authorityApproved:true,evidenceReady:true}).allowed,true);
+const providerRepairs=heal.actions.filter(x=>x.signalType==='provider_failure');assert.equal(providerRepairs[0].action,'degrade_noncritical_work');assert.equal(providerRepairs[1].action,'verified_free_failover');
 
 const operating=getLaneriqOperatingIntelligence();assert.equal(Object.keys(operating.systems).length,5);assert.ok(operating.invariants.includes('decision-before-execution'));
 const knowledge=getLaneriqEngineeringKnowledge();assert.equal(knowledge.operatingIntelligence.contract,'laneriq-operating-intelligence-v1');
@@ -44,5 +47,6 @@ assert.match(GENERATION_QUALITY_RULES,/Production LIVE requires exact-SHA Produc
 assert.match(GENERATION_QUALITY_RULES,/ZERO\/FREE is a hard spend firewall/i);
 assert.match(GENERATION_QUALITY_RULES,/High-risk tasks insert an explicit authority gate/i);
 assert.match(GENERATION_QUALITY_RULES,/Automatic healing is limited to reversible control actions/i);
+assert.match(GENERATION_QUALITY_RULES,/Provider failover is automatic only when free-capacity evidence is actually verified/i);
 
-console.log('LANERIQ Operating Intelligence gate passed: Decision Intelligence, Capability Truth Graph, Global Cost Intelligence, Autonomous Planner 2.0 and Self-Healing Runtime 2.0 are executable Knowledge-as-Code with fail-closed authority, cost and LIVE truth boundaries.');
+console.log('LANERIQ Operating Intelligence gate passed: Decision Intelligence, Capability Truth Graph, Global Cost Intelligence, Autonomous Planner 2.0 and Self-Healing Runtime 2.0 are executable Knowledge-as-Code with fail-closed authority, cost, thermal, failover and LIVE truth boundaries.');
