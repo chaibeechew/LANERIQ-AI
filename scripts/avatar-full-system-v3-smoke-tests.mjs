@@ -1,6 +1,8 @@
-// Backward-compatible CI entrypoint. Full-System validation moved to Living Character v4.
+// Backward-compatible CI entrypoint. Full-System validation moved to Living Character v4+.
 import './avatar-full-system-v4-smoke-tests.mjs';
 import './avatar-live-lab-contract-tests.mjs';
 import './avatar-live-preparation-v41-contract-tests.mjs';
 import './avatar-engineering-knowledge-contract-tests.mjs';
 import './laneriq-engineering-knowledge-contract-tests.mjs';
+import './laneriq-knowledge-fabric-v2-contract-tests.mjs';
+import './laneriq-operating-intelligence-contract-tests.mjs';
