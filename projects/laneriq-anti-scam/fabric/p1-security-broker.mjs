@@ -1,4 +1,5 @@
 import { ProtectionState, requireNonEmpty, stableDedupeKey } from './contracts.mjs';
+import { verifyGuardianProof } from './p0-guardian-proof.mjs';
 
 export class SecurityBroker {
   constructor({ trustedPublisherDigest, now = () => Date.now(), dedupeWindowMs = 30_000 } = {}) {
@@ -7,6 +8,26 @@ export class SecurityBroker {
     this.dedupeWindowMs = dedupeWindowMs;
     this.guardian = null;
     this.requests = new Map();
+  }
+
+  registerGuardianProof(proof = {}) {
+    if (proof.publisherDigest !== this.trustedPublisherDigest) {
+      return { state: ProtectionState.UNKNOWN, reason: 'untrusted_guardian_publisher' };
+    }
+    const verified = verifyGuardianProof(proof, { nowMs: this.now() });
+    if (!verified.valid) {
+      this.guardian = null;
+      return { state: verified.state, reason: verified.reason };
+    }
+    return this.registerGuardian({
+      publisherDigest: proof.publisherDigest,
+      installationId: verified.installationId,
+      sessionId: verified.sessionId,
+      leaseEpoch: verified.leaseEpoch,
+      heartbeatSequence: verified.heartbeatSequence,
+      leaseExpiresAtMs: verified.leaseExpiresAtMs,
+      state: verified.state,
+    });
   }
 
   registerGuardian(candidate = {}) {
