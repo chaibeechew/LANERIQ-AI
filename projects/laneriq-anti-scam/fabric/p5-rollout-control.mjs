@@ -14,14 +14,15 @@ export class RolloutController {
   }
 
   createSignedPolicy({ id, version, payload, publicKeyPem, signatureBase64 } = {}) {
-    const signatureVerified = verifyEd25519Policy({ payload, publicKeyPem, signatureBase64 });
-    return this.createPolicy({ id, version, signatureVerified, policyDigestSource: payload });
-  }
-
-  createPolicy({ id, version, signatureVerified = false, policyDigestSource = null } = {}) {
     id = requireNonEmpty(id, 'id');
     version = requireNonEmpty(version, 'version');
-    if (!signatureVerified) throw new Error('unsigned policy rejected');
+    if (!verifyEd25519Policy({ payload, publicKeyPem, signatureBase64 })) {
+      throw new Error('policy signature verification failed');
+    }
+    return this.#createVerifiedPolicy({ id, version, payload });
+  }
+
+  #createVerifiedPolicy({ id, version, payload }) {
     const state = {
       id,
       version,
@@ -29,7 +30,7 @@ export class RolloutController {
       enabled: true,
       killed: false,
       rollbackVersion: null,
-      policyDigestSource,
+      signedPayload: payload,
       evidence: [],
     };
     this.policies.set(id, state);
