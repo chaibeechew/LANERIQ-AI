@@ -5,18 +5,26 @@ on:
     branches: [main]
     paths:
       - "supabase/migrations/20260906072500_admin_rpc_isolation_v2_phase_a.sql"
+      - "supabase/migrations/20260906074000_public_function_default_privileges_fail_closed.sql"
+      - "supabase/migrations/20260904003000_creator_support_and_portability.sql"
+      - "supabase/migrations/20260904003300_block_draft_migration_agreement_signing.sql"
       - "lib/buyout-license/server.js"
       - "lib/cloud-adapters/creator-support-data.js"
       - "scripts/supabase-admin-rpc-isolation-v2-contract-tests.mjs"
+      - "config/supabase-security-definer-policy.json"
       - "config/production-release-closure-policy.json"
       - ".github/workflows/supabase-admin-rpc-isolation-v2.yml"
   push:
     branches: [main]
     paths:
       - "supabase/migrations/20260906072500_admin_rpc_isolation_v2_phase_a.sql"
+      - "supabase/migrations/20260906074000_public_function_default_privileges_fail_closed.sql"
+      - "supabase/migrations/20260904003000_creator_support_and_portability.sql"
+      - "supabase/migrations/20260904003300_block_draft_migration_agreement_signing.sql"
       - "lib/buyout-license/server.js"
       - "lib/cloud-adapters/creator-support-data.js"
       - "scripts/supabase-admin-rpc-isolation-v2-contract-tests.mjs"
+      - "config/supabase-security-definer-policy.json"
       - "config/production-release-closure-policy.json"
       - ".github/workflows/supabase-admin-rpc-isolation-v2.yml"
 
@@ -34,11 +42,15 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 22
-      - name: Verify service-role-only Admin RPC v2 Phase A contract
+      - name: Verify Supabase privilege governance + Admin RPC v2 contract
         run: node scripts/supabase-admin-rpc-isolation-v2-contract-tests.mjs
       - name: Truth boundary
         run: |
           echo "✓ Phase A1 is additive CODE + migration-contract evidence only."
           echo "✓ This gate does not mutate Production Supabase or claim LIVE ACL deployment."
           echo "✓ Legacy v1 Admin RPC callers remain available until v2 is LIVE-verified and Phase A2 switches server callers."
+          echo "✓ Authenticated SECURITY DEFINER is deny-by-default except the reviewed auth.uid()-bound self-service allowlist."
+          echo "✓ Future postgres-created public functions require explicit role grants; default API EXECUTE is removed."
+          echo "✓ Draft migration-agreement signing remains API-disabled pending legal approval."
+          echo "✓ Supabase leaked-password protection remains an unresolved Global Production blocker until LIVE-enabled and re-verified."
           echo "✓ Phase B revocation of legacy authenticated EXECUTE is intentionally not performed here."
