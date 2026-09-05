@@ -9,39 +9,30 @@ import { ActiveActiveRegionSet } from '../p4-active-active.mjs';
 import { RolloutController } from '../p5-rollout-control.mjs';
 import { CapacityEvidenceLedger } from '../p6-capacity-evidence.mjs';
 import { signedPolicy } from './test-crypto.mjs';
+import { recordPassingCapacityStage } from './test-capacity.mjs';
 
 const TRUST = 'publisher-sha256:laneriq-test';
 
-test('P0-P6 end-to-end: fresh Guardian -> trusted Broker -> edge failover -> correlated incident -> staged policy -> evidence-capped capacity', () => {
+test('P0-P6 end-to-end: fresh Guardian -> trusted Broker -> edge failover -> correlated incident -> signed staged policy -> evidence-capped capacity', () => {
   const now = 2_000_000;
 
   const broker = new SecurityBroker({ trustedPublisherDigest: TRUST, now: () => now });
   const guardian = broker.registerGuardianProof({
-    installationId: 'device-42',
-    sessionId: 'guardian-session-7',
-    publisherDigest: TRUST,
-    leaseEpoch: 7,
-    heartbeatSequence: 12,
-    heartbeatAtMs: now - 5_000,
-    leaseExpiresAtMs: now + 60_000,
-    bootSessionId: 'boot-9',
-    expectedBootSessionId: 'boot-9',
-    userOptedIn: true,
-    serviceEnabled: true,
+    installationId: 'device-42', sessionId: 'guardian-session-7', publisherDigest: TRUST,
+    leaseEpoch: 7, heartbeatSequence: 12, heartbeatAtMs: now - 5_000,
+    leaseExpiresAtMs: now + 60_000, bootSessionId: 'boot-9', expectedBootSessionId: 'boot-9',
+    userOptedIn: true, serviceEnabled: true,
   });
   assert.equal(guardian.state, ProtectionState.ACTIVE);
 
   const client = broker.admitRequest({
-    clientPackage: 'ai.laneriq.builder',
-    publisherDigest: TRUST,
-    operation: 'submit_security_signal',
-    fingerprint: 'incident-42',
+    clientPackage: 'ai.laneriq.builder', publisherDigest: TRUST,
+    operation: 'submit_security_signal', fingerprint: 'incident-42',
   });
   assert.equal(client.admitted, true);
 
   const edge = new RegionalEdgeRouter({
-    regions: [{ id: 'sea-a', priority: 1 }, { id: 'jp-a', priority: 2 }],
-    now: () => now,
+    regions: [{ id: 'sea-a', priority: 1 }, { id: 'jp-a', priority: 2 }], now: () => now,
   });
   edge.markHealth('sea-a', false, false);
   assert.equal(edge.route({ preferredRegion: 'sea-a', write: true }).region, 'jp-a');
@@ -69,7 +60,7 @@ test('P0-P6 end-to-end: fresh Guardian -> trusted Broker -> edge failover -> cor
   assert.equal(rollout.promote('remote-control-correlation').rolloutFraction, 0.05);
 
   const capacity = new CapacityEvidenceLedger();
-  capacity.record({ users: 1_000, peakRps: 100, p95Ms: 80, errorRate: 0.001, regionCount: 1, durationMinutes: 60, passed: true, evidenceId: 'load-1k' });
+  recordPassingCapacityStage(capacity, 1_000, 'load-1k');
   assert.equal(capacity.canClaim(1_000), true);
   assert.equal(capacity.canClaim(10_000), false);
   assert.equal(capacity.summary().billionScaleVerified, false);
