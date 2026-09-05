@@ -1,4 +1,4 @@
-name: LANERIQ Anti Scam P0 Android Guardian
+name: LANERIQ Anti Scam P0-P6 Security Fabric Gate
 
 on:
   push:
@@ -6,10 +6,12 @@ on:
       - project/laneriq-anti-scam
     paths:
       - 'projects/laneriq-anti-scam/android/**'
+      - 'projects/laneriq-anti-scam/fabric/**'
       - '.github/workflows/laneriq-anti-scam-p0-android.yml'
   pull_request:
     paths:
       - 'projects/laneriq-anti-scam/android/**'
+      - 'projects/laneriq-anti-scam/fabric/**'
       - '.github/workflows/laneriq-anti-scam-p0-android.yml'
   workflow_dispatch:
 
@@ -46,3 +48,16 @@ jobs:
             projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk
             projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk.sha256
           if-no-files-found: error
+
+  security-fabric-p0-p6:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run P0-P6 Security Fabric contract tests
+        run: node --test projects/laneriq-anti-scam/fabric/test/*.test.mjs
+      - name: Enforce no billion-scale claim without evidence
+        run: |
+          node -e "import('./projects/laneriq-anti-scam/fabric/p6-capacity-evidence.mjs').then(({CapacityEvidenceLedger})=>{const x=new CapacityEvidenceLedger(); if(x.summary().billionScaleVerified) process.exit(1); console.log(x.summary())})"
