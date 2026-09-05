@@ -12,7 +12,7 @@
     <application
         android:allowBackup="false"
         android:usesCleartextTraffic="false"
-        android:label="LANERIQ Anti Scam P0"
+        android:label="LANERIQ Anti Scam Test"
         android:theme="@style/AppTheme">
 
         <activity
