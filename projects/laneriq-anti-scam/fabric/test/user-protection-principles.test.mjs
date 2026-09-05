@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 
 import { privacyTruth, validatePrivacyEnvelope } from '../privacy-first-policy.mjs';
 import { WebDecision, evaluateWebRisk, shouldFailClosedForSensitiveAction } from '../web-loss-prevention.mjs';
+import { verifySignedWebEvidence } from '../web-reputation-evidence.mjs';
 import { AppRiskVerdict, assessAppRisk, appScanTruth } from '../app-risk-scanner.mjs';
 import { verifySignedMalwareEvidence } from '../malware-evidence.mjs';
 import { RemoteControlRisk, evaluateRemoteControlRisk, remoteControlTruth } from '../anti-remote-control.mjs';
-import { signedMalwareEvidence } from './test-crypto.mjs';
+import { signedMalwareEvidence, signedWebEvidence } from './test-crypto.mjs';
 
 test('Privacy First: default product mode forbids remote monitoring and raw private content upload', () => {
   const truth = privacyTruth();
@@ -33,10 +34,29 @@ test('Privacy First: cloud envelope fails closed when raw private fields appear'
   assert.deepEqual(validation.forbidden, ['messageBody']);
 });
 
-test('Web protection: known malicious destination is blocked before navigation', () => {
-  const result = evaluateWebRisk({ knownMalicious: true });
+test('Web protection: verified signed malicious destination is blocked before navigation', () => {
+  const now = 1_000_000;
+  const bundle = signedWebEvidence({
+    evidenceId: 'web-1',
+    sourceType: 'phishing_feed',
+    domainHash: 'd'.repeat(64),
+    verdict: 'MALICIOUS',
+    issuedAtMs: now - 1_000,
+    expiresAtMs: now + 60_000,
+  });
+  const evidence = verifySignedWebEvidence({ ...bundle, nowMs: now });
+  const result = evaluateWebRisk({ webEvidence: evidence });
   assert.equal(result.decision, WebDecision.BLOCK);
   assert.equal(result.riskScore, 1);
+  assert.equal(result.knownMaliciousClaimAllowed, true);
+});
+
+test('Web protection: forged malicious-like object cannot create known-malicious claim', () => {
+  const result = evaluateWebRisk({
+    webEvidence: { verified: true, verdict: 'MALICIOUS', evidenceId: 'forged' },
+  });
+  assert.equal(result.knownMaliciousClaimAllowed, false);
+  assert.notEqual(result.reason, 'verified_known_malicious_destination');
 });
 
 test('Web protection: sensitive remote-control context raises block decision', () => {
@@ -47,12 +67,14 @@ test('Web protection: sensitive remote-control context raises block decision', (
   });
   assert.equal(result.decision, WebDecision.BLOCK);
   assert.equal(shouldFailClosedForSensitiveAction(result, { paymentContext: true }), true);
+  assert.equal(result.knownMaliciousClaimAllowed, false);
 });
 
 test('Web protection: low observed risk never becomes a safety guarantee', () => {
   const result = evaluateWebRisk({ localHeuristicRisk: 0.05 });
   assert.equal(result.decision, WebDecision.ALLOW);
   assert.match(result.claim, /not a guarantee/i);
+  assert.equal(result.knownMaliciousClaimAllowed, false);
 });
 
 test('App scanner: only verified signed malware evidence may support a malicious verdict', () => {
