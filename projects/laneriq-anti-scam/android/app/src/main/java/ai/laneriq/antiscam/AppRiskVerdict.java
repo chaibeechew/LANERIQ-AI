@@ -1,27 +1,19 @@
 package ai.laneriq.antiscam;
 
 public final class AppRiskVerdict {
+    /** MALICIOUS is reserved for the future verified signed-evidence adapter. */
     public enum Verdict { MALICIOUS, HIGH_RISK, REVIEW, NO_HIGH_RISK_SIGNAL }
 
     public static final class Evidence {
-        public final boolean knownMaliciousReputation;
-        public final boolean scannerMalicious;
-        public final boolean sandboxMalicious;
         public final boolean unknownSigner;
         public final boolean sideloaded;
         public final int dangerousPermissionCount;
         public final boolean remoteControlCapability;
 
-        public Evidence(boolean knownMaliciousReputation,
-                        boolean scannerMalicious,
-                        boolean sandboxMalicious,
-                        boolean unknownSigner,
+        public Evidence(boolean unknownSigner,
                         boolean sideloaded,
                         int dangerousPermissionCount,
                         boolean remoteControlCapability) {
-            this.knownMaliciousReputation = knownMaliciousReputation;
-            this.scannerMalicious = scannerMalicious;
-            this.sandboxMalicious = sandboxMalicious;
             this.unknownSigner = unknownSigner;
             this.sideloaded = sideloaded;
             this.dangerousPermissionCount = Math.max(0, dangerousPermissionCount);
@@ -45,17 +37,14 @@ public final class AppRiskVerdict {
 
     private AppRiskVerdict() {}
 
+    /**
+     * Current Android local evidence can produce risk/review outcomes only.
+     * It may never manufacture MALICIOUS from metadata, permissions or a boolean flag.
+     * The future signed-evidence adapter must be a separate verified path.
+     */
     public static Result evaluate(Evidence evidence) {
         if (evidence == null) {
             return new Result(Verdict.REVIEW, 50, "missing app evidence", false);
-        }
-
-        boolean malwareEvidence = evidence.knownMaliciousReputation
-                || evidence.scannerMalicious
-                || evidence.sandboxMalicious;
-        if (malwareEvidence) {
-            return new Result(Verdict.MALICIOUS, 100,
-                    "dedicated malicious reputation/scanner/sandbox evidence", true);
         }
 
         int score = 0;
@@ -68,13 +57,13 @@ public final class AppRiskVerdict {
 
         if (score >= 55) {
             return new Result(Verdict.HIGH_RISK, score,
-                    "multiple app risk signals require immediate review; not a virus verdict", false);
+                    "multiple app risk signals require immediate review; not a malware or virus verdict", false);
         }
         if (score >= 20) {
             return new Result(Verdict.REVIEW, score,
-                    "one or more app risk signals require review; not a virus verdict", false);
+                    "one or more app risk signals require review; not a malware or virus verdict", false);
         }
         return new Result(Verdict.NO_HIGH_RISK_SIGNAL, score,
-                "no high-risk signal found in available evidence; not proof the app is clean", false);
+                "no high-risk signal found in available local evidence; not proof the app is clean", false);
     }
 }
