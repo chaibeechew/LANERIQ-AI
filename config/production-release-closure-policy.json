@@ -91,6 +91,11 @@
       "verifiedByThisGate": false
     },
     {
+      "id": "supabase-auth-leaked-password-protection",
+      "required": true,
+      "verifiedByThisGate": false
+    },
+    {
       "id": "provider-live-output",
       "required": true,
       "verifiedByThisGate": false
