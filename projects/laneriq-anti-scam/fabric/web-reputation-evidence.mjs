@@ -3,6 +3,7 @@ import { verify } from 'node:crypto';
 const VERIFIED_WEB_EVIDENCE = Symbol('LANERIQ_VERIFIED_WEB_REPUTATION');
 const SOURCE_TYPES = new Set(['trusted_reputation', 'phishing_feed', 'campaign_intelligence']);
 const SHA256 = /^[0-9a-f]{64}$/i;
+const DEFAULT_MAX_EVIDENCE_TTL_MS = 24 * 60 * 60_000;
 
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
@@ -27,6 +28,7 @@ export function verifySignedWebEvidence({
   signatureBase64,
   nowMs = Date.now(),
   maxFutureSkewMs = 5 * 60_000,
+  maxEvidenceTtlMs = DEFAULT_MAX_EVIDENCE_TTL_MS,
 } = {}) {
   const fail = (reason) => Object.freeze({ verified: false, reason });
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return fail('invalid_payload');
@@ -39,14 +41,17 @@ export function verifySignedWebEvidence({
   const verdict = typeof payload.verdict === 'string' ? payload.verdict.trim() : '';
   const issuedAtMs = Number(payload.issuedAtMs);
   const expiresAtMs = Number(payload.expiresAtMs);
+  const ttlMs = expiresAtMs - issuedAtMs;
 
   if (!evidenceId) return fail('missing_evidence_id');
   if (!SOURCE_TYPES.has(sourceType)) return fail('untrusted_source_type');
   if (!SHA256.test(domainHash)) return fail('invalid_domain_hash');
   if (!['MALICIOUS', 'HIGH_RISK'].includes(verdict)) return fail('unsupported_verdict');
   if (!Number.isFinite(issuedAtMs) || !Number.isFinite(expiresAtMs)) return fail('invalid_time_bounds');
+  if (!Number.isFinite(maxEvidenceTtlMs) || maxEvidenceTtlMs <= 0) return fail('invalid_max_ttl');
   if (issuedAtMs > nowMs + maxFutureSkewMs) return fail('evidence_from_future');
   if (expiresAtMs <= nowMs || expiresAtMs <= issuedAtMs) return fail('expired_evidence');
+  if (ttlMs > maxEvidenceTtlMs) return fail('evidence_ttl_too_long');
 
   try {
     const message = Buffer.from(canonicalWebEvidence(payload), 'utf8');
@@ -63,6 +68,7 @@ export function verifySignedWebEvidence({
     sourceType,
     domainHash,
     verdict,
+    issuedAtMs,
     expiresAtMs,
   });
 }
