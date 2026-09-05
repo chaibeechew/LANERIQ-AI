@@ -44,10 +44,21 @@ for(const signature of [
   assert.match(migration,new RegExp(`grant execute on function public\\.${signature} to service_role`));
 }
 
-// Phase A1 stays additive: old production callers remain functional until v2 has been LIVE-verified.
-assert.match(creator,/auth\.client\.rpc\("admin_set_creator_support_mode"/);
-assert.match(creator,/auth\.client\.rpc\("admin_review_creator_support"/);
-assert.match(buyout,/auth\.client\.rpc\("admin_issue_buyout_license"/);
+// Phase A2: user session proves Admin identity, service-role transport performs privileged mutation,
+// and the database independently revalidates p_admin_id. No silent fallback to legacy v1 is allowed.
+assert.match(creator,/createAdminClient\(\)/);
+assert.match(creator,/admin\.rpc\("admin_set_creator_support_mode_v2",\{p_admin_id:auth\.user\.id,p_mode:mode\}\)/);
+assert.match(creator,/admin\.rpc\("admin_review_creator_support_v2",\{p_admin_id:auth\.user\.id,p_request_id:requestId/);
+assert.match(buyout,/createAdminClient\(\)/);
+assert.match(buyout,/admin\.rpc\("admin_issue_buyout_license_v2",\{p_admin_id:auth\.user\.id,p_app_id:appId/);
+assert.doesNotMatch(creator,/auth\.client\.rpc\("admin_set_creator_support_mode"/);
+assert.doesNotMatch(creator,/auth\.client\.rpc\("admin_review_creator_support"/);
+assert.doesNotMatch(buyout,/auth\.client\.rpc\("admin_issue_buyout_license"/);
+assert.doesNotMatch(creator,/catch[^\n]*admin_set_creator_support_mode|fallback[^\n]*admin_set_creator_support_mode/i);
+assert.doesNotMatch(creator,/catch[^\n]*admin_review_creator_support|fallback[^\n]*admin_review_creator_support/i);
+assert.doesNotMatch(buyout,/catch[^\n]*admin_issue_buyout_license|fallback[^\n]*admin_issue_buyout_license/i);
+
+// Phase B is still separate: legacy authenticated grants remain until A2 is Production-verified.
 assert.doesNotMatch(migration,/revoke all on function public\.admin_review_creator_support\(uuid,text,text\) from [^;]*authenticated/i);
 assert.doesNotMatch(migration,/revoke all on function public\.admin_set_creator_support_mode\(text\) from [^;]*authenticated/i);
 assert.doesNotMatch(migration,/revoke all on function public\.admin_issue_buyout_license\(uuid,text,text\) from [^;]*authenticated/i);
@@ -62,7 +73,6 @@ for(const owner of ["postgres","supabase_admin"]){
 assert.match(defaultsMigration,/postgres or supabase_admin roles in public/i);
 assert.match(defaultsMigration,/Every future Data API RPC must opt in with an explicit GRANT/i);
 
-// Only reviewed, identity-bound user self-service SECURITY DEFINER functions may remain authenticated-callable.
 const expectedSelfService=[
   "get_creator_support_status",
   "get_project_migration_agreement",
@@ -85,7 +95,6 @@ assert.match(extractFunction(portabilityMigration,"get_project_migration_agreeme
 assert.match(extractFunction(portabilityMigration,"redeem_creator_support_code"),/user_id=uid/i);
 assert.match(extractFunction(portabilityMigration,"request_creator_support"),/owner_id=uid/i);
 
-// Draft legal signing remains deliberately unreachable from API roles.
 const disabled=definerPolicy.disabledSecurityDefiner.find(item=>item.name==="sign_project_migration_agreement");
 assert.ok(disabled,"Draft migration signing must stay in the denylist");
 assert.deepEqual(disabled.requiredApiRoles,[]);
@@ -111,10 +120,10 @@ assert.ok(leakedPassword,"Global Production truth must track leaked-password pro
 assert.equal(leakedPassword.required,true);
 assert.equal(leakedPassword.verifiedByThisGate,false);
 
-console.log("✓ Three privileged Admin RPC v2 functions are service-role-only and revalidate Admin actor identity");
-console.log("✓ Phase A1 remains zero-downtime: legacy v1 callers are retained until LIVE v2 verification");
-console.log("✓ Future postgres- and supabase_admin-created public functions default to no API EXECUTE and require explicit grants");
-console.log("✓ Authenticated SECURITY DEFINER allowlist is limited to four auth.uid()-bound self-service RPCs");
-console.log("✓ Draft migration-agreement signing remains fully fail-closed pending legal approval");
-console.log("✓ Leaked-password protection is tracked as an unresolved Global Production security blocker");
-console.log("✓ Production Release Closure Index conditionally requires this security domain when its paths change");
+console.log("✓ Phase A2 Admin mutations use service-role v2 RPC transport after user-session Admin proof");
+console.log("✓ p_admin_id is bound to the verified session user and revalidated by each v2 database function");
+console.log("✓ No silent fallback to legacy authenticated Admin RPC v1 remains in server callers");
+console.log("✓ Phase B legacy grant revocation remains separate until A2 is Production-verified");
+console.log("✓ Future postgres- and supabase_admin-created public functions remain explicit-grant-only");
+console.log("✓ Reviewed auth.uid()-bound self-service allowlist and legal signing denylist remain intact");
+console.log("✓ Leaked-password protection remains an unresolved Global Production security blocker");
