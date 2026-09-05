@@ -9,6 +9,7 @@ import { SecurityEventGraph } from '../p3-event-graph.mjs';
 import { ActiveActiveRegionSet } from '../p4-active-active.mjs';
 import { RolloutController } from '../p5-rollout-control.mjs';
 import { CapacityEvidenceLedger } from '../p6-capacity-evidence.mjs';
+import { signedPolicy } from './test-crypto.mjs';
 
 const TRUST = 'publisher-sha256:laneriq-test';
 
@@ -42,22 +43,22 @@ test('P0 rejects expired or pre-reboot Guardian evidence', () => {
   assert.notEqual(expired.state, ProtectionState.ACTIVE);
 });
 
-test('P1 Broker refuses untrusted Guardian publisher', () => {
+test('P1 Broker refuses untrusted Guardian publisher through the proof path', () => {
   const broker = new SecurityBroker({ trustedPublisherDigest: TRUST, now: () => 1_000 });
-  assert.throws(() => broker.registerGuardian({
-    publisherDigest: 'other', installationId: 'd', sessionId: 's', leaseExpiresAtMs: 2_000,
-    state: ProtectionState.ACTIVE,
-  }));
+  const status = broker.registerGuardianProof({ publisherDigest: 'other' });
+  assert.equal(status.state, ProtectionState.UNKNOWN);
+  assert.equal(status.reason, 'untrusted_guardian_publisher');
 });
 
-test('P1 Broker downgrades an expired Guardian lease', () => {
+test('P1 Broker downgrades a previously verified Guardian after its lease expires', () => {
   let now = 1_000;
   const broker = new SecurityBroker({ trustedPublisherDigest: TRUST, now: () => now });
-  broker.registerGuardian({
-    publisherDigest: TRUST, installationId: 'd', sessionId: 's', leaseExpiresAtMs: 1_500,
-    state: ProtectionState.ACTIVE,
+  const registered = broker.registerGuardianProof({
+    installationId: 'd', sessionId: 's', publisherDigest: TRUST,
+    leaseEpoch: 1, heartbeatSequence: 1, heartbeatAtMs: 900, leaseExpiresAtMs: 1_500,
+    bootSessionId: 'boot-a', expectedBootSessionId: 'boot-a', userOptedIn: true, serviceEnabled: true,
   });
-  assert.equal(broker.status().state, ProtectionState.ACTIVE);
+  assert.equal(registered.state, ProtectionState.ACTIVE);
   now = 1_501;
   assert.equal(broker.status().state, ProtectionState.DEGRADED);
 });
@@ -124,14 +125,17 @@ test('P4 resilience summary does not claim single-region-loss survival without t
   assert.equal(regions.resilienceSummary().survivesSingleRegionLoss, false);
 });
 
-test('P5 rejects unsigned policies', () => {
+test('P5 rejects a policy with no valid Ed25519 signature', () => {
   const rollout = new RolloutController();
-  assert.throws(() => rollout.createPolicy({ id: 'model-a', version: '1', signatureVerified: false }));
+  assert.throws(() => rollout.createSignedPolicy({
+    id: 'model-a', version: '1', payload: { id: 'model-a' }, publicKeyPem: 'invalid', signatureBase64: 'invalid',
+  }));
 });
 
 test('P5 canary cannot advance without healthy evidence', () => {
   const rollout = new RolloutController();
-  rollout.createPolicy({ id: 'model-a', version: '1', signatureVerified: true });
+  const signed = signedPolicy({ id: 'model-a', version: '1', rule: 'review' });
+  rollout.createSignedPolicy({ id: 'model-a', version: '1', ...signed });
   assert.equal(rollout.promote('model-a').promoted, false);
   assert.equal(rollout.evaluate('model-a', { crashRate: 0.02, falsePositiveRate: 0, sampleSize: 1_000 }).action, 'HOLD');
   assert.equal(rollout.promote('model-a').promoted, false);
@@ -139,16 +143,18 @@ test('P5 canary cannot advance without healthy evidence', () => {
 
 test('P5 healthy evidence advances only one rollout stage at a time', () => {
   const rollout = new RolloutController();
-  rollout.createPolicy({ id: 'model-a', version: '1', signatureVerified: true });
-  rollout.evaluate('model-a', { crashRate: 0.001, falsePositiveRate: 0.0001, sampleSize: 10_000 });
-  const promoted = rollout.promote('model-a');
+  const signed = signedPolicy({ id: 'model-b', version: '1', rule: 'review' });
+  rollout.createSignedPolicy({ id: 'model-b', version: '1', ...signed });
+  rollout.evaluate('model-b', { crashRate: 0.001, falsePositiveRate: 0.0001, sampleSize: 10_000 });
+  const promoted = rollout.promote('model-b');
   assert.equal(promoted.promoted, true);
   assert.equal(promoted.rolloutFraction, 0.05);
 });
 
 test('P5 kill switch prevents further promotion', () => {
   const rollout = new RolloutController();
-  rollout.createPolicy({ id: 'engine-a', version: '2', signatureVerified: true });
+  const signed = signedPolicy({ id: 'engine-a', version: '2', rule: 'block-known-bad' });
+  rollout.createSignedPolicy({ id: 'engine-a', version: '2', ...signed });
   rollout.evaluate('engine-a', { crashRate: 0, falsePositiveRate: 0, sampleSize: 10_000 });
   rollout.kill('engine-a', '1');
   assert.equal(rollout.promote('engine-a').promoted, false);
