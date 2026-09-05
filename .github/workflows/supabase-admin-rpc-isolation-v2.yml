@@ -1,0 +1,44 @@
+name: LANERIQ Supabase Admin RPC Isolation v2 Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/20260906072500_admin_rpc_isolation_v2_phase_a.sql"
+      - "lib/buyout-license/server.js"
+      - "lib/cloud-adapters/creator-support-data.js"
+      - "scripts/supabase-admin-rpc-isolation-v2-contract-tests.mjs"
+      - "config/production-release-closure-policy.json"
+      - ".github/workflows/supabase-admin-rpc-isolation-v2.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/20260906072500_admin_rpc_isolation_v2_phase_a.sql"
+      - "lib/buyout-license/server.js"
+      - "lib/cloud-adapters/creator-support-data.js"
+      - "scripts/supabase-admin-rpc-isolation-v2-contract-tests.mjs"
+      - "config/production-release-closure-policy.json"
+      - ".github/workflows/supabase-admin-rpc-isolation-v2.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify service-role-only Admin RPC v2 Phase A contract
+        run: node scripts/supabase-admin-rpc-isolation-v2-contract-tests.mjs
+      - name: Truth boundary
+        run: |
+          echo "✓ Phase A1 is additive CODE + migration-contract evidence only."
+          echo "✓ This gate does not mutate Production Supabase or claim LIVE ACL deployment."
+          echo "✓ Legacy v1 Admin RPC callers remain available until v2 is LIVE-verified and Phase A2 switches server callers."
+          echo "✓ Phase B revocation of legacy authenticated EXECUTE is intentionally not performed here."
