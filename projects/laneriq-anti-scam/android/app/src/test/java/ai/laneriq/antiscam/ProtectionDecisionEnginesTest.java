@@ -57,6 +57,23 @@ public class ProtectionDecisionEnginesTest {
         assertEquals(SensitiveActionGate.Action.FREEZE, decision.action);
     }
 
+    @Test public void unexpectedGuardianLossFreezesSensitiveLaneriqFlow() {
+        SensitiveActionGate.Decision decision = SensitiveActionGate.evaluate(
+                SensitiveActionGate.Context.PAYMENT,
+                new SensitiveActionGate.Signals(
+                        false, false, 0, false, false, true));
+        assertEquals(SensitiveActionGate.Action.FREEZE, decision.action);
+        assertTrue(decision.reason.toLowerCase().contains("lost unexpectedly"));
+    }
+
+    @Test public void merelyUnverifiedGuardianWarnsInsteadOfCallingItTamper() {
+        SensitiveActionGate.Decision decision = SensitiveActionGate.evaluate(
+                SensitiveActionGate.Context.PAYMENT,
+                new SensitiveActionGate.Signals(
+                        false, false, 0, false, false, false));
+        assertEquals(SensitiveActionGate.Action.WARN, decision.action);
+    }
+
     @Test public void generalContextWarnsInsteadOfOverblockingWeakSignal() {
         SensitiveActionGate.Decision decision = SensitiveActionGate.evaluate(
                 SensitiveActionGate.Context.GENERAL,
