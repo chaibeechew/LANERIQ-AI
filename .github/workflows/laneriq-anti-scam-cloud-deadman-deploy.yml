@@ -1,0 +1,91 @@
+name: LANERIQ Anti Scam Cloud Dead-Man Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_project_ref:
+        description: 'Type the approved LANERIQ AI Supabase project ref'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_PROJECT_REF: uyizbmajxcvtkgzuoykg
+
+jobs:
+  deploy-deadman:
+    runs-on: ubuntu-latest
+    environment: anti-scam-production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Require explicit target confirmation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ inputs.confirm_project_ref }}" = "$EXPECTED_PROJECT_REF" || {
+            echo "Target project ref does not match the approved LANERIQ AI Supabase project." >&2
+            exit 1
+          }
+
+      - name: Require secret-only database connection
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.LANERIQ_ANTI_SCAM_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$DATABASE_URL" || { echo "LANERIQ_ANTI_SCAM_DATABASE_URL is not configured" >&2; exit 1; }
+          case "$DATABASE_URL" in
+            postgres://*|postgresql://*) ;;
+            *) echo "Database URL must be a Postgres URL" >&2; exit 1 ;;
+          esac
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+
+      - name: Apply privacy-safe Dead-Man migration
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.LANERIQ_ANTI_SCAM_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -f projects/laneriq-anti-scam/cloud/sql/001_guardian_deadman.sql \
+            >/tmp/laneriq-deadman-migration.log
+          echo "Dead-Man migration applied without exposing database credentials."
+
+      - name: Verify table, RLS and RPC exist
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.LANERIQ_ANTI_SCAM_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          TABLE_OK=$(psql "$DATABASE_URL" -Atqc "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='anti_scam_guardian_leases' and c.relrowsecurity=true")
+          RPC_OK=$(psql "$DATABASE_URL" -Atqc "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='upsert_anti_scam_guardian_lease'")
+          test "$TABLE_OK" = "1" || { echo "Dead-Man table/RLS verification failed" >&2; exit 1; }
+          test "$RPC_OK" = "1" || { echo "Dead-Man RPC verification failed" >&2; exit 1; }
+
+      - name: Record migration evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p projects/laneriq-anti-scam/release/evidence
+          cat > projects/laneriq-anti-scam/release/evidence/l4-deadman-deploy.json <<JSON
+          {
+            "schema": 1,
+            "gateId": "L4.cloud_deadman_deployed",
+            "projectRef": "$EXPECTED_PROJECT_REF",
+            "sourceSha": "$GITHUB_SHA",
+            "workflowRunId": "$GITHUB_RUN_ID",
+            "status": "RAW_VERIFIED_DEPLOYMENT_EVIDENCE",
+            "truth": "This artifact proves the migration workflow verified the target schema. It is not a Public Production PASS token until an approved release verifier signs/pins the immutable run reference."
+          }
+          JSON
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laneriq-anti-scam-l4-deadman-deployment-evidence
+          path: projects/laneriq-anti-scam/release/evidence/l4-deadman-deploy.json
+          if-no-files-found: error
