@@ -1,9 +1,8 @@
 import { requireControlTowerApi } from "../../../../../lib/control-tower-api.js";
-import { appendControlTowerAudit } from "../../../../../lib/control-tower-audit.js";
 import { controlTowerJson } from "../../../../../lib/control-tower-http.js";
 import { validateControlTowerEvidenceInput } from "../../../../../lib/control-tower-evidence.js";
 import { getControlTowerPrivilegedClient } from "../../../../../lib/control-tower-privileged.js";
-import { isControlTowerStorageMissing } from "../../../../../lib/control-tower-validation.js";
+import { isControlTowerStorageMissing, isControlTowerUuid } from "../../../../../lib/control-tower-validation.js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -15,8 +14,8 @@ export async function GET(request) {
     const auth = await requireControlTowerApi(request);
     if (!auth.ok) return auth.response;
 
-    const releaseId = request.nextUrl.searchParams.get("releaseId")?.trim();
-    if (!releaseId) return controlTowerJson({ error: "releaseId is required." }, 400);
+    const releaseId = request.nextUrl.searchParams.get("releaseId")?.trim().toLowerCase() || "";
+    if (!isControlTowerUuid(releaseId)) return controlTowerJson({ error: "A valid releaseId is required." }, 400);
 
     const { data, error } = await auth.supabase
       .from("control_tower_items")
@@ -86,42 +85,30 @@ export async function POST(request) {
       privileged = getControlTowerPrivilegedClient();
     } catch (error) {
       if (error?.code === "CONTROL_TOWER_PRIVILEGED_RUNTIME_MISSING") {
-        return controlTowerJson({ error: "Privileged Control Tower runtime is not configured for sealed evidence writes.", code: error.code }, 503);
+        return controlTowerJson({ error: "Privileged Control Tower runtime is not configured for atomic evidence writes.", code: error.code }, 503);
       }
       throw error;
     }
 
-    const { data, error } = await privileged
-      .from("control_tower_items")
-      .insert(validation.value)
-      .select(EVIDENCE_SELECT)
-      .single();
+    const { data, error } = await privileged.rpc("register_control_tower_evidence_server", {
+      p_release_id: validation.value.release_id,
+      p_title: validation.value.title,
+      p_description: validation.value.description,
+      p_external_ref: validation.value.external_ref,
+      p_metadata: validation.value.metadata,
+      p_actor_user_id: auth.user.id,
+      p_actor_role: auth.role,
+    });
 
     if (error) {
-      if (isControlTowerStorageMissing(error)) return controlTowerJson({ error: "Control Tower storage migration is not active in this environment." }, 503);
+      if (isControlTowerStorageMissing(error) || error.code === "42883") {
+        return controlTowerJson({ error: "Atomic evidence migration is not active in this environment." }, 503);
+      }
       if (error.code === "23505") return controlTowerJson({ error: "This exact evidence snapshot is already registered.", code: "DUPLICATE_EVIDENCE" }, 409);
+      if (error.code === "42501") return controlTowerJson({ error: "Server evidence authority denied." }, 503);
+      if (["23503", "23514", "55000"].includes(error.code)) return controlTowerJson({ error: error.message || "Evidence contract rejected." }, 409);
       throw error;
     }
-
-    await appendControlTowerAudit(auth.supabase, {
-      action: "evidence_registered",
-      entityType: "evidence",
-      entityId: data.id,
-      afterState: {
-        id: data.id,
-        release_id: data.release_id,
-        title: data.title,
-        external_ref: data.external_ref,
-        fingerprint: data.metadata?.fingerprint || null,
-        kind: data.metadata?.kind || null,
-      },
-      metadata: {
-        actor_role: auth.role,
-        release_stage: release.stage,
-        release_version: release.release_version,
-        privileged_write: true,
-      },
-    });
 
     return controlTowerJson({ evidence: data }, 201);
   } catch {
