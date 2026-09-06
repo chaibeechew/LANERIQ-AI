@@ -1,8 +1,7 @@
 import {NextResponse} from "next/server";
 import {createClient} from "../../../../lib/supabase/server.js";
 import {POST as generateGame} from "../../game/generate/route.js";
-import {normalizeAvatarSelections} from "../../../../lib/game/super-game-composer-v1.js";
-import {buildSuperGameFusionRequestV2} from "../../../../lib/game/super-game-fusion-v2.js";
+import {buildSuperGameFusionRequestV2,normalizeSuperGameAvatarSelections} from "../../../../lib/game/super-game-fusion-v2.js";
 
 const MAX_REQUEST_BYTES=48*1024;
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -19,7 +18,7 @@ export async function POST(request){
     const worldId=clean(body.worldId,80);if(!UUID.test(worldId))return json({success:false,error:"Choose a saved AI Map world first."},400);
     const{data:world,error:worldError}=await supabase.from("game_worlds").select("id,user_id,name,manifest").eq("id",worldId).eq("user_id",user.id).maybeSingle();if(worldError)throw worldError;if(!world)return json({success:false,error:"The selected AI Map is unavailable or not owned by this account."},404);
 
-    const selections=normalizeAvatarSelections(body.avatarSelections);
+    const selections=normalizeSuperGameAvatarSelections(body.avatarSelections);
     if(selections.length){const ids=selections.map(item=>item.assetId);const{data:assets,error:assetError}=await supabase.from("asset_library").select("id,intelligence,file_name,alt_text").eq("user_id",user.id).in("id",ids);if(assetError)throw assetError;const owned=new Set((assets||[]).map(item=>item.id));if(owned.size!==ids.length)return json({success:false,error:"One or more selected Avatar assets are unavailable or not owned by this account."},403);}
 
     const forgeIds=uniqueIds(body.forgeBlueprintIds,20);let forgeBlueprints=[];
