@@ -1,7 +1,7 @@
 package ai.laneriq.antiscam;
 
 public final class AppRiskVerdict {
-    /** MALICIOUS is reserved for the future verified signed-evidence adapter. */
+    /** MALICIOUS is reserved for verified signed evidence bound to the selected file hash. */
     public enum Verdict { MALICIOUS, HIGH_RISK, REVIEW, NO_HIGH_RISK_SIGNAL }
 
     public static final class Evidence {
@@ -22,8 +22,7 @@ public final class AppRiskVerdict {
 
         /**
          * Compatibility constructor for the earlier test/UI call shape.
-         * The first three booleans intentionally have zero authority and are
-         * ignored. They cannot manufacture a MALICIOUS verdict.
+         * The first three booleans intentionally have zero authority and are ignored.
          */
         @Deprecated
         public Evidence(boolean ignoredKnownMaliciousReputation,
@@ -42,25 +41,27 @@ public final class AppRiskVerdict {
         public final int riskScore;
         public final String reason;
         public final boolean malwareEvidencePresent;
+        public final String evidenceId;
 
-        Result(Verdict verdict, int riskScore, String reason, boolean malwareEvidencePresent) {
+        Result(Verdict verdict,
+               int riskScore,
+               String reason,
+               boolean malwareEvidencePresent,
+               String evidenceId) {
             this.verdict = verdict;
             this.riskScore = riskScore;
             this.reason = reason;
             this.malwareEvidencePresent = malwareEvidencePresent;
+            this.evidenceId = evidenceId == null ? "" : evidenceId;
         }
     }
 
     private AppRiskVerdict() {}
 
-    /**
-     * Current Android local evidence can produce risk/review outcomes only.
-     * It may never manufacture MALICIOUS from metadata, permissions or a boolean flag.
-     * The future signed-evidence adapter must be a separate verified path.
-     */
+    /** Local metadata produces risk/review outcomes only. */
     public static Result evaluate(Evidence evidence) {
         if (evidence == null) {
-            return new Result(Verdict.REVIEW, 50, "missing app evidence", false);
+            return new Result(Verdict.REVIEW, 50, "missing app evidence", false, "");
         }
 
         int score = 0;
@@ -73,13 +74,44 @@ public final class AppRiskVerdict {
 
         if (score >= 55) {
             return new Result(Verdict.HIGH_RISK, score,
-                    "multiple app risk signals require immediate review; not a malware or virus verdict", false);
+                    "multiple app risk signals require immediate review; not a malware or virus verdict", false, "");
         }
         if (score >= 20) {
             return new Result(Verdict.REVIEW, score,
-                    "one or more app risk signals require review; not a malware or virus verdict", false);
+                    "one or more app risk signals require review; not a malware or virus verdict", false, "");
         }
         return new Result(Verdict.NO_HIGH_RISK_SIGNAL, score,
-                "no high-risk signal found in available local evidence; not proof the app is clean", false);
+                "no high-risk signal found in available local evidence; not proof the app is clean", false, "");
+    }
+
+    /**
+     * Strong malware verdict path. The verified evidence must be a FILE_SHA256
+     * KNOWN_MALICIOUS token and must bind to the exact SHA-256 of the selected file.
+     */
+    public static Result evaluateWithVerifiedMalwareEvidence(
+            Evidence localEvidence,
+            String selectedFileSha256,
+            SignedThreatReputationEvidence.VerifiedEvidence verifiedEvidence) {
+        if (verifiedEvidence == null) return evaluate(localEvidence);
+        String fileHash;
+        try {
+            fileHash = ThreatIndicator.canonicalFileHash(selectedFileSha256);
+        } catch (Exception ignored) {
+            return evaluate(localEvidence);
+        }
+
+        boolean boundMalwareEvidence =
+                verifiedEvidence.indicatorType == SignedThreatReputationEvidence.IndicatorType.FILE_SHA256
+                && verifiedEvidence.verdict == LocalThreatReputationStore.Verdict.KNOWN_MALICIOUS
+                && fileHash.equals(verifiedEvidence.indicatorHash);
+
+        if (!boundMalwareEvidence) return evaluate(localEvidence);
+
+        return new Result(
+                Verdict.MALICIOUS,
+                100,
+                "trusted signed malware evidence matched the exact selected file hash",
+                true,
+                verifiedEvidence.evidenceId);
     }
 }
