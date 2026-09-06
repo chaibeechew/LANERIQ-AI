@@ -1,0 +1,29 @@
+name: LANERIQ Commercial Payment Closure
+
+on:
+  pull_request:
+    paths:
+      - "app/api/commerce/**"
+      - "app/billing/**"
+      - "config/commercial-offers.js"
+      - "lib/commerce/**"
+      - "supabase/migrations/*platform_commerce_payment_closure.sql"
+      - "scripts/commercial-payment-closure-contract-tests.mjs"
+      - ".github/workflows/commercial-payment-closure.yml"
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  commercial-payment-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify commercial payment closure contracts
+        run: node scripts/commercial-payment-closure-contract-tests.mjs
