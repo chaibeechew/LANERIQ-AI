@@ -16,6 +16,7 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
   const reputationStore = read('android/app/src/main/java/ai/laneriq/antiscam/LocalThreatReputationStore.java');
   const feedKeys = read('android/app/src/main/java/ai/laneriq/antiscam/TrustedThreatFeedKeys.java');
   const malwareBroker = read('cloud/lib/malware-defense-broker.mjs');
+  const deepScan = read('cloud/lib/selected-file-scan-handler.mjs');
   const heartbeatHandler = read('cloud/lib/guardian-heartbeat-handler.mjs');
   const deadmanSql = read('cloud/sql/001_guardian_deadman.sql');
   const prTruth = read('release/STORE_READINESS_2026.md');
@@ -59,10 +60,15 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
       && !/acceptAny|trustAll|allowAll/i.test(feedKeys)
       && /pinnedKeys\.get\(payload\.sourceId\)/.test(signedReputation)
       && /publicKeyBase64 == null/.test(signedReputation),
-    l2SharedMalwareBrokerHashBound: /HASH_BOUND_SIGNED_PROVIDER_MALICIOUS/.test(malwareBroker)
+    l2SharedMalwareBrokerHashBound: /MULTI_ENGINE_HASH_VERIFIED_SIGNED_MALICIOUS/.test(malwareBroker)
+      && /SINGLE_SIGNED_PROVIDER_MALICIOUS_REQUIRES_CONFIRMATION/.test(malwareBroker)
       && /RAW_SAMPLE_UPLOAD_NOT_AUTHORIZED/.test(malwareBroker)
       && /INVALID_MALWARE_RECEIPT_SIGNATURE/.test(malwareBroker)
       && /receipt\.sha256/.test(malwareBroker),
+    l2DeepScanConsentAndAttestation: /SCAN_CONSENT_NOT_HASH_BOUND/.test(deepScan)
+      && /SCAN_CONSENT_STALE_OR_INVALID/.test(deepScan)
+      && /SCAN_APP_ATTESTATION_REJECTED/.test(deepScan)
+      && /SCAN_HASH_MISMATCH/.test(deepScan),
 
     l3RealDeviceHarnessPresent: exists('release/device-tests/android-guardian-matrix.sh')
       && exists('release/l3-device-evidence.mjs'),
