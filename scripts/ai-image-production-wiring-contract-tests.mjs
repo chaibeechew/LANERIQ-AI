@@ -31,6 +31,14 @@ assert.match(hardened,/createHmac\('sha256'/);
 assert.match(hardened,/providerSelfReported:false/);
 assert.match(hardened,/IMAGE_OBSERVER_CAPTURE_HASH_MISMATCH/);
 assert.match(hardened,/REAL_OUTPUT_QUALITY_VERIFIED/);
+const captureStart=hardened.indexOf('async function captureHttpsImage');
+const captureBody=hardened.indexOf('await response.arrayBuffer()',captureStart);
+const captureTimeoutDone=hardened.indexOf('timeout.done()',captureStart);
+assert.ok(captureStart>=0&&captureBody>captureStart&&captureTimeoutDone>captureBody,'Provider byte-capture timeout must remain active until the response body has been fully read.');
+const observerStart=hardened.indexOf('async function observeImageCandidate');
+const observerBody=hardened.indexOf('raw=await response.text()',observerStart);
+const observerTimeoutDone=hardened.indexOf('timeout.done()',observerStart);
+assert.ok(observerStart>=0&&observerBody>observerStart&&observerTimeoutDone>observerBody,'Observer timeout must remain active until the signed evidence response body has been fully read.');
 
 const providers=buildImageHardenedProviderCandidates({
   generation:{provider:'image-provider',connected:true,configured:true,costClass:'zero',capabilities:['text-to-image']},
