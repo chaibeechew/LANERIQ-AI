@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-const ITEM_TYPES = ["epic","feature","task","pr","dependency","risk","decision","deprecation","evidence"];
+const ITEM_TYPES = ["epic","feature","task","pr","dependency","risk","decision","deprecation"];
 const PRIORITIES = ["p0","p1","p2","p3"];
 const GATE_STATES = ["pending","pass","fail","waived"];
 
@@ -120,6 +120,7 @@ export default function GovernanceBoard() {
       <div className="ctColumns">
         <div className="ctPanel">
           <h4>Register governance item</h4>
+          <p className="ctHint">Immutable evidence is sealed in the Integrity & Technical Ceiling surface.</p>
           <form onSubmit={createItem} className="ctForm">
             <div className="ctRow">
               <select value={itemForm.itemType} onChange={(e) => setItemForm({ ...itemForm, itemType: e.target.value })}>{ITEM_TYPES.map((type) => <option key={type}>{type}</option>)}</select>
@@ -143,7 +144,7 @@ export default function GovernanceBoard() {
               <select value={gateForm.state} onChange={(e) => setGateForm({ ...gateForm, state: e.target.value })}>{GATE_STATES.map((state) => <option key={state}>{state}</option>)}</select>
             </div>
             <input placeholder="Gate label" value={gateForm.label} onChange={(e) => setGateForm({ ...gateForm, label: e.target.value })} required />
-            <textarea placeholder="Evidence / blocking detail" value={gateForm.detail} onChange={(e) => setGateForm({ ...gateForm, detail: e.target.value })} />
+            <textarea placeholder={gateForm.state === "waived" ? "Waiver reason (required)" : "Evidence / blocking detail"} value={gateForm.detail} onChange={(e) => setGateForm({ ...gateForm, detail: e.target.value })} required={gateForm.state === "waived"} />
             <label className="ctCheck"><input type="checkbox" checked={gateForm.required} onChange={(e) => setGateForm({ ...gateForm, required: e.target.checked })} /> Required gate</label>
             <button disabled={busy || !releaseId}>Save gate</button>
           </form>
@@ -155,7 +156,7 @@ export default function GovernanceBoard() {
       </div>
 
       <style>{`
-        .ctGovernance{margin-top:28px;border:1px solid #ffffff14;background:#081319d9;border-radius:24px;padding:20px}.ctGovernanceHead{display:flex;align-items:end;justify-content:space-between;gap:14px}.ctGovernanceHead small{color:#91b8c9;font-size:10px;letter-spacing:.16em;font-weight:900}.ctGovernanceHead h3{margin:5px 0 0;font-size:24px}.ctGovernance select,.ctGovernance input,.ctGovernance textarea{width:100%;box-sizing:border-box;border:1px solid #ffffff18;background:#061015;color:#eef9ff;border-radius:11px;padding:10px 11px;font:inherit}.ctGovernanceHead select{width:min(300px,100%)}.ctMetrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-top:16px}.ctMetrics article{border:1px solid #ffffff12;background:#0b171d;border-radius:14px;padding:12px}.ctMetrics b{display:block;font-size:24px}.ctMetrics span{font-size:10px;color:#8ea4ae}.ctColumns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.ctPanel{border:1px solid #ffffff12;background:#0a151b;border-radius:18px;padding:16px}.ctPanel h4{margin:0 0 12px}.ctForm{display:grid;gap:8px}.ctRow{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ctForm textarea{min-height:88px;resize:vertical}.ctForm button{border:0;border-radius:11px;padding:10px 12px;font-weight:900;background:#b8deef;color:#071015}.ctCheck{font-size:11px;color:#b6c7cf;display:flex;align-items:center;gap:8px}.ctCheck input{width:auto}.ctList{display:grid;gap:8px;margin-top:14px}.ctList article{border:1px solid #ffffff10;background:#061015;border-radius:12px;padding:10px}.ctList article div{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px}.ctList article span,.ctList article small{font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:#8198a3}.ctList article b{display:block;font-size:12px}.ctList p{font-size:11px;color:#748995}.ctNotice,.ctError{margin-top:12px;padding:10px 12px;border-radius:11px;font-size:11px}.ctNotice{background:#3b3517;color:#f2dfa2}.ctError{background:#4b2020;color:#ffd4d0}@media(max-width:900px){.ctMetrics{grid-template-columns:repeat(3,1fr)}.ctColumns{grid-template-columns:1fr}}@media(max-width:560px){.ctGovernanceHead{display:grid;align-items:start}.ctGovernanceHead select{width:100%}.ctMetrics{grid-template-columns:repeat(2,1fr)}.ctRow{grid-template-columns:1fr}}
+        .ctGovernance{margin-top:28px;border:1px solid #ffffff14;background:#081319d9;border-radius:24px;padding:20px}.ctGovernanceHead{display:flex;align-items:end;justify-content:space-between;gap:14px}.ctGovernanceHead small{color:#91b8c9;font-size:10px;letter-spacing:.16em;font-weight:900}.ctGovernanceHead h3{margin:5px 0 0;font-size:24px}.ctGovernance select,.ctGovernance input,.ctGovernance textarea{width:100%;box-sizing:border-box;border:1px solid #ffffff18;background:#061015;color:#eef9ff;border-radius:11px;padding:10px 11px;font:inherit}.ctGovernanceHead select{width:min(300px,100%)}.ctMetrics{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;margin-top:16px}.ctMetrics article{border:1px solid #ffffff12;background:#0b171d;border-radius:14px;padding:12px}.ctMetrics b{display:block;font-size:24px}.ctMetrics span{font-size:10px;color:#8ea4ae}.ctColumns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}.ctPanel{border:1px solid #ffffff12;background:#0a151b;border-radius:18px;padding:16px}.ctPanel h4{margin:0 0 8px}.ctHint{margin:0 0 12px;color:#8198a3;font-size:10px;line-height:1.5}.ctForm{display:grid;gap:8px}.ctRow{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ctForm textarea{min-height:88px;resize:vertical}.ctForm button{border:0;border-radius:11px;padding:10px 12px;font-weight:900;background:#b8deef;color:#071015}.ctCheck{font-size:11px;color:#b6c7cf;display:flex;align-items:center;gap:8px}.ctCheck input{width:auto}.ctList{display:grid;gap:8px;margin-top:14px}.ctList article{border:1px solid #ffffff10;background:#061015;border-radius:12px;padding:10px}.ctList article div{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px}.ctList article span,.ctList article small{font-size:9px;text-transform:uppercase;letter-spacing:.09em;color:#8198a3}.ctList article b{display:block;font-size:12px}.ctList p{font-size:11px;color:#748995}.ctNotice,.ctError{margin-top:12px;padding:10px 12px;border-radius:11px;font-size:11px}.ctNotice{background:#3b3517;color:#f2dfa2}.ctError{background:#4b2020;color:#ffd4d0}@media(max-width:900px){.ctMetrics{grid-template-columns:repeat(3,1fr)}.ctColumns{grid-template-columns:1fr}}@media(max-width:560px){.ctGovernanceHead{display:grid;align-items:start}.ctGovernanceHead select{width:100%}.ctMetrics{grid-template-columns:repeat(2,1fr)}.ctRow{grid-template-columns:1fr}}
       `}</style>
     </section>
   );
