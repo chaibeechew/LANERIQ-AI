@@ -59,6 +59,15 @@ requireMatch(css,/overflow-x:hidden/,"Canonical UI must guard horizontal overflo
 forbid(css,/\.liuiContextIntelligence\s+\.liuiContextGroup[\s\S]{0,120}display\s*:\s*none/i,"Core stylesheet must never hide the current workspace context group globally");
 forbid(css,/data-canonical-core-ui=\"create\"[^}]*\.createHeader/i,"Deleted Create route-local header must not return as a CSS suppression dependency");
 requireMatch(contextCss,/\.liuiContextGroup\{[^}]*color:/,"Workspace context group must have an active presentation rule");
+
+/* Real-device Auth regression locks from iPhone review. */
+forbid(css,/\.authEnvelope[^}]{0,220}margin(?:-top)?\s*:\s*-\d/i,"Canonical Auth envelope must never use negative vertical margin that can overlap Secure Verification");
+requireMatch(css,/\.canonicalHeaderActions a::before,[\s\S]{0,160}\.canonicalHeaderActions a::after[\s\S]{0,160}content:none!important/,"Canonical header actions must suppress inherited pseudo-rings and keep one visible border source");
+requireMatch(css,/data-canonical-core-ui=\"auth\"[^}]*\.authCard \.cardTop>small\{[\s\S]{0,240}white-space:nowrap/,"Auth card label must reserve its own non-overlapping row");
+requireMatch(css,/@media\(max-width:520px\)[\s\S]*?data-canonical-core-ui=\"auth\"[^}]*\.authPage\{background-attachment:scroll!important\}/,"iPhone Auth must avoid fixed-background viewport cropping");
+requireMatch(css,/@media\(max-width:520px\)[\s\S]*?\.authEnvelope\{[\s\S]{0,180}margin:6px auto 8px!important/,"iPhone Auth envelope must stay in normal flow with compact positive spacing");
+requireMatch(css,/\.authCard \.notice,[\s\S]{0,320}border:0!important/,"Auth readiness notice must be explicitly scoped so global pill styles cannot distort the card");
+
 requireMatch(authCss,/@media\(max-width:480px\)/,"Auth must retain the canonical mobile breakpoint contract");
 requireMatch(authCss,/font-size:16px/,"Auth inputs must remain mobile-legible");
 requireMatch(authCss,/touch-action:manipulation/,"Auth actions must remain touch-optimized");
