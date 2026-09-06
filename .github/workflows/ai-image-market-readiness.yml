@@ -16,12 +16,15 @@ on:
       - "scripts/ai-image-production-wiring-contract-tests.mjs"
       - "scripts/ai-image-live-evidence-contract-tests.mjs"
       - "scripts/ai-image-evidence-bundle-contract-tests.mjs"
+      - "scripts/ai-image-production-release-contract-tests.mjs"
       - "scripts/image-market-evidence-bundle.mjs"
       - "scripts/image-market-release-gate.mjs"
+      - "scripts/image-market-production-verify.mjs"
       - "scripts/image-studio-contract-tests.mjs"
       - "scripts/creative-media-six-layer-contract-tests.mjs"
       - "docs/AI-IMAGE-MARKET-SALES-GATE.md"
       - ".github/workflows/ai-image-market-readiness.yml"
+      - ".github/workflows/ai-image-production-release-verify.yml"
   push:
     branches: [main]
     paths:
@@ -37,12 +40,15 @@ on:
       - "scripts/ai-image-production-wiring-contract-tests.mjs"
       - "scripts/ai-image-live-evidence-contract-tests.mjs"
       - "scripts/ai-image-evidence-bundle-contract-tests.mjs"
+      - "scripts/ai-image-production-release-contract-tests.mjs"
       - "scripts/image-market-evidence-bundle.mjs"
       - "scripts/image-market-release-gate.mjs"
+      - "scripts/image-market-production-verify.mjs"
       - "scripts/image-studio-contract-tests.mjs"
       - "scripts/creative-media-six-layer-contract-tests.mjs"
       - "docs/AI-IMAGE-MARKET-SALES-GATE.md"
       - ".github/workflows/ai-image-market-readiness.yml"
+      - ".github/workflows/ai-image-production-release-verify.yml"
 
 permissions:
   contents: read
@@ -64,6 +70,8 @@ jobs:
         run: node scripts/ai-image-live-evidence-contract-tests.mjs
       - name: Verify raw output and reliability evidence aggregation
         run: node scripts/ai-image-evidence-bundle-contract-tests.mjs
+      - name: Verify external Production release verifier
+        run: node scripts/ai-image-production-release-contract-tests.mjs
       - name: Verify Production runtime hardened wiring
         run: node scripts/ai-image-production-wiring-contract-tests.mjs
       - name: Verify Creative Media Image 5-layer contracts
