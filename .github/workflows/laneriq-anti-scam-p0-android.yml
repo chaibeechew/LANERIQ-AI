@@ -49,14 +49,35 @@ jobs:
           grep -q "targetSdk 36" projects/laneriq-anti-scam/android/app/build.gradle
           grep -q "applicationId 'ai.laneriq.antiscam'" projects/laneriq-anti-scam/android/app/build.gradle
           grep -q "applicationIdSuffix '.test'" projects/laneriq-anti-scam/android/app/build.gradle
+          grep -q "buildConfig true" projects/laneriq-anti-scam/android/app/build.gradle
+          grep -q "buildConfigField 'String', 'INTERNAL_TEST_THREAT_KEY_X509_B64', '\"\"'" projects/laneriq-anti-scam/android/app/build.gradle
       - name: Run Guardian unit tests
         run: gradle -p projects/laneriq-anti-scam/android testDebugUnitTest --stacktrace
       - name: Run Android lint truth gate
         run: gradle -p projects/laneriq-anti-scam/android lintDebug lintRelease --stacktrace
       - name: Build test APK
         run: gradle -p projects/laneriq-anti-scam/android assembleDebug --stacktrace
-      - name: Build release AAB structure
-        run: gradle -p projects/laneriq-anti-scam/android bundleRelease --stacktrace
+      - name: Build unsigned release APK and AAB structure
+        run: gradle -p projects/laneriq-anti-scam/android assembleRelease bundleRelease --stacktrace
+      - name: Verify debug-only Web Shield test surface is absent from release
+        run: |
+          DEBUG_APK=$(find projects/laneriq-anti-scam/android/app/build/outputs/apk/debug -name '*.apk' -type f | head -n1)
+          RELEASE_APK=$(find projects/laneriq-anti-scam/android/app/build/outputs/apk/release -name '*.apk' -type f | head -n1)
+          test -n "$DEBUG_APK"
+          test -n "$RELEASE_APK"
+          apkanalyzer manifest print "$DEBUG_APK" > /tmp/anti-scam-debug-manifest.xml
+          apkanalyzer manifest print "$RELEASE_APK" > /tmp/anti-scam-release-manifest.xml
+          grep -q 'InternalWebShieldTestActivity' /tmp/anti-scam-debug-manifest.xml
+          grep -q 'InternalWebShieldTestReceiver' /tmp/anti-scam-debug-manifest.xml
+          ! grep -q 'InternalWebShieldTestActivity' /tmp/anti-scam-release-manifest.xml
+          ! grep -q 'InternalWebShieldTestReceiver' /tmp/anti-scam-release-manifest.xml
+          grep -q 'android.permission.ACCESS_NETWORK_STATE' /tmp/anti-scam-release-manifest.xml
+          grep -q 'android.permission.BIND_VPN_SERVICE' /tmp/anti-scam-release-manifest.xml
+      - name: Verify release BuildConfig has no internal threat test trust root
+        run: |
+          RELEASE_BUILDCONFIG=$(find projects/laneriq-anti-scam/android/app/build/generated -path '*/release/*/ai/laneriq/antiscam/BuildConfig.java' -type f | head -n1)
+          test -n "$RELEASE_BUILDCONFIG"
+          grep -q 'INTERNAL_TEST_THREAT_KEY_X509_B64 = ""' "$RELEASE_BUILDCONFIG"
       - name: Verify artifacts exist
         run: |
           test -f projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk
@@ -84,8 +105,10 @@ jobs:
           node-version: '22'
       - name: Run P0-P6 Security Fabric and release contract tests
         run: node --test projects/laneriq-anti-scam/fabric/test/*.test.mjs projects/laneriq-anti-scam/release/test/*.test.mjs
-      - name: Validate L3 real-device harness syntax
-        run: bash -n projects/laneriq-anti-scam/release/device-tests/android-guardian-matrix.sh
+      - name: Validate L1 and L3 real-device harness syntax
+        run: |
+          bash -n projects/laneriq-anti-scam/release/device-tests/android-webshield-l1.sh
+          bash -n projects/laneriq-anti-scam/release/device-tests/android-guardian-matrix.sh
       - name: Validate L4 Cloud Dead-Man storage privacy and anti-replay contract
         run: |
           SQL=projects/laneriq-anti-scam/cloud/sql/001_guardian_deadman.sql
