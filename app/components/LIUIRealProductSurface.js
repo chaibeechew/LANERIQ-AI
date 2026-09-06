@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo } from "react";
+import LaneriqLotusBrand from "./LaneriqLotusBrand";
 
 // Route-aware presentation only. These names never replace the underlying generation,
-// project, workflow, database, quality or publish engines.
+// project, workflow, database, quality, account, billing or publish engines.
 const SURFACES = [
   [/^\/$/, "creation"],
   [/^\/create\/?$/, "creation"],
@@ -24,7 +25,12 @@ const SURFACES = [
   [/^\/avatar-studio\/?$/, "media"],
   [/^\/brand-kit\/?$/, "brand"],
   [/^\/asset-library\/?$/, "assets"],
+  [/^\/community-chat\/?$/, "community"],
+  [/^\/credits\/?$/, "credits"],
+  [/^\/domains\/?$/, "domains"],
   [/^\/account\/device-compute\/?$/, "account"],
+  [/^\/account\/security\/?$/, "account"],
+  [/^\/account\/cloud\/?$/, "account"],
   [/^\/editor\//, "editor"],
   [/^\/database\//, "database"],
   [/^\/operations\//, "quality"],
@@ -35,9 +41,9 @@ const SURFACES = [
 const NAV = [
   { label: "Home", href: "/", icon: "⌂" },
   { label: "Projects", href: "/my-apps", icon: "▣" },
-  { label: "Create", href: "/create", icon: "✦" },
+  { label: "Create", href: "/create", icon: "+" },
   { label: "Templates", href: "/templates", icon: "▦" },
-  { label: "More", href: "/studio", icon: "≡" },
+  { label: "More", href: "/studio", icon: "•••" },
 ];
 
 const PROJECT_RAIL = [
@@ -45,7 +51,7 @@ const PROJECT_RAIL = [
   { label:"Projects", href:"/my-apps", icon:"▣" },
   { label:"Templates", href:"/templates", icon:"▦" },
   { label:"Automation", href:"/studio", icon:"⌘" },
-  { label:"AI Assistant", href:"/soolen-ai", icon:"✺" },
+  { label:"AI Assistant", href:"/soolen-ai", icon:"◎" },
   { label:"More", href:"/studio", icon:"⚙" },
 ];
 
@@ -89,7 +95,11 @@ function selectedLabel(pathname){
     pathname === "/studio" || pathname === "/studio/" || pathname === "/soolen-ai" || pathname === "/soolen-ai/" ||
     pathname === "/image-studio" || pathname === "/image-studio/" || pathname === "/video-studio" || pathname === "/video-studio/" ||
     pathname === "/avatar-studio" || pathname === "/avatar-studio/" || pathname === "/brand-kit" || pathname === "/brand-kit/" ||
-    pathname === "/asset-library" || pathname === "/asset-library/" || pathname === "/account/device-compute" || pathname === "/account/device-compute/"
+    pathname === "/asset-library" || pathname === "/asset-library/" || pathname === "/community-chat" || pathname === "/community-chat/" ||
+    pathname === "/credits" || pathname === "/credits/" || pathname === "/domains" || pathname === "/domains/" ||
+    pathname === "/account/device-compute" || pathname === "/account/device-compute/" ||
+    pathname === "/account/security" || pathname === "/account/security/" ||
+    pathname === "/account/cloud" || pathname === "/account/cloud/"
   ) return "More";
   if(
     pathname === "/my-apps" || pathname === "/my-apps/" ||
@@ -133,11 +143,11 @@ function ReferenceChrome({pageId,surface}){
   if(!projectSurface)return null;
   return <>
     <header className="liuiReferenceHeader" aria-label="LANERIQ AI workspace header">
-      <Link href="/" className="liuiReferenceBrand"><span className="liuiReferenceMark" aria-hidden="true">✦</span><span><b>LANERIQ AI</b><small>AI APP &amp; WEB CREATOR</small></span></Link>
+      <Link href="/" className="liuiReferenceBrand" aria-label="LANERIQ AI home"><LaneriqLotusBrand compact /></Link>
       <Link href="/studio" className="liuiReferenceProfile"><span className="liuiReferenceAvatar" aria-hidden="true">◉</span><span><b>Profile</b><small>LANERIQ User</small></span><span aria-hidden="true">⌄</span></Link>
     </header>
     <aside className="liuiReferenceRail" aria-label="LANERIQ AI workspace navigation">
-      <Link href="/" className="liuiRailLogo" aria-label="LANERIQ AI home">✦</Link>
+      <Link href="/" className="liuiRailLogo" aria-label="LANERIQ AI home"><LaneriqLotusBrand iconOnly /></Link>
       {PROJECT_RAIL.map(item=><Link key={item.label} href={item.href}><span aria-hidden="true">{item.icon}</span><small>{item.label}</small></Link>)}
     </aside>
     {showCreationTrack&&<div className="liuiCreationStage" aria-label={`Creation stage ${CREATION_STAGES[stageIndex]}`}>
@@ -160,7 +170,7 @@ export default function LIUIRealProductSurface(){
     if(surface) document.body.dataset.liuiSurface=surface;
     else delete document.body.dataset.liuiSurface;
     if(pageId)document.body.dataset.liuiPage=String(pageId);else delete document.body.dataset.liuiPage;
-    document.documentElement.dataset.liuiRealProduct="2026.3-reference";
+    document.documentElement.dataset.liuiRealProduct="2026.3-lotus";
     return()=>{
       if(document.body.dataset.liuiSurface===surface) delete document.body.dataset.liuiSurface;
       if(document.body.dataset.liuiPage===String(pageId)) delete document.body.dataset.liuiPage;
