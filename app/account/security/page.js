@@ -120,7 +120,7 @@ export default function AccountSecurityPage() {
         <button className="back" onClick={() => router.push("/my-apps")}>← My Projects</button>
         <div className="eyebrow">ACCOUNT · SECURITY · EMAIL</div>
         <h1>{phaseTitle}</h1>
-        <p className="lead">Manage your verified email with LANERIQ AI’s existing two-step Email Code flow. No SMS fallback is introduced.</p>
+        <p className="lead">Manage your verified email with LANERIQ AI’s existing two-step Email Code flow. SMS is not used as a fallback.</p>
       </header>
 
       <div className="trustRow" aria-label="Security principles">
