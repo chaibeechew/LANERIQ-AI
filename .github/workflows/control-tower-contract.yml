@@ -8,10 +8,8 @@ on:
       - "lib/admin-access.js"
       - "lib/control-tower-*.js"
       - "supabase/migrations/*control_tower*.sql"
-      - "scripts/control-tower-contract-tests.mjs"
-      - "scripts/control-tower-resilience-tests.mjs"
-      - "scripts/control-tower-technical-ceiling-tests.mjs"
-      - "scripts/control-tower-attestation-tests.mjs"
+      - "scripts/control-tower-*.mjs"
+      - "docs/ADMIN_CONTROL_TOWER.md"
       - ".github/workflows/control-tower-contract.yml"
   push:
     branches: [main]
@@ -21,10 +19,8 @@ on:
       - "lib/admin-access.js"
       - "lib/control-tower-*.js"
       - "supabase/migrations/*control_tower*.sql"
-      - "scripts/control-tower-contract-tests.mjs"
-      - "scripts/control-tower-resilience-tests.mjs"
-      - "scripts/control-tower-technical-ceiling-tests.mjs"
-      - "scripts/control-tower-attestation-tests.mjs"
+      - "scripts/control-tower-*.mjs"
+      - "docs/ADMIN_CONTROL_TOWER.md"
       - ".github/workflows/control-tower-contract.yml"
 
 permissions:
@@ -37,12 +33,47 @@ concurrency:
 jobs:
   control-tower-contract:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 24
+
+      - name: Verify parallel-development isolation
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_sha="${{ github.event.pull_request.base.sha }}"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+          git diff --name-only "$base_sha...$head_sha" > /tmp/control-tower-changed-files.txt
+          violation=0
+          while IFS= read -r file; do
+            case "$file" in
+              app/admin/control-tower/*|app/api/admin/control-tower/*|lib/admin-access.js|lib/control-tower-*.js|supabase/migrations/*control_tower*.sql|scripts/control-tower-*.mjs|docs/ADMIN_CONTROL_TOWER.md|.github/workflows/control-tower-contract.yml)
+                ;;
+              *)
+                echo "::error file=$file::Control Tower isolation violation: this PR does not own this path."
+                violation=1
+                ;;
+            esac
+          done < /tmp/control-tower-changed-files.txt
+          if [ "$violation" -ne 0 ]; then
+            echo "Control Tower PR must not modify global UI or another workstream."
+            exit 1
+          fi
+          echo "Control Tower isolation allowlist verified."
+
+      - name: Syntax-check Control Tower JavaScript
+        shell: bash
+        run: |
+          set -euo pipefail
+          find lib -maxdepth 1 -type f -name 'control-tower-*.js' -print0 | xargs -0 -r -n1 node --check
+          find app/api/admin/control-tower app/admin/control-tower -type f -name '*.js' -print0 | xargs -0 -r -n1 node --check
+
       - name: Verify Control Tower governance contracts
         run: node scripts/control-tower-contract-tests.mjs
       - name: Verify operational resilience contracts
