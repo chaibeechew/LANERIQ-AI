@@ -51,7 +51,7 @@ const output={images:[
 ]};
 const perImage=[{id:'img-1',sha256:image1},{id:'img-2',sha256:image2}];
 const artifactHash=digest(perImage);
-const signals={promptAdherence:96,composition:94,lighting:93,detail:95,resolution:94};
+const signals={composition:94,detail:95,lighting:93,promptAdherence:96,resolution:94};
 const continuityObservations={};
 const observationHash=digest({requestId,artifactHash,signals,continuityObservations,safetyPassed:true,provenanceVerified:true,outputValidated:true});
 const signature=createHmac('sha256',secret).update(`${requestId}.${artifactHash}.${observationHash}`).digest('hex');
