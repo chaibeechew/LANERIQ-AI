@@ -1,0 +1,47 @@
+name: App Creation Intelligence Round 11
+
+on:
+  pull_request:
+    paths:
+      - 'lib/ai/app-builder-design-intent.js'
+      - 'lib/ai/app-builder-template-intelligence.js'
+      - 'lib/ai/app-builder-page-blueprint.js'
+      - 'lib/ai/app-builder-layout-engine.js'
+      - 'lib/ai/app-builder-component-composer.js'
+      - 'lib/ai/app-builder-product-lifecycle.js'
+      - 'lib/ai/app-builder-platform-contract.js'
+      - 'lib/ai/app-builder-world-class-quality.js'
+      - 'lib/ai/app-builder-release-readiness.js'
+      - 'lib/ai/app-creation-intelligence.js'
+      - 'scripts/app-creation-round11-contract-tests.mjs'
+      - '.github/workflows/app-creation-intelligence-r11.yml'
+      - 'docs/LANERIQ_APP_CREATION_INTELLIGENCE_R11.md'
+  workflow_dispatch:
+
+concurrency:
+  group: app-creation-r11-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  app-creation-r11:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Round 11 world-class app creation contracts
+        run: node scripts/app-creation-round11-contract-tests.mjs
+      - name: Template regression
+        run: npm run test:templates
+      - name: Design Studio regression
+        run: npm run test:design-ui
+      - name: App + Website generation regression
+        run: npm run test:combined-e2e-code
+      - name: Publishing readiness regression
+        run: npm run test:publishing-readiness
+      - name: Store readiness regressions
+        run: npm run test:apple-store && npm run test:google-play
