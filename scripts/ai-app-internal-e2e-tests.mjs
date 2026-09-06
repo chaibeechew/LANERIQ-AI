@@ -35,6 +35,9 @@ for(const pattern of [
   /verifyGeneratedAppExecution/,
   /inspectProjectSpecification/,
   /adult\.generationStatus!=="verified"/,
+  /QUALITY_GATE_RESCUE_ATTEMPTS/,
+  /buildGenerationQualityDiagnostics/,
+  /buildQualityGateRescueInstruction/,
   /persistBuilderGeneratedProject/,
   /saveBuilderGeneratedProjectContext/,
 ]) assert.match(generate,pattern);
@@ -44,13 +47,17 @@ assert.match(builderAdapter,/server_persist_generated_project/);
 assert.match(builderAdapter,/\.from\("project_memory"\)\.upsert/);
 const persistenceInvocation='const persistence=await persistBuilderGeneratedProject';
 assert.ok(generate.indexOf(persistenceInvocation)>0,"Cloud generated-project persistence invocation must exist.");
-assert.ok(generate.indexOf('adult.generationStatus!=="verified"')<generate.indexOf(persistenceInvocation),"Unverified generation must never cross the Cloud persistence boundary.");
-assert.ok(generate.indexOf('const verified=verifyGeneration(adult.result)')<generate.indexOf(persistenceInvocation),"Final deterministic verification must complete before Cloud persistence.");
+assert.ok(generate.indexOf('adult.generationStatus!=="verified"')<generate.indexOf(persistenceInvocation),"Unverified generation must enter the repair/rescue path before the Cloud persistence boundary.");
+const finalVerification='const verified=verifyGeneration(generationResult),finalReview=runCriticChecks(generationResult,adultRequirements)';
+assert.ok(generate.indexOf(finalVerification)>0&&generate.indexOf(finalVerification)<generate.indexOf(persistenceInvocation),"Final deterministic generation + critic verification must complete after any rescue and before Cloud persistence.");
+assert.ok(generate.indexOf('if(!verified.passed||!finalReview.passed)')>generate.indexOf(finalVerification),"Final verification failure must remain fail-closed.");
+assert.ok(generate.indexOf('throw qualityGateError')<generate.indexOf(persistenceInvocation),"Exhausted quality rescue must fail before persistence.");
 assert.match(generate,/function sourceEngineeringEvidence\(adult\)/);
 assert.match(generate,/requiredForGeneration:false/);
 assert.match(generate,/requiredBeforeSourceRelease:true/);
 assert.match(generate,/sandboxVerified:status==="verified"/);
-assert.match(generate,/status:adult\.generationStatus,generationStatus:adult\.generationStatus,overallStatus:adult\.status,sourceEngineering:engineeringEvidence/);
+assert.match(generate,/status:effectiveGenerationStatus,generationStatus:effectiveGenerationStatus,overallStatus:adult\.status,sourceEngineering:engineeringEvidence/);
+assert.match(generate,/qualityGateRescue:\{attempted:rescueAttempts>0,recovered:rescueRecovered,attempts:rescueAttempts,maxAttempts:QUALITY_GATE_RESCUE_ATTEMPTS\}/);
 assert.doesNotMatch(generate,/if\(adult\.status!=="verified"\)/,"Generate must not require a separately connected source-code sandbox before a verified specification can be saved.");
 
 // One stable request identity owns the whole generate/save operation across route → Cloud domain → provider adapter.
@@ -123,7 +130,8 @@ for(const pattern of [
 assert.match(publishPinMigration,/published_version_id=p_expected_version_id/);
 assert.match(publishPinMigration,/published_version_id=null/);
 
-console.log("✓ AI App internal E2E locks Planning → verified specification → LANERIQ Cloud atomic App + Version + current pointer → Preview");
+console.log("✓ AI App internal E2E locks Planning → normal repair/targeted rescue → final deterministic verification → LANERIQ Cloud atomic App + Version + current pointer → Preview");
+console.log("✓ Quality-gate rescue remains bounded, cannot bypass final critic/generation verification, and never persists rejected output");
 console.log("✓ Source sandbox evidence remains explicit and is required before source release, not before specification persistence");
 console.log("✓ Same-request retries recover completed or stale-partial work without creating or charging a duplicate project");
 console.log("✓ Provider admin persistence is isolated behind the Cloud adapter and DB RPC is service-role only");
