@@ -18,11 +18,13 @@ on:
       - 'scripts/cognitive-round5-contract-tests.mjs'
       - 'scripts/cognitive-round6-2046-contract-tests.mjs'
       - 'scripts/cognitive-round7-2526-contract-tests.mjs'
+      - 'scripts/cognitive-round8-human-civilization-law-contract-tests.mjs'
       - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
       - 'docs/LANERIQ_COGNITIVE_OS_FINAL_SIX.md'
       - 'docs/LANERIQ_COGNITIVE_OS_ROUND5_AGENTIC_INTELLIGENCE.md'
       - 'docs/LANERIQ_COGNITIVE_OS_ROUND6_2046_HORIZON.md'
       - 'docs/LANERIQ_COGNITIVE_OS_ROUND7_2526_CIVILIZATION.md'
+      - 'docs/LANERIQ_HUMAN_CIVILIZATION_LAW.md'
       - '.github/workflows/cognitive-os-gate.yml'
   pull_request:
     branches: [main]
@@ -41,11 +43,13 @@ on:
       - 'scripts/cognitive-round5-contract-tests.mjs'
       - 'scripts/cognitive-round6-2046-contract-tests.mjs'
       - 'scripts/cognitive-round7-2526-contract-tests.mjs'
+      - 'scripts/cognitive-round8-human-civilization-law-contract-tests.mjs'
       - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
       - 'docs/LANERIQ_COGNITIVE_OS_FINAL_SIX.md'
       - 'docs/LANERIQ_COGNITIVE_OS_ROUND5_AGENTIC_INTELLIGENCE.md'
       - 'docs/LANERIQ_COGNITIVE_OS_ROUND6_2046_HORIZON.md'
       - 'docs/LANERIQ_COGNITIVE_OS_ROUND7_2526_CIVILIZATION.md'
+      - 'docs/LANERIQ_HUMAN_CIVILIZATION_LAW.md'
       - '.github/workflows/cognitive-os-gate.yml'
 
 permissions:
@@ -80,6 +84,8 @@ jobs:
         run: node scripts/cognitive-round6-2046-contract-tests.mjs
       - name: Round 7 / 2526 civilization continuity, crypto agility, temporal authority and delay-tolerant cognition contracts
         run: node scripts/cognitive-round7-2526-contract-tests.mjs
+      - name: Round 8 / Human Civilization Law and constitutional kernel contracts
+        run: node scripts/cognitive-round8-human-civilization-law-contract-tests.mjs
       - name: Existing App Builder zero-cost admission regression
         run: node scripts/app-builder-zero-cost-admission-contract-tests.mjs
       - name: Existing Image Studio regression
