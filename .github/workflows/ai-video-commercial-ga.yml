@@ -1,0 +1,76 @@
+name: AI Video Commercial GA Five Gate
+
+on:
+  push:
+    branches:
+      - ai-video-commercial-ga-hardening-v1
+    paths:
+      - 'lib/video/commercial-ga-gate.js'
+      - 'lib/video/commercial-ga-evidence-bundle.js'
+      - 'lib/video/commercial-ga-runtime-evidence.js'
+      - 'lib/video/commercial-ga-benchmark-campaign.js'
+      - 'lib/video/commercial-ga-resilience.js'
+      - 'lib/video/commercial-ga-scale-operations.js'
+      - 'lib/video/commercial-ga-final-closure.js'
+      - 'scripts/video-commercial-ga-contract-tests.mjs'
+      - 'scripts/video-commercial-ga-evidence-bundle-tests.mjs'
+      - 'scripts/video-commercial-ga-runtime-evidence-tests.mjs'
+      - 'scripts/video-commercial-ga-resilience-tests.mjs'
+      - 'scripts/video-commercial-ga-scale-operations-tests.mjs'
+      - 'scripts/video-commercial-ga-final-closure-tests.mjs'
+      - '.github/workflows/ai-video-commercial-ga.yml'
+      - 'lib/ai/creative-media-control-plane.js'
+      - 'lib/ai/creative-media-observation-judge.js'
+      - 'lib/ai/creative-media-intelligence-engine.js'
+  pull_request:
+    paths:
+      - 'lib/video/commercial-ga-gate.js'
+      - 'lib/video/commercial-ga-evidence-bundle.js'
+      - 'lib/video/commercial-ga-runtime-evidence.js'
+      - 'lib/video/commercial-ga-benchmark-campaign.js'
+      - 'lib/video/commercial-ga-resilience.js'
+      - 'lib/video/commercial-ga-scale-operations.js'
+      - 'lib/video/commercial-ga-final-closure.js'
+      - 'scripts/video-commercial-ga-contract-tests.mjs'
+      - 'scripts/video-commercial-ga-evidence-bundle-tests.mjs'
+      - 'scripts/video-commercial-ga-runtime-evidence-tests.mjs'
+      - 'scripts/video-commercial-ga-resilience-tests.mjs'
+      - 'scripts/video-commercial-ga-scale-operations-tests.mjs'
+      - 'scripts/video-commercial-ga-final-closure-tests.mjs'
+      - '.github/workflows/ai-video-commercial-ga.yml'
+      - 'lib/ai/creative-media-control-plane.js'
+      - 'lib/ai/creative-media-observation-judge.js'
+      - 'lib/ai/creative-media-intelligence-engine.js'
+
+permissions:
+  contents: read
+
+jobs:
+  commercial-ga-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: AI Video Commercial GA five-gate contract
+        run: node scripts/video-commercial-ga-contract-tests.mjs
+      - name: AI Video GA release-bound evidence bundle contract
+        run: node scripts/video-commercial-ga-evidence-bundle-tests.mjs
+      - name: AI Video runtime evidence and real benchmark campaign contract
+        run: node scripts/video-commercial-ga-runtime-evidence-tests.mjs
+      - name: AI Video GA resilience, anomaly and canary contract
+        run: node scripts/video-commercial-ga-resilience-tests.mjs
+      - name: AI Video scale operations contract
+        run: node scripts/video-commercial-ga-scale-operations-tests.mjs
+      - name: AI Video final four-layer commercial closure contract
+        run: node scripts/video-commercial-ga-final-closure-tests.mjs
+      - name: Existing AI Video regression
+        run: npm run test:video
+      - name: Creative Media six-layer regression
+        run: node scripts/creative-media-six-layer-contract-tests.mjs
+      - name: Creative Media runtime quality regression
+        run: node scripts/creative-media-quality-runtime-contract-tests.mjs
