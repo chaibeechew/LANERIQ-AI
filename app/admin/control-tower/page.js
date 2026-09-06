@@ -3,6 +3,7 @@ import LiveReleasePanel from "./LiveReleasePanel.js";
 import ManagementBoard from "./ManagementBoard.js";
 import GovernanceBoard from "./GovernanceBoard.js";
 import ReadinessBoard from "./ReadinessBoard.js";
+import IntegrityBoard from "./IntegrityBoard.js";
 
 const MODULES = [
   ["Master Roadmap", "Vision → releases → capabilities → delivery."],
@@ -13,7 +14,7 @@ const MODULES = [
   ["Risk Register", "Record release, provider, cost, security and compliance risks."],
   ["Decision Log", "Preserve architecture and product decisions so retired designs do not return accidentally."],
   ["Deprecated Registry", "Track retired pages, flows, APIs and UI patterns without exposing them to users."],
-  ["Evidence Center", "Collect screenshots, test evidence, benchmark output and production verification."],
+  ["Evidence Center", "Collect immutable verification evidence, audit integrity and production-drift proof."],
 ];
 
 const FLOW = [
@@ -63,6 +64,7 @@ export default function ControlTowerPage() {
         <ManagementBoard />
         <GovernanceBoard />
         <ReadinessBoard />
+        <IntegrityBoard />
 
         <section className="section">
           <div className="sectionHead">
@@ -70,7 +72,7 @@ export default function ControlTowerPage() {
               <div className="eyebrow">CONTROL SURFACES</div>
               <h3>Management modules</h3>
             </div>
-            <span className="muted">Foundation v5 · automated readiness governance</span>
+            <span className="muted">Foundation v6 · integrity + technical ceiling</span>
           </div>
           <div className="grid">
             {MODULES.map(([title, description]) => (
