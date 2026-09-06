@@ -1,0 +1,10 @@
+{
+  "policyVersion": 1,
+  "repository": "chaibeechew/LANERIQ-AI",
+  "canonicalUiOwner": {
+    "prNumber": 407,
+    "branch": "ui/canonical-cleanup-round1",
+    "title": "UI: Canonical cleanup round 1 — Home → Login → Email → Verification → Create"
+  },
+  "rule": "Only the designated Canonical UI Owner PR may modify protected Global UI paths. Change this file through Production Release Control when UI ownership is intentionally transferred."
+}
