@@ -1,21 +1,23 @@
 name: LANERIQ 18-Page Interaction Integrity
 
+# Compatibility workflow name retained for Production Release Control history.
+# The customer UI authority is now the canonical registry; this workflow must never require restoration of fixed-page UI.
 on:
   pull_request:
     branches: [main]
     paths:
       - 'app/**'
-      - 'lib/product/laneriq-18-page-master.js'
-      - 'scripts/18-page-interaction-integrity-tests.mjs'
+      - 'lib/product/canonical-ui-registry.js'
+      - 'scripts/canonical-ui-source-of-truth-tests.mjs'
       - '.github/workflows/18-page-interaction-integrity.yml'
   push:
     branches:
       - main
-      - 'fix/18-page-*'
+      - 'ui/canonical-*'
     paths:
       - 'app/**'
-      - 'lib/product/laneriq-18-page-master.js'
-      - 'scripts/18-page-interaction-integrity-tests.mjs'
+      - 'lib/product/canonical-ui-registry.js'
+      - 'scripts/canonical-ui-source-of-truth-tests.mjs'
       - '.github/workflows/18-page-interaction-integrity.yml'
 
 jobs:
@@ -26,12 +28,12 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
       - name: Setup Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Verify all 18 interaction surfaces
-        run: node scripts/18-page-interaction-integrity-tests.mjs
+      - name: Verify canonical interaction surfaces
+        run: node scripts/canonical-ui-source-of-truth-tests.mjs
       - name: Evidence boundary
-        run: echo 'CODE/CI only. Authenticated browser, provider, device and store interactions still require runtime evidence.'
+        run: echo 'CODE/CI canonical UI evidence only. Browser, provider, device and store evidence remain separate.'
