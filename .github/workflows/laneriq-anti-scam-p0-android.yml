@@ -80,6 +80,13 @@ jobs:
         run: node --test projects/laneriq-anti-scam/fabric/test/*.test.mjs projects/laneriq-anti-scam/release/test/*.test.mjs
       - name: Run static store-submission gate
         run: node projects/laneriq-anti-scam/release/store-static-gate.mjs
+      - name: Generate launch readiness report
+        run: node projects/laneriq-anti-scam/release/launch-report.mjs | tee projects/laneriq-anti-scam/release/launch-report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laneriq-anti-scam-launch-readiness-report
+          path: projects/laneriq-anti-scam/release/launch-report.json
+          if-no-files-found: error
       - name: Verify production signing workflow exists
         run: |
           test -f .github/workflows/laneriq-anti-scam-production-aab.yml
