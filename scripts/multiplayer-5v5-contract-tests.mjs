@@ -6,6 +6,7 @@ import "./moba-resilience-orchestrator-v5-tests.mjs";
 import "./moba-match-fabric-supervisor-v6-tests.mjs";
 import "./moba-live-evidence-controller-v7-tests.mjs";
 import "./moba-session-shield-v8-tests.mjs";
+import "./moba-adaptive-matchmaking-v9-tests.mjs";
 import {getMultiplayerProviderConfig} from "../lib/game/multiplayer-provider-gateway.js";
 import {evaluateAdapterEvidence} from "../lib/game/multiplayer-adapter-v1.js";
 import {evaluateLiveTransportReadiness} from "../lib/game/live-multiplayer-transport-v1.js";
