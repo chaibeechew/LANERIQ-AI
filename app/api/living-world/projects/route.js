@@ -1,0 +1,33 @@
+import {NextResponse} from "next/server";
+import {openSuperGameDataSession,accountVerified} from "../../../../lib/game/super-game-data.js";
+import {createLivingWorldManifest,createInitialLivingWorldState} from "../../../../lib/game/living-world-runtime-v1.js";
+import {normalizeLivingAvatarProfile,validateLivingAvatarConsent} from "../../../../lib/game/living-avatar-profile-v1.js";
+import {createOriginalitySignature,compareOriginalityAgainstOwnerCorpus,originalityGenerationGuidance} from "../../../../lib/game/living-world-originality-v1.js";
+
+const MAX=72*1024,REQUEST=/^[A-Za-z0-9._:-]{1,160}$/,UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+function json(data,status=200){return NextResponse.json(data,{status,headers:{"Cache-Control":"private, no-store, max-age=0","Pragma":"no-cache","X-Content-Type-Options":"nosniff"}})}
+function clean(v,max=2400){return String(v||"").replace(/[\u0000-\u001f\u007f]/g," ").replace(/\s+/g," ").trim().slice(0,max)}
+function collectAvatarAssetIds(avatars){const ids=[];for(const a of avatars){for(const value of [a.avatarAssetId,a.voice?.assetId,...(a.appearance?.outfitAssetIds||[]),...(a.vehicles?.assetIds||[]),...(a.equipment?.bindings||[]).map(x=>x.assetId)])if(value&&UUID.test(value))ids.push(value);}return[...new Set(ids)];}
+
+export async function GET(){try{const session=await openSuperGameDataSession();if(!session.user)return json({success:false,error:"Authentication required."},401);const projects=await session.livingWorld.listProjects(50);return json({success:true,projects,truth:"Living World projects are owner-scoped persistent structured world state."});}catch(error){console.error("LIVING_WORLD_LIST_ERROR",error?.code||error?.name||"unknown");return json({success:false,error:"Unable to load Living World projects."},500)}}
+
+export async function POST(request){
+  try{
+    const length=Number(request.headers.get("content-length")||0);if(length>MAX)return json({success:false,error:"Living World request is too large."},413);
+    const session=await openSuperGameDataSession();if(!session.user)return json({success:false,error:"Authentication required."},401);if(!accountVerified(session))return json({success:false,error:"Account verification is required."},403);
+    const body=await request.json().catch(()=>null);if(!body||Buffer.byteLength(JSON.stringify(body),"utf8")>MAX)return json({success:false,error:"Invalid Living World request."},400);
+    const requestId=clean(body.requestId,160);if(!REQUEST.test(requestId))return json({success:false,error:"A stable Living World request ID is required."},400);
+    const existing=await session.livingWorld.projectByRequestId(requestId);if(existing)return json({success:true,replayed:true,project:existing});
+    const worldId=clean(body.worldId,80);if(!UUID.test(worldId))return json({success:false,error:"Choose a saved AI Map world first."},400);const world=await session.worlds.byId(worldId);if(!world)return json({success:false,error:"The selected AI Map is unavailable or not owned by this account."},404);
+    const avatars=(Array.isArray(body.avatars)?body.avatars:[]).slice(0,24).map(normalizeLivingAvatarProfile);for(const avatar of avatars){const consent=validateLivingAvatarConsent(avatar);if(!consent.ok)return json({success:false,error:consent.reason==="VOICE_CONSENT_REQUIRED"?"Explicit voice consent is required for a selected voice reference.":"Explicit likeness permission is required for this Living Avatar."},403);}
+    const avatarAssetIds=collectAvatarAssetIds(avatars),sceneAssetIds=[...new Set((Array.isArray(body.sceneAssetIds)?body.sceneAssetIds:[]).filter(id=>UUID.test(String(id))))].slice(0,32),allAssetIds=[...new Set([...avatarAssetIds,...sceneAssetIds])];if(allAssetIds.length){const rows=await session.assets.byIds(allAssetIds);if(new Set(rows.map(x=>x.id)).size!==allAssetIds.length)return json({success:false,error:"One or more Living World private assets are unavailable or not owned by this account."},403);}
+    const forgeBlueprintIds=[...new Set((Array.isArray(body.forgeBlueprintIds)?body.forgeBlueprintIds:[]).filter(id=>UUID.test(String(id))))].slice(0,24);if(forgeBlueprintIds.length){const rows=await session.forge.byIds(forgeBlueprintIds);if(new Set(rows.map(x=>x.id)).size!==forgeBlueprintIds.length)return json({success:false,error:"One or more Forge blueprints are unavailable or not owned by this account."},403);}
+    const manifest=createLivingWorldManifest({name:clean(body.name,120),worldManifest:world.manifest,avatars,sceneAssetIds,forgeBlueprintIds,storyIdea:clean(body.storyIdea,2400),canonicalFacts:body.canonicalFacts,questSeeds:body.questSeeds,eventRules:body.eventRules,settings:body.settings,variationNonce:clean(body.variationNonce,160)});
+    const state=createInitialLivingWorldState({worldManifest:world.manifest,avatars});
+    const signature=createOriginalitySignature({story:manifest.story.premise,world:JSON.stringify({type:world.world_type,zones:world.manifest?.zones,routes:world.manifest?.routes}),characters:JSON.stringify(avatars.map(a=>({name:a.name,role:a.role,persona:a.story.persona}))),combat:forgeBlueprintIds.join(","),variationNonce:manifest.originality.variationNonce});
+    const prior=await session.livingWorld.originalitySignatures(120),risk=compareOriginalityAgainstOwnerCorpus(signature,prior);if(risk.exactOwnerDuplicate)return json({success:false,error:"This Living World is an exact duplicate of content already saved in your workspace. Regenerate with a new world/story variation.",code:"LIVING_WORLD_DUPLICATE_RISK",originality:risk,guidance:originalityGenerationGuidance(risk)},409);
+    const originality={version:signature.version,signatureHash:signature.signatureHash,contentHash:signature.contentHash,risk:risk.risk,maxSimilarity:risk.maxSimilarity,guidance:originalityGenerationGuidance(risk),truth:risk.truth};
+    const project=await session.livingWorld.insertProject({request_id:requestId,name:manifest.name,world_id:world.id,manifest,state,revision:0,originality});await session.livingWorld.insertOriginalitySignature({project_id:project.id,content_kind:"living_world",signature_hash:signature.contentHash,sketch:signature.sketch});
+    return json({success:true,replayed:false,project,originality,truth:"Created from owner-scoped World, Avatar, scene and Forge references. Originality is checked against the owner's saved corpus and is not an absolute global no-repeat guarantee."},201);
+  }catch(error){console.error("LIVING_WORLD_CREATE_ERROR",error?.code||error?.name||"unknown");return json({success:false,error:"Unable to create this Living World right now."},500)}
+}
