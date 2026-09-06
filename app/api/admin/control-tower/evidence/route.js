@@ -1,6 +1,7 @@
 import { requireControlTowerApi } from "../../../../../lib/control-tower-api.js";
 import { controlTowerJson } from "../../../../../lib/control-tower-http.js";
 import { validateControlTowerEvidenceInput } from "../../../../../lib/control-tower-evidence.js";
+import { sealControlTowerHumanEvidence } from "../../../../../lib/control-tower-evidence-trust.js";
 import { getControlTowerPrivilegedClient } from "../../../../../lib/control-tower-privileged.js";
 import { isControlTowerStorageMissing, isControlTowerUuid } from "../../../../../lib/control-tower-validation.js";
 
@@ -47,10 +48,19 @@ export async function POST(request) {
     const validation = validateControlTowerEvidenceInput(input);
     if (!validation.ok) return controlTowerJson({ error: validation.error }, 400);
 
+    const humanSeal = sealControlTowerHumanEvidence(validation.value);
+    if (!humanSeal.ok) {
+      return controlTowerJson({
+        error: humanSeal.error,
+        code: "AUTOMATED_EVIDENCE_REQUIRED",
+      }, 409);
+    }
+    const evidenceValue = humanSeal.value;
+
     const { data: release, error: releaseError } = await auth.supabase
       .from("control_tower_releases")
       .select("id,release_version,stage")
-      .eq("id", validation.value.release_id)
+      .eq("id", evidenceValue.release_id)
       .maybeSingle();
     if (releaseError) {
       if (isControlTowerStorageMissing(releaseError)) return controlTowerJson({ error: "Control Tower storage migration is not active in this environment." }, 503);
@@ -61,12 +71,12 @@ export async function POST(request) {
       return controlTowerJson({ error: "Closed releases cannot accept new evidence.", code: "RELEASE_CLOSED" }, 409);
     }
 
-    const fingerprint = validation.value.metadata?.fingerprint || null;
+    const fingerprint = evidenceValue.metadata?.fingerprint || null;
     if (fingerprint) {
       const { data: duplicate, error: duplicateError } = await auth.supabase
         .from("control_tower_items")
         .select("id,created_at")
-        .eq("release_id", validation.value.release_id)
+        .eq("release_id", evidenceValue.release_id)
         .eq("item_type", "evidence")
         .eq("metadata->>fingerprint", fingerprint)
         .maybeSingle();
@@ -91,11 +101,11 @@ export async function POST(request) {
     }
 
     const { data, error } = await privileged.rpc("register_control_tower_evidence_server", {
-      p_release_id: validation.value.release_id,
-      p_title: validation.value.title,
-      p_description: validation.value.description,
-      p_external_ref: validation.value.external_ref,
-      p_metadata: validation.value.metadata,
+      p_release_id: evidenceValue.release_id,
+      p_title: evidenceValue.title,
+      p_description: evidenceValue.description,
+      p_external_ref: evidenceValue.external_ref,
+      p_metadata: evidenceValue.metadata,
       p_actor_user_id: auth.user.id,
       p_actor_role: auth.role,
     });
