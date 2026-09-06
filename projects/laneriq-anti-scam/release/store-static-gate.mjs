@@ -40,7 +40,11 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
       && /VerifiedEvidence/.test(signedReputation),
     signedReputationCacheReverified: /reverifySignedEnvelope/.test(reputationStore)
       && /productionVerifier\(\)\.verify/.test(reputationStore),
-    threatFeedTrustRootFailsClosedByDefault: /Collections\.emptyMap\(\)/.test(feedKeys),
+    threatFeedTrustRootExplicitAndFailClosed: /pinnedX509Base64BySource/.test(feedKeys)
+      && !/["']\*["']/.test(feedKeys)
+      && !/acceptAny|trustAll|allowAll/i.test(feedKeys)
+      && /pinnedKeys\.get\(payload\.sourceId\)/.test(signedReputation)
+      && /publicKeyBase64 == null/.test(signedReputation),
     privacyPolicyDraftPresent: exists('release/PRIVACY_POLICY_DRAFT.md'),
     playDeclarationDraftPresent: exists('release/GOOGLE_PLAY_DECLARATIONS_DRAFT.md'),
     signingContractPresent: exists('release/ANDROID_PRODUCTION_SIGNING.md')
