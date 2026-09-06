@@ -1,9 +1,0 @@
-/* Canonical LANERIQ lotus lockup for Email + 8-digit Code states.
-   Visual-only override: auth/session/OTP logic remains untouched. */
-.authPage .brandMark{width:58px!important;height:52px!important;border:0!important;border-radius:0!important;background:url('/laneriq-lotus-mark.svg') center/contain no-repeat!important;box-shadow:none!important;filter:drop-shadow(0 0 8px rgba(82,181,255,.72)) drop-shadow(0 0 18px rgba(82,181,255,.28))!important;color:transparent!important;font-size:0!important;flex:0 0 58px!important}
-.authPage .brandMark::before,.authPage .brandMark::after{content:none!important;display:none!important}
-.authPage .brandWords b{font-weight:760!important;letter-spacing:.035em!important}
-.authPage .brandWords span{font-size:0!important;line-height:1!important;letter-spacing:0!important;color:transparent!important}
-.authPage .brandWords span::after{content:"LIVING INTELLIGENCE";display:block;color:#f1dc9d;font-size:8px;line-height:1.15;letter-spacing:.31em;font-weight:760;white-space:nowrap}
-.authPage .authWelcome::before{content:"";display:block;width:58px;height:50px;margin:0 auto 7px;background:url('/laneriq-lotus-mark.svg') center/contain no-repeat;filter:drop-shadow(0 0 12px rgba(82,181,255,.35))}
-@media(max-width:520px){.authPage .brandMark{width:49px!important;height:44px!important;flex-basis:49px!important}.authPage .brandWords span::after{font-size:6px;letter-spacing:.25em}.authPage .authWelcome::before{width:50px;height:43px}}
