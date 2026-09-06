@@ -4,6 +4,7 @@ import { createClient } from "../../../../lib/supabase/server.js";
 import { createAdminClient } from "../../../../lib/supabase/admin.js";
 import { WALLPAPER_PRESETS,wallpaperDataUri,pickWallpaperForStage } from "../../../../lib/design/wallpaper-presets.js";
 import { generateExternalImages, getImageGenerationConfig, ImageGenerationGatewayError } from "../../../../lib/ai/image-generation-gateway.js";
+import { getImageMarketRuntimeReadiness,runMarketHardenedImageGeneration } from "../../../../lib/ai/image-market-runtime.js";
 import { persistGeneratedImages,replayPersistedImages,DurableImageOutputError } from "../../../../lib/ai/image-output-persistence.js";
 import { buildImagePlacementPrompt,getImagePlacementPolicy } from "../../../../lib/ai/image-placement-policy.js";
 import { consumeAiCredits,refundAiCredits } from "../../../../lib/app-builder-finance.js";
@@ -55,30 +56,34 @@ export async function POST(request){
       const saved=claim.row.result||{};
       if(saved.source==="model"){
         const images=await replayPersistedImages({admin,userId:user.id,assetIds:saved.assetIds,mode,style,palette:paletteName,placement});
-        return noStore({success:true,image:images[0]?.image||null,images,engine:"Soolen Image Runtime",generated:true,replayed:true,durable:true,mode,style,palette:paletteName,source:"model",placement,credits:{charged:0,requestId:chargeRequestId,balance:null},note:"Recovered the same provider generation from your private Asset Library without running the provider again."});
+        return noStore({success:true,image:images[0]?.image||null,images,engine:"Soolen Image Runtime",generated:true,replayed:true,durable:true,mode,style,palette:paletteName,source:"model",placement,hardened:Boolean(saved.hardened),truth:saved.truth||null,quality:saved.quality||null,evidenceDigest:saved.evidenceDigest||null,credits:{charged:0,requestId:chargeRequestId,balance:null},note:"Recovered the same provider generation from your private Asset Library without running the provider again."});
       }
       const images=localImages({count,mode,style,paletteName,placement,placementPrompt,primary,accent,background,textColor,includeText,prompt});
       return noStore({success:true,image:images[0]?.image||null,images,engine:"Soolen Visual Engine",generated:true,replayed:true,mode,style,palette:paletteName,source:"local",placement,credits:{charged:0,requestId:chargeRequestId,balance:null},modelFallback:Boolean(saved.modelFailureCode),modelFailureCode:saved.modelFailureCode||null,note:"Recovered the same zero-cost local fallback without running an external provider again."});
     }
 
-    const gateway=getImageGenerationConfig();let modelFailureCode="";let balance=null;
+    const gateway=getImageGenerationConfig();const market=getImageMarketRuntimeReadiness();let modelFailureCode="";let balance=null;
     if(mode!=="icon"&&gateway.configured){
-      try{
-        const charge=await consumeAiCredits(user.id,{amount:IMAGE_GENERATION_CREDIT_COST,requestId:chargeRequestId,description:"AI image generation",metadata:{operation:"image_generate",mode,count}});charged=Boolean(charge?.charged);balance=charge?.balance??null;
-        const generated=await generateExternalImages({prompt:placementPrompt,mode,style,palette:paletteName,count,colors:{primary,accent,background}});
+      if(market.mode==="enforce"&&!market.executionReady){modelFailureCode="IMAGE_MARKET_RUNTIME_NOT_READY";}
+      else try{
+        const charge=await consumeAiCredits(user.id,{amount:IMAGE_GENERATION_CREDIT_COST,requestId:chargeRequestId,description:"AI image generation",metadata:{operation:"image_generate",mode,count,marketHardening:market.mode}});charged=Boolean(charge?.charged);balance=charge?.balance??null;
+        const generated=market.executionReady
+          ?await runMarketHardenedImageGeneration({prompt:placementPrompt,style,palette:paletteName,count,requestId:chargeRequestId})
+          :await generateExternalImages({prompt:placementPrompt,mode,style,palette:paletteName,count,colors:{primary,accent,background}});
         if(generated.generated){
-          const durableImages=await persistGeneratedImages({admin,userId:user.id,requestId:chargeRequestId,items:generated.images,mode,style,palette:paletteName,placement});
-          await completeRequest(admin,{rowId:requestRowId,userId:user.id,status:"succeeded",result:{source:"model",assetIds:durableImages.map(item=>item.assetId)}});
-          return noStore({success:true,image:durableImages[0]?.image||null,images:durableImages,engine:"Soolen Image Runtime",generated:true,replayed:false,durable:true,mode,style,palette:paletteName,source:"model",placement,credits:{charged:charged?IMAGE_GENERATION_CREDIT_COST:0,requestId:chargeRequestId,balance},note:"Provider output was captured server-side into your private Asset Library before being shown, so an expiring provider URL is never the only copy."});
+          const lifecycle=generated.hardened?{task:"image.generate",promptHash:requestHash({prompt:placementPrompt}),truth:[generated.truth],quality:generated.quality,evidenceDigest:generated.evidenceDigest}:{};
+          const durableImages=await persistGeneratedImages({admin,userId:user.id,requestId:chargeRequestId,items:generated.images,mode,style,palette:paletteName,placement,lifecycle});
+          await completeRequest(admin,{rowId:requestRowId,userId:user.id,status:"succeeded",result:{source:"model",assetIds:durableImages.map(item=>item.assetId),hardened:Boolean(generated.hardened),truth:generated.truth||null,quality:generated.quality||null,evidenceDigest:generated.evidenceDigest||null}});
+          return noStore({success:true,image:durableImages[0]?.image||null,images:durableImages,engine:generated.hardened?"LANERIQ Hardened Image Runtime":"Soolen Image Runtime",generated:true,replayed:false,durable:true,mode,style,palette:paletteName,source:"model",placement,hardened:Boolean(generated.hardened),truth:generated.truth||null,quality:generated.quality||null,evidenceDigest:generated.evidenceDigest||null,marketReady:generated.readiness?.marketReady===true,credits:{charged:charged?IMAGE_GENERATION_CREDIT_COST:0,requestId:chargeRequestId,balance},note:generated.hardened?"Provider output passed the LANERIQ real-output quality, safety, provenance and signed-observer gate before private durable capture.":"Provider output was captured server-side into your private Asset Library before being shown, so an expiring provider URL is never the only copy."});
         }
       }catch(error){
         modelFailureCode=error instanceof ImageGenerationGatewayError||error instanceof DurableImageOutputError?error.code:/insufficient credits/i.test(String(error?.message||""))?"IMAGE_CREDITS_UNAVAILABLE":"IMAGE_MODEL_UNAVAILABLE";
-        if(charged){try{await refundAiCredits(user.id,{requestId:chargeRequestId,amount:IMAGE_GENERATION_CREDIT_COST,description:"AI image generation failed - automatic refund",metadata:{operation:"image_generate",mode}})}catch{}charged=false;}
+        if(charged){try{await refundAiCredits(user.id,{requestId:chargeRequestId,amount:IMAGE_GENERATION_CREDIT_COST,description:"AI image generation failed - automatic refund",metadata:{operation:"image_generate",mode,marketHardening:market.mode}})}catch{}charged=false;}
       }
     }
 
     const images=localImages({count,mode,style,paletteName,placement,placementPrompt,primary,accent,background,textColor,includeText,prompt});await completeRequest(admin,{rowId:requestRowId,userId:user.id,status:"fallback",result:{source:"local",modelFailureCode:modelFailureCode||null},errorCode:modelFailureCode||null});
-    return noStore({success:true,image:images[0]?.image||null,images,engine:"Soolen Visual Engine",generated:true,replayed:false,mode,style,palette:paletteName,source:"local",placement,credits:{charged:0,requestId:chargeRequestId,balance},modelFallback:Boolean(modelFailureCode),modelFailureCode:modelFailureCode||null,note:gateway.blockedByCostPolicy?"A connected external image runtime is blocked by the current cost policy, so the original local visual engine was used instead.":modelFailureCode?"The connected image runtime did not complete or could not be durably captured, so no model output was claimed and the original local visual engine was used instead.":"Original prompt-driven SVG visual generation with placement-aware responsive composition guidance. This local visual engine is not presented as photorealistic external-model output."});
+    return noStore({success:true,image:images[0]?.image||null,images,engine:"Soolen Visual Engine",generated:true,replayed:false,mode,style,palette:paletteName,source:"local",placement,credits:{charged:0,requestId:chargeRequestId,balance},modelFallback:Boolean(modelFailureCode),modelFailureCode:modelFailureCode||null,marketHardeningMode:market.mode,marketReady:market.marketReady,note:gateway.blockedByCostPolicy?"A connected external image runtime is blocked by the current cost policy, so the original local visual engine was used instead.":modelFailureCode?"The connected image runtime did not pass the required provider, quality, safety, provenance or durable-capture gate, so no model output was claimed and the original local visual engine was used instead.":"Original prompt-driven SVG visual generation with placement-aware responsive composition guidance. This local visual engine is not presented as photorealistic external-model output."});
   }catch(error){
     console.error("SOOLEN_VISUAL_ENGINE_ERROR:",error?.code||error?.name||"unknown");if(charged&&chargeRequestId&&userId){try{await refundAiCredits(userId,{requestId:chargeRequestId,amount:IMAGE_GENERATION_CREDIT_COST,description:"AI image generation failed - automatic refund",metadata:{operation:"image_generate"}})}catch{}}if(admin&&requestRowId&&userId)await failRequest(admin,{rowId:requestRowId,userId,errorCode:error?.code||error?.message||"IMAGE_GENERATION_FAILED"});return noStore({error:"Unable to generate image right now."},500);
   }
