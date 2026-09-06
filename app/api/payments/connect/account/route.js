@@ -1,6 +1,4 @@
 import { NextResponse } from 'next/server.js';
-import { createClient } from '../../../../../lib/supabase/server.js';
-import { createAdminClient } from '../../../../../lib/supabase/admin.js';
 import {
   normalizeConnectSetupInput,
   getCustomerPaymentConnectRuntime,
@@ -14,6 +12,10 @@ import {
   getCustomerConnectAccount,
   saveCustomerConnectAccount,
 } from '../../../../../lib/payments/customer-connect-store.js';
+import {
+  getCurrentCustomerPaymentUser,
+  getOwnedCustomerPaymentApp,
+} from '../../../../../lib/payments/customer-payment-context.js';
 
 const MAX_BODY = 8192;
 
@@ -34,13 +36,6 @@ function trustedOrigin(request) {
   }
 }
 
-async function currentUser() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user?.id) return null;
-  return user;
-}
-
 async function syncExisting(userId, row) {
   const remote = await retrieveStripeConnectedMerchant(row.stripe_account_id);
   const status = normalizeStripeMerchantStatus(remote);
@@ -50,7 +45,7 @@ async function syncExisting(userId, row) {
 
 export async function GET() {
   try {
-    const user = await currentUser();
+    const user = await getCurrentCustomerPaymentUser();
     if (!user) return json({ ok: false, error: 'Authentication required.' }, 401);
 
     const runtime = getCustomerPaymentConnectRuntime();
@@ -93,7 +88,7 @@ export async function POST(request) {
     const length = Number(request.headers.get('content-length') || 0);
     if (length > MAX_BODY) return json({ ok: false, error: 'Request is too large.' }, 413);
 
-    const user = await currentUser();
+    const user = await getCurrentCustomerPaymentUser();
     if (!user) return json({ ok: false, error: 'Authentication required.' }, 401);
     if (!user.email || (!user.email_confirmed_at && !user.confirmed_at)) {
       return json({ ok: false, error: 'Account verification required.' }, 403);
@@ -113,14 +108,8 @@ export async function POST(request) {
 
     let app = null;
     if (input.appId) {
-      const admin = createAdminClient();
-      const { data } = await admin
-        .from('apps')
-        .select('id,name,description')
-        .eq('id', input.appId)
-        .eq('owner_id', user.id)
-        .maybeSingle();
-      app = data || null;
+      app = await getOwnedCustomerPaymentApp(user.id, input.appId);
+      if (!app) return json({ ok: false, error: 'Owned App is required for this payment setup.' }, 403);
     }
 
     const displayName = input.displayName || String(

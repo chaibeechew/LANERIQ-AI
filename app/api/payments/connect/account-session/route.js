@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server.js';
-import { createClient } from '../../../../../lib/supabase/server.js';
 import { getCustomerPaymentConnectRuntime } from '../../../../../config/customer-payment-connect-policy.js';
 import { createStripeConnectAccountSession } from '../../../../../lib/payments/stripe-connect.js';
 import { getCustomerConnectAccount } from '../../../../../lib/payments/customer-connect-store.js';
+import { getCurrentCustomerPaymentUser } from '../../../../../lib/payments/customer-payment-context.js';
 
 function json(body, status = 200) {
   return NextResponse.json(body, {
@@ -27,9 +27,8 @@ export async function POST(request) {
       return json({ ok: false, error: 'Trusted same-origin request required.' }, 403);
     }
 
-    const supabase = await createClient();
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (error || !user?.id) {
+    const user = await getCurrentCustomerPaymentUser();
+    if (!user) {
       return json({ ok: false, error: 'Authentication required.' }, 401);
     }
     if (!user.email || (!user.email_confirmed_at && !user.confirmed_at)) {
