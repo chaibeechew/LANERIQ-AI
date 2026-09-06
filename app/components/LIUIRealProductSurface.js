@@ -170,7 +170,7 @@ export default function LIUIRealProductSurface(){
     if(surface) document.body.dataset.liuiSurface=surface;
     else delete document.body.dataset.liuiSurface;
     if(pageId)document.body.dataset.liuiPage=String(pageId);else delete document.body.dataset.liuiPage;
-    document.documentElement.dataset.liuiRealProduct="2026.3-lotus";
+    document.documentElement.dataset.liuiRealProduct="2026.3-reference";
     return()=>{
       if(document.body.dataset.liuiSurface===surface) delete document.body.dataset.liuiSurface;
       if(document.body.dataset.liuiPage===String(pageId)) delete document.body.dataset.liuiPage;
