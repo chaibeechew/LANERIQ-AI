@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   WitnessState,
   evaluateGuardianWitness,
+  evaluateGuardianWitnessObservation,
   buildPrivacySafeGuardianHeartbeat,
 } from '../p0_5-guardian-witness.mjs';
 
@@ -50,6 +51,51 @@ test('P0.5 user pause is distinguishable from unexpected protection loss', () =>
   assert.equal(result.state, WitnessState.USER_PAUSED);
   assert.equal(result.shouldNotifyUser, false);
   assert.equal(result.hackerAttributionAllowed, false);
+});
+
+test('P0.5 missing provider is never misread as user pause', () => {
+  const result = evaluateGuardianWitness(null, { nowMs: 10_000 });
+  assert.equal(result.state, WitnessState.VERIFICATION_UNAVAILABLE);
+  assert.equal(result.protectedClaimAllowed, false);
+  assert.equal(result.freezeSensitiveLaneriqActions, true);
+  assert.equal(result.hackerAttributionAllowed, false);
+});
+
+test('P0.5 dead-man witness marks protection lost after last known active lease expires while provider is unreachable', () => {
+  const now = 50_000;
+  const result = evaluateGuardianWitnessObservation({
+    providerReachable: false,
+    liveSnapshot: null,
+    lastKnownSnapshot: {
+      userOptedIn: true,
+      claimableActive: true,
+      sameBootSession: true,
+      heartbeatSequence: 77,
+      leaseExpiresAtMs: now - 1,
+      integrityState: 'ACTIVE',
+    },
+    nowMs: now,
+  });
+  assert.equal(result.state, WitnessState.PROTECTION_LOST);
+  assert.equal(result.shouldNotifyUser, true);
+  assert.equal(result.freezeSensitiveLaneriqActions, true);
+  assert.equal(result.hackerAttributionAllowed, false);
+});
+
+test('P0.5 provider outage before prior lease expiry requires reverification but does not claim active', () => {
+  const now = 50_000;
+  const result = evaluateGuardianWitnessObservation({
+    providerReachable: false,
+    lastKnownSnapshot: {
+      userOptedIn: true,
+      claimableActive: true,
+      leaseExpiresAtMs: now + 30_000,
+    },
+    nowMs: now,
+  });
+  assert.equal(result.state, WitnessState.VERIFICATION_UNAVAILABLE);
+  assert.equal(result.protectedClaimAllowed, false);
+  assert.equal(result.shouldNotifyUser, false);
 });
 
 test('P0.5 reboot/session uncertainty never inherits old protected status', () => {
