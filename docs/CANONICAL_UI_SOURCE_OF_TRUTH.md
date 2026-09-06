@@ -1,17 +1,26 @@
 # LANERIQ AI Canonical UI Source of Truth
 
-Status: active from UI Cleanup Round 1.
+Status: active canonical customer UI authority.
 
-## Ownership
+## Authority model
 
-The canonical customer-facing UI owner is the combination of:
+LANERIQ AI now separates **internal product capability contracts** from **customer-facing UI authority**.
 
+Customer-facing route, navigation and stage authority comes from:
+
+- `lib/product/canonical-ui-registry.js`
 - `app/components/CanonicalCoreUIOwner.js`
+- `app/components/LIUIRealProductSurface.js`
+- `app/components/LIUIContextIntelligence.js`
 - `app/canonical-core-ui.css`
+- `app/liui-real-product-surface.css`
+- `app/liui-canonical-product-surface.css`
 - `app/components/LaneriqLotusBrand.js`
 - `app/laneriq-lotus-brand.css`
 
-For the first cleanup group, the protected journey is:
+The historical `lib/product/laneriq-18-page-master.js` may remain as an internal capability, safety and compatibility contract. It is **not** customer UI authority and must never force a fixed total-page presentation back into runtime.
+
+## Canonical core journey
 
 `Home → Login → Enter Email → Verification Code → Create`
 
@@ -20,49 +29,86 @@ Routes:
 - Home: `/`
 - Login: `/login`
 - Enter Email / Verification Code: `/auth`
-- Create: `/create`
+- Create / Build Progress: `/create`
 
-## Round 1 rules
+`CanonicalCoreUIOwner` owns the shared core header, account entry, primary bottom navigation and safe-area behavior. The core journey is isolated from the workspace LIUI shell so two global shells cannot style or mount over the same route.
+
+## Canonical workspace shell
+
+The route registry also owns Projects, Templates, Preview, Launch, Manage, AI Assistant, Automation, Analytics, Editor, Database, Testing, Publish and related account/media surfaces.
+
+`LIUIRealProductSurface` owns workspace chrome only when the route is not part of the core journey. It provides:
+
+- canonical workspace header
+- left project rail on larger screens
+- five-destination mobile navigation
+- contextual Creation Journey stages where appropriate
+- current-workspace context for non-journey tools
+
+The canonical primary navigation is always:
+
+`Home / Projects / Create / Templates / More`
+
+The canonical Creation Journey is:
+
+`Idea / Plan / Build / Preview / Launch / Manage`
+
+These are semantic destinations and stages, **not a fixed total-page wizard**.
+
+## Non-negotiable UI rules
 
 1. Customer UI must not present fixed product totals such as 18, 23 or 25 pages.
-2. Legacy 18-page context/master-layout presentation is not customer UI authority. Internal registry semantics may remain until migrated, but customer-facing counters/master-layout panels are suppressed.
-3. The canonical core journey uses `LaneriqLotusBrand` for brand identity and `/laneriq-future-city-people.webp` for the shared core background source.
-4. Header, account entry, safe-area handling and primary bottom navigation on Home/Create are owned by `CanonicalCoreUIOwner`.
-5. Core CTA geometry and visual treatment are normalized in `canonical-core-ui.css`.
-6. No Production merge is performed by the UI owner. Changes are delivered through a UI PR and then handed to Production Release Control.
+2. `Page n of 18/23/25`, the old 18-step strip and the old master-layout customer panel are retired.
+3. Core routes must not receive workspace `data-liui-surface` styling or workspace chrome.
+4. Workspace routes must not mount a second global `AccountNav` over canonical profile chrome.
+5. Route-local Header/Nav elements must not compete with canonical global chrome.
+6. Floating global overlays must stay off Home, Login, Auth and Create unless explicitly integrated into the canonical layout.
+7. `LaneriqLotusBrand` is the canonical brand source.
+8. `/laneriq-future-city-people.webp` is the canonical shared visual source for the core journey unless a future approved canonical design replaces it.
+9. Mobile inputs remain at least 16px where keyboard zoom is a risk; primary touch targets remain at least 44px.
+10. Top/bottom safe areas, `100svh`, horizontal overflow protection and reduced-motion behavior are release contracts, not optional polish.
+11. UI refactors must preserve real generation, session, ownership, workflow, database, testing and publish engines and their truth boundaries.
+12. UI owner does not merge Production. Production Release Control owns final integration and exact-SHA release verification.
 
-## CSS loading priority
+## CSS loading and ownership
 
-`app/template.js` is the final presentation loading boundary for shared UI overlays. The current order is intentional:
+`app/template.js` is the final shared presentation boundary for the canonical core shell. `canonical-core-ui.css` remains the final shared stylesheet there so older feature/theme layers cannot silently override the protected core journey.
 
-1. historical/feature stylesheets
-2. brand lock / lotus refresh
-3. runtime safe-area fixes
-4. **`canonical-core-ui.css` last**
+`app/layout.js` loads the workspace LIUI shell and canonical product surface layers. The retired `liui-complete-18-page-surface.css` must remain deleted.
 
-The canonical stylesheet must remain the final shared stylesheet in `app/template.js`. This allows Round 1 to converge the five core pages without rewriting unrelated product pages in the same PR.
+Auth has one base stylesheet plus the canonical final layer. The removed duplicate files below must not be restored:
 
-## Legacy stylesheet policy
+- `app/auth/auth-living-intelligence.css`
+- `app/auth/auth-lotus-brand-override.css`
 
-Legacy global stylesheets are not automatically deleted in Round 1 because some still serve non-core pages. They are non-authoritative for the protected core journey. Future cleanup rounds may remove them only after their remaining selectors are mapped and browser-verified.
+## Regression gates
 
-The following legacy UI concepts are specifically non-authoritative for customer presentation:
+`.github/workflows/canonical-ui-source-of-truth.yml` runs `scripts/canonical-ui-source-of-truth-tests.mjs` and blocks restoration of the old customer shell.
 
-- 18-page master layout labels
-- fixed `Page n of 18/23/25` counters
-- duplicate auth visual overrides that conflict with the canonical final layer
-- route-local chrome that collides with the canonical header or bottom navigation
+Historical workflow names containing `18-Page` may remain for Production Release Control compatibility, but their customer-UI assertions must validate the canonical registry/surfaces. They must not require fixed page totals, the retired 18-step strip, or the deleted legacy stylesheet.
 
-## Restoration guard
+The regression contract verifies, among other things:
 
-`.github/workflows/canonical-ui-source-of-truth.yml` runs `scripts/canonical-ui-source-of-truth-tests.mjs` on UI changes. The guard verifies:
+- canonical registry ownership
+- Home/Login/Auth/Create core isolation
+- workspace/core shell separation
+- canonical lotus branding
+- canonical five-destination navigation
+- no fixed 18/23/25 page totals
+- no old master-layout restoration
+- no duplicate Auth override files
+- no duplicate global account chrome on canonical-owned surfaces
+- safe-area and horizontal-overflow protection
+- touch/input mobile constraints
+- real creation/editor/database/testing/publish engine preservation
+- truthful external provider/device/store evidence boundaries
 
-- the canonical stylesheet remains loaded last
-- the canonical owner remains mounted
-- Home/Login/Auth/Create remain registered in the owner
-- the lotus brand source remains connected
-- old master-layout/page-counter customer presentation remains suppressed
-- top/bottom safe-area handling remains present
-- Login continues to Email Verification and returns to Create
+## Integration lock
 
-Any branch that restores an older UI must first pass this canonical guard and must not make legacy presentation authoritative again.
+Every feature PR must rebase or realign against latest `main` before integration. If a feature branch touches global UI, Canonical UI wins and the feature adapts to it. An old branch must never restore an older Home, Auth, Logo, Navigation, global CSS, page-count presentation or shared shell.
+
+Production UI is not complete until Production Release Control separately verifies:
+
+`GitHub main exact SHA = Vercel Production exact SHA = Runtime verified SHA`
+
+Preview and CI evidence are necessary but do not substitute for that Production equality check.
