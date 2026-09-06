@@ -1,0 +1,169 @@
+name: LANERIQ Anti Scam P0-P6 Security Fabric Gate
+
+on:
+  push:
+    branches:
+      - project/laneriq-anti-scam
+    paths:
+      - 'projects/laneriq-anti-scam/android/**'
+      - 'projects/laneriq-anti-scam/cloud/**'
+      - 'projects/laneriq-anti-scam/fabric/**'
+      - 'projects/laneriq-anti-scam/release/**'
+      - '.github/workflows/laneriq-anti-scam-p0-android.yml'
+      - '.github/workflows/laneriq-anti-scam-production-aab.yml'
+      - '.github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml'
+      - '.github/workflows/laneriq-anti-scam-final-store-release-gate.yml'
+  pull_request:
+    paths:
+      - 'projects/laneriq-anti-scam/android/**'
+      - 'projects/laneriq-anti-scam/cloud/**'
+      - 'projects/laneriq-anti-scam/fabric/**'
+      - 'projects/laneriq-anti-scam/release/**'
+      - '.github/workflows/laneriq-anti-scam-p0-android.yml'
+      - '.github/workflows/laneriq-anti-scam-production-aab.yml'
+      - '.github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml'
+      - '.github/workflows/laneriq-anti-scam-final-store-release-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  guardian-p0:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Install Android 16 SDK
+        run: yes | sdkmanager 'platforms;android-36' 'build-tools;35.0.0' >/dev/null
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Verify 2026 Google Play target API and identities
+        run: |
+          APP_GRADLE=projects/laneriq-anti-scam/android/app/build.gradle
+          grep -Fq "compileSdk 36" "$APP_GRADLE"
+          grep -Fq "targetSdk 36" "$APP_GRADLE"
+          grep -Fq "applicationId 'ai.laneriq.antiscam'" "$APP_GRADLE"
+          grep -Fq "applicationIdSuffix '.test'" "$APP_GRADLE"
+          grep -Fq "buildConfig true" "$APP_GRADLE"
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('projects/laneriq-anti-scam/android/app/build.gradle').read_text()
+          release = text.split('release {', 1)[1].split('}', 1)[0]
+          expected = r'''buildConfigField 'String', 'INTERNAL_TEST_THREAT_KEY_X509_B64', '\"\"' '''.strip()
+          if expected not in release:
+              raise SystemExit('release INTERNAL_TEST_THREAT_KEY_X509_B64 must be an empty BuildConfig string')
+          PY
+      - name: Run Guardian unit tests
+        run: gradle -p projects/laneriq-anti-scam/android testDebugUnitTest --stacktrace
+      - name: Run Android lint truth gate
+        run: gradle -p projects/laneriq-anti-scam/android lintDebug lintRelease --stacktrace
+      - name: Build test APK
+        run: gradle -p projects/laneriq-anti-scam/android assembleDebug --stacktrace
+      - name: Build unsigned release APK and AAB structure
+        run: gradle -p projects/laneriq-anti-scam/android assembleRelease bundleRelease --stacktrace
+      - name: Verify debug-only test surfaces are absent from release
+        run: |
+          DEBUG_APK=$(find projects/laneriq-anti-scam/android/app/build/outputs/apk/debug -name '*.apk' -type f | head -n1)
+          RELEASE_APK=$(find projects/laneriq-anti-scam/android/app/build/outputs/apk/release -name '*.apk' -type f | head -n1)
+          test -n "$DEBUG_APK"
+          test -n "$RELEASE_APK"
+          apkanalyzer manifest print "$DEBUG_APK" > /tmp/anti-scam-debug-manifest.xml
+          apkanalyzer manifest print "$RELEASE_APK" > /tmp/anti-scam-release-manifest.xml
+          grep -q 'InternalWebShieldTestActivity' /tmp/anti-scam-debug-manifest.xml
+          grep -q 'InternalWebShieldTestReceiver' /tmp/anti-scam-debug-manifest.xml
+          grep -q 'InternalGuardianTestActivity' /tmp/anti-scam-debug-manifest.xml
+          ! grep -q 'InternalWebShieldTestActivity' /tmp/anti-scam-release-manifest.xml
+          ! grep -q 'InternalWebShieldTestReceiver' /tmp/anti-scam-release-manifest.xml
+          ! grep -q 'InternalGuardianTestActivity' /tmp/anti-scam-release-manifest.xml
+          grep -q 'android.permission.ACCESS_NETWORK_STATE' /tmp/anti-scam-release-manifest.xml
+          grep -q 'android.permission.BIND_VPN_SERVICE' /tmp/anti-scam-release-manifest.xml
+          grep -q 'AntiScamApplication' /tmp/anti-scam-release-manifest.xml
+      - name: Verify release BuildConfig has no internal threat test trust root
+        run: |
+          RELEASE_BUILDCONFIG=$(find projects/laneriq-anti-scam/android/app/build/generated -name BuildConfig.java -type f | grep '/release/' | head -n1)
+          test -n "$RELEASE_BUILDCONFIG"
+          grep -Fq 'INTERNAL_TEST_THREAT_KEY_X509_B64 = ""' "$RELEASE_BUILDCONFIG"
+      - name: Verify artifacts exist
+        run: |
+          test -f projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk
+          test -f projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab
+      - name: Record artifact SHA-256
+        run: |
+          sha256sum projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk | tee projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk.sha256
+          sha256sum projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab | tee projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laneriq-anti-scam-android-test-and-unsigned-release-structure
+          path: |
+            projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk
+            projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk.sha256
+            projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab
+            projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab.sha256
+          if-no-files-found: error
+
+  security-fabric-p0-p6:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run P0-P6 Security Fabric and release contract tests
+        run: node --test projects/laneriq-anti-scam/fabric/test/*.test.mjs projects/laneriq-anti-scam/release/test/*.test.mjs
+      - name: Validate L1 and L3 real-device harness syntax
+        run: |
+          bash -n projects/laneriq-anti-scam/release/device-tests/android-webshield-l1.sh
+          bash -n projects/laneriq-anti-scam/release/device-tests/android-guardian-matrix.sh
+      - name: Validate L4 Cloud Dead-Man privacy replay rate retention and deletion contract
+        run: |
+          SQL=projects/laneriq-anti-scam/cloud/sql/001_guardian_deadman.sql
+          grep -q "enable row level security" "$SQL"
+          grep -q "revoke all on table public.anti_scam_guardian_leases from anon, authenticated" "$SQL"
+          grep -q "p_lease_epoch < current_row.lease_epoch" "$SQL"
+          grep -q "p_heartbeat_sequence <= current_row.heartbeat_sequence" "$SQL"
+          grep -q "p_received_at_ms - current_row.received_at_ms < 15000" "$SQL"
+          grep -q "delete_anti_scam_guardian_lease" "$SQL"
+          grep -q "purge_anti_scam_guardian_leases" "$SQL"
+          grep -q "anti_scam_guardian_leases_received_idx" "$SQL"
+          grep -q "grant execute.*service_role" "$SQL"
+          grep -q "TRUSTED_INGRESS_REQUIRED" projects/laneriq-anti-scam/cloud/lib/guardian-admission-policy.mjs
+          grep -q "RESIDENCY_REGION_MISMATCH" projects/laneriq-anti-scam/cloud/lib/guardian-admission-policy.mjs
+          grep -q "DEADMAN_RETENTION_MS = 30" projects/laneriq-anti-scam/cloud/lib/supabase-deadman-store.mjs
+      - name: Run static store-submission gate
+        run: node projects/laneriq-anti-scam/release/store-static-gate.mjs
+      - name: Generate launch readiness report
+        run: node projects/laneriq-anti-scam/release/launch-report.mjs | tee projects/laneriq-anti-scam/release/launch-report.json
+      - name: Generate L1-L5 code-vs-evidence status
+        run: node projects/laneriq-anti-scam/release/l1-l5-execution-status.mjs | tee projects/laneriq-anti-scam/release/l1-l5-execution-status.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laneriq-anti-scam-launch-readiness-reports
+          path: |
+            projects/laneriq-anti-scam/release/launch-report.json
+            projects/laneriq-anti-scam/release/l1-l5-execution-status.json
+          if-no-files-found: error
+      - name: Verify production signing workflow exists
+        run: |
+          test -f .github/workflows/laneriq-anti-scam-production-aab.yml
+          grep -q "LANERIQ_ANDROID_UPLOAD_KEYSTORE_B64" .github/workflows/laneriq-anti-scam-production-aab.yml
+          grep -q "verifyProductionSigningConfigured" .github/workflows/laneriq-anti-scam-production-aab.yml
+      - name: Verify approval-gated Cloud Dead-Man deploy workflow exists
+        run: |
+          test -f .github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml
+          grep -q "environment: anti-scam-production" .github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml
+          grep -q "LANERIQ_ANTI_SCAM_DATABASE_URL" .github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml
+      - name: Verify final store release governance workflow exists
+        run: |
+          test -f .github/workflows/laneriq-anti-scam-final-store-release-gate.yml
+          grep -q "Require execution from main" .github/workflows/laneriq-anti-scam-final-store-release-gate.yml
+          grep -q "Verify main branch protection and required checks" .github/workflows/laneriq-anti-scam-final-store-release-gate.yml
+          grep -q "Require Public Production READY" .github/workflows/laneriq-anti-scam-final-store-release-gate.yml
+      - name: Enforce no billion-scale claim without evidence
+        run: |
+          node -e "import('./projects/laneriq-anti-scam/fabric/p6-capacity-evidence.mjs').then(({CapacityEvidenceLedger})=>{const x=new CapacityEvidenceLedger(); if(x.summary().billionScaleVerified) process.exit(1); console.log(x.summary())})"

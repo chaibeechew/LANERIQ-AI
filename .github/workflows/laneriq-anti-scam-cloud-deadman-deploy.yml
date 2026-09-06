@@ -1,0 +1,158 @@
+name: LANERIQ Anti Scam Cloud Dead-Man Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_project_ref:
+        description: 'Type the approved LANERIQ AI Supabase project ref'
+        required: true
+        type: string
+      confirm_region:
+        description: 'Type the approved deployment region'
+        required: true
+        type: string
+      confirm_retention_days:
+        description: 'Type the approved Dead-Man retention days'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  EXPECTED_PROJECT_REF: uyizbmajxcvtkgzuoykg
+  EXPECTED_REGION: ap-southeast-1
+  EXPECTED_RETENTION_DAYS: '30'
+
+jobs:
+  deploy-deadman:
+    runs-on: ubuntu-latest
+    environment: anti-scam-production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require execution from exact main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "main" || {
+            echo "Production Dead-Man deployment is allowed only from main." >&2
+            exit 1
+          }
+          git fetch origin main --depth=1
+          LOCAL_SHA=$(git rev-parse HEAD)
+          REMOTE_MAIN_SHA=$(git rev-parse origin/main)
+          test "$LOCAL_SHA" = "$REMOTE_MAIN_SHA" || {
+            echo "Checkout does not equal current remote main." >&2
+            exit 1
+          }
+
+      - name: Require explicit target, region and retention confirmation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ inputs.confirm_project_ref }}" = "$EXPECTED_PROJECT_REF" || {
+            echo "Target project ref does not match the approved LANERIQ AI Supabase project." >&2
+            exit 1
+          }
+          test "${{ inputs.confirm_region }}" = "$EXPECTED_REGION" || {
+            echo "Deployment region does not match approved Anti Scam region." >&2
+            exit 1
+          }
+          test "${{ inputs.confirm_retention_days }}" = "$EXPECTED_RETENTION_DAYS" || {
+            echo "Retention does not match approved Anti Scam policy." >&2
+            exit 1
+          }
+
+      - name: Require secret-only database connection
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.LANERIQ_ANTI_SCAM_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          test -n "$DATABASE_URL" || { echo "LANERIQ_ANTI_SCAM_DATABASE_URL is not configured" >&2; exit 1; }
+          case "$DATABASE_URL" in
+            postgres://*|postgresql://*) ;;
+            *) echo "Database URL must be a Postgres URL" >&2; exit 1 ;;
+          esac
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+
+      - name: Preflight migration source truth
+        shell: bash
+        run: |
+          set -euo pipefail
+          SQL=projects/laneriq-anti-scam/cloud/sql/001_guardian_deadman.sql
+          grep -q "enable row level security" "$SQL"
+          grep -q "p_received_at_ms - current_row.received_at_ms < 15000" "$SQL"
+          grep -q "delete_anti_scam_guardian_lease" "$SQL"
+          grep -q "purge_anti_scam_guardian_leases" "$SQL"
+          grep -q "grant execute.*service_role" "$SQL"
+          ! grep -Eiq "raw_(message|url|contact|screen)|message_body|contact_list|screen_content|password|auth_token|private_key" "$SQL"
+
+      - name: Apply privacy-safe Dead-Man migration
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.LANERIQ_ANTI_SCAM_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+            -f projects/laneriq-anti-scam/cloud/sql/001_guardian_deadman.sql \
+            >/tmp/laneriq-deadman-migration.log
+          echo "Dead-Man migration applied without exposing database credentials."
+
+      - name: Verify table, RLS, RPCs and least privilege
+        shell: bash
+        env:
+          DATABASE_URL: ${{ secrets.LANERIQ_ANTI_SCAM_DATABASE_URL }}
+        run: |
+          set -euo pipefail
+          TABLE_OK=$(psql "$DATABASE_URL" -Atqc "select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname='anti_scam_guardian_leases' and c.relrowsecurity=true")
+          RPC_COUNT=$(psql "$DATABASE_URL" -Atqc "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in ('upsert_anti_scam_guardian_lease','delete_anti_scam_guardian_lease','purge_anti_scam_guardian_leases')")
+          ANON_TABLE=$(psql "$DATABASE_URL" -Atqc "select has_table_privilege('anon','public.anti_scam_guardian_leases','select') or has_table_privilege('anon','public.anti_scam_guardian_leases','insert') or has_table_privilege('anon','public.anti_scam_guardian_leases','update') or has_table_privilege('anon','public.anti_scam_guardian_leases','delete')")
+          AUTH_TABLE=$(psql "$DATABASE_URL" -Atqc "select has_table_privilege('authenticated','public.anti_scam_guardian_leases','select') or has_table_privilege('authenticated','public.anti_scam_guardian_leases','insert') or has_table_privilege('authenticated','public.anti_scam_guardian_leases','update') or has_table_privilege('authenticated','public.anti_scam_guardian_leases','delete')")
+          ANON_RPC=$(psql "$DATABASE_URL" -Atqc "select has_function_privilege('anon','public.upsert_anti_scam_guardian_lease(text,bigint,bigint,bigint,text,text,text,text,bigint,bigint)','execute') or has_function_privilege('anon','public.delete_anti_scam_guardian_lease(text)','execute') or has_function_privilege('anon','public.purge_anti_scam_guardian_leases(bigint)','execute')")
+          AUTH_RPC=$(psql "$DATABASE_URL" -Atqc "select has_function_privilege('authenticated','public.upsert_anti_scam_guardian_lease(text,bigint,bigint,bigint,text,text,text,text,bigint,bigint)','execute') or has_function_privilege('authenticated','public.delete_anti_scam_guardian_lease(text)','execute') or has_function_privilege('authenticated','public.purge_anti_scam_guardian_leases(bigint)','execute')")
+          SERVICE_RPC=$(psql "$DATABASE_URL" -Atqc "select has_function_privilege('service_role','public.upsert_anti_scam_guardian_lease(text,bigint,bigint,bigint,text,text,text,text,bigint,bigint)','execute') and has_function_privilege('service_role','public.delete_anti_scam_guardian_lease(text)','execute') and has_function_privilege('service_role','public.purge_anti_scam_guardian_leases(bigint)','execute')")
+          test "$TABLE_OK" = "1" || { echo "Dead-Man table/RLS verification failed" >&2; exit 1; }
+          test "$RPC_COUNT" = "3" || { echo "Dead-Man RPC verification failed" >&2; exit 1; }
+          test "$ANON_TABLE" = "f" || { echo "anon unexpectedly has Dead-Man table privilege" >&2; exit 1; }
+          test "$AUTH_TABLE" = "f" || { echo "authenticated unexpectedly has Dead-Man table privilege" >&2; exit 1; }
+          test "$ANON_RPC" = "f" || { echo "anon unexpectedly has Dead-Man RPC privilege" >&2; exit 1; }
+          test "$AUTH_RPC" = "f" || { echo "authenticated unexpectedly has Dead-Man RPC privilege" >&2; exit 1; }
+          test "$SERVICE_RPC" = "t" || { echo "service_role is missing Dead-Man RPC privilege" >&2; exit 1; }
+
+      - name: Record migration evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p projects/laneriq-anti-scam/release/evidence
+          cat > projects/laneriq-anti-scam/release/evidence/l4-deadman-deploy.json <<JSON
+          {
+            "schema": 2,
+            "gateId": "L4.cloud_deadman_deployed",
+            "projectRef": "$EXPECTED_PROJECT_REF",
+            "deploymentRegion": "$EXPECTED_REGION",
+            "retentionDays": $EXPECTED_RETENTION_DAYS,
+            "sourceSha": "$GITHUB_SHA",
+            "workflowRunId": "$GITHUB_RUN_ID",
+            "status": "RAW_VERIFIED_DEPLOYMENT_EVIDENCE",
+            "checks": {
+              "exactMain": true,
+              "rls": true,
+              "anonAuthenticatedTablePrivileges": false,
+              "anonAuthenticatedRpcPrivileges": false,
+              "serviceRoleRpcPrivileges": true
+            },
+            "truth": "This artifact proves the migration workflow verified the target schema and least-privilege controls. It is not a Public Production PASS token until an approved release verifier signs/pins the immutable run reference."
+          }
+          JSON
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laneriq-anti-scam-l4-deadman-deployment-evidence
+          path: projects/laneriq-anti-scam/release/evidence/l4-deadman-deploy.json
+          if-no-files-found: error

@@ -1,0 +1,100 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { evaluateStaticStorePackage } from './store-static-gate.mjs';
+import { buildLaunchReport } from './launch-report.mjs';
+
+const State = Object.freeze({
+  DEPLOYMENT_READY: 'DEPLOYMENT_READY',
+  EXTERNAL_EVIDENCE_REQUIRED: 'EXTERNAL_EVIDENCE_REQUIRED',
+  PRODUCTION_READY: 'PRODUCTION_READY',
+  BLOCKED: 'BLOCKED',
+});
+
+function projectFile(root, relative) {
+  return fs.existsSync(path.join(root, 'projects/laneriq-anti-scam', relative));
+}
+
+function repoFile(root, relative) {
+  return fs.existsSync(path.join(root, relative));
+}
+
+export function buildL1L5ExecutionStatus({ root = process.cwd(), evidence = {} } = {}) {
+  const staticGate = evaluateStaticStorePackage(root);
+  const launch = buildLaunchReport({ root, evidence });
+
+  const l1Code = staticGate.checks.l1VpnServicePlatformProtected
+    && staticGate.checks.l1VpnConsentRequired
+    && staticGate.checks.l1ProductionAlwaysOnDisabledUntilEvidence
+    && staticGate.checks.l1FakeTunnelForbidden
+    && staticGate.checks.l1InternalDnsDataPlanePresent
+    && staticGate.checks.l1DebugTestSurfaceSeparated
+    && staticGate.checks.l1ReleaseHasNoInternalThreatTrustRoot
+    && staticGate.checks.l1RealDeviceHarnessPresent
+    && staticGate.checks.signedReputationCryptoPathPresent
+    && projectFile(root, 'fabric/l1-network-evidence-matrix.mjs');
+
+  const l2Code = staticGate.checks.l2SharedMalwareBrokerHashBound
+    && staticGate.checks.l2DeepScanConsentAndAttestation
+    && staticGate.checks.l2BenchmarkFactoryPresent
+    && projectFile(root, 'fabric/l2-malware-benchmark-evidence.mjs');
+
+  const l3Code = staticGate.checks.l3ColdProcessLeaseInvalidation
+    && staticGate.checks.l3RealDeviceHarnessPresent
+    && staticGate.checks.l3DebugControllerSeparated
+    && projectFile(root, 'fabric/app-builder-witness-consumer.mjs')
+    && projectFile(root, 'fabric/l3-guardian-soak-evidence.mjs');
+
+  const l4Code = staticGate.checks.l4AttestationAndWitnessRequired
+    && staticGate.checks.l4PrivateHeartbeatFieldsRejected
+    && staticGate.checks.l4TrustedIngressAndRegionRequired
+    && staticGate.checks.l4DeadmanRlsReplayAndRateLimit
+    && staticGate.checks.l4RetentionAndDeletionPresent
+    && projectFile(root, 'cloud/lib/supabase-deadman-store.mjs')
+    && projectFile(root, 'fabric/l4-production-rollout-safety.mjs')
+    && repoFile(root, '.github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml');
+
+  const l5Code = repoFile(root, '.github/workflows/laneriq-anti-scam-production-aab.yml')
+    && repoFile(root, '.github/workflows/laneriq-anti-scam-final-store-release-gate.yml')
+    && projectFile(root, 'release/PUBLIC_RELEASE_EVIDENCE.json')
+    && projectFile(root, 'fabric/l5-release-convergence.mjs');
+
+  const code = [l1Code, l2Code, l3Code, l4Code, l5Code];
+  const launchLayers = launch.layers || [];
+  const layers = code.map((implemented, index) => {
+    const id = `L${index + 1}`;
+    const evidenceLayer = launchLayers[index];
+    let state = State.BLOCKED;
+    if (implemented && evidenceLayer?.ready) state = State.PRODUCTION_READY;
+    else if (implemented && id === 'L4') state = State.DEPLOYMENT_READY;
+    else if (implemented) state = State.EXTERNAL_EVIDENCE_REQUIRED;
+    return Object.freeze({
+      id,
+      codeImplemented: Boolean(implemented),
+      externalEvidenceReady: Boolean(evidenceLayer?.ready),
+      state,
+      missingExternalEvidence: Object.freeze(evidenceLayer?.missing || []),
+    });
+  });
+
+  return Object.freeze({
+    product: 'LANERIQ Anti Scam',
+    staticStorePackage: staticGate.readyForExternalEvidenceCollection ? 'READY' : 'BLOCKED',
+    allFiveLayerCodeSurfacesImplemented: layers.every(layer => layer.codeImplemented),
+    evidenceEngines: Object.freeze({
+      L1: projectFile(root, 'fabric/l1-network-evidence-matrix.mjs'),
+      L2: projectFile(root, 'fabric/l2-malware-benchmark-evidence.mjs'),
+      L3: projectFile(root, 'fabric/l3-guardian-soak-evidence.mjs'),
+      L4: projectFile(root, 'fabric/l4-production-rollout-safety.mjs'),
+      L5: projectFile(root, 'fabric/l5-release-convergence.mjs'),
+    }),
+    publicProduction: launch.publicProduction,
+    layers: Object.freeze(layers),
+    truth: launch.publicProduction === 'READY'
+      ? 'All five layers have verified external evidence for the evaluated release.'
+      : 'Code implementation does not equal production evidence. Public Production remains blocked until the signed external gates are satisfied for the exact shipping build.',
+  });
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  console.log(JSON.stringify(buildL1L5ExecutionStatus(), null, 2));
+}

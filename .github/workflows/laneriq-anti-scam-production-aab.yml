@@ -1,0 +1,156 @@
+name: LANERIQ Anti Scam Production AAB
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_DIR: projects/laneriq-anti-scam/android
+
+jobs:
+  production-aab:
+    runs-on: ubuntu-latest
+    environment: anti-scam-production-signing
+    steps:
+      - name: Require execution from main
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "main" || {
+            echo "Production signing is allowed only from main." >&2
+            exit 1
+          }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Require checkout equals current remote main
+        run: |
+          set -euo pipefail
+          git fetch origin main --depth=1
+          LOCAL_SHA=$(git rev-parse HEAD)
+          REMOTE_SHA=$(git rev-parse origin/main)
+          echo "source_sha=$LOCAL_SHA"
+          echo "remote_main_sha=$REMOTE_SHA"
+          test "$LOCAL_SHA" = "$REMOTE_SHA" || {
+            echo "main moved; production signing must rerun on the current exact SHA." >&2
+            exit 1
+          }
+          echo "LANERIQ_ANTI_SCAM_SIGNING_SOURCE_SHA=$LOCAL_SHA" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android 16 SDK
+        run: yes | sdkmanager 'platforms;android-36' 'build-tools;35.0.0' >/dev/null
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+
+      - name: Require production signing secrets
+        env:
+          KEYSTORE_B64: ${{ secrets.LANERIQ_ANDROID_UPLOAD_KEYSTORE_B64 }}
+          KEY_ALIAS: ${{ secrets.LANERIQ_ANDROID_UPLOAD_KEY_ALIAS }}
+          STORE_PASSWORD: ${{ secrets.LANERIQ_ANDROID_UPLOAD_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.LANERIQ_ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KEYSTORE_B64"
+          test -n "$KEY_ALIAS"
+          test -n "$STORE_PASSWORD"
+          test -n "$KEY_PASSWORD"
+
+      - name: Materialize ephemeral upload keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.LANERIQ_ANDROID_UPLOAD_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          KEYSTORE_PATH="$RUNNER_TEMP/laneriq-upload-keystore.jks"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_PATH"
+          chmod 600 "$KEYSTORE_PATH"
+          echo "LANERIQ_ANDROID_UPLOAD_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+
+      - name: Verify release source identity and static release gates
+        run: |
+          set -euo pipefail
+          grep -q "compileSdk 36" "$PROJECT_DIR/app/build.gradle"
+          grep -q "targetSdk 36" "$PROJECT_DIR/app/build.gradle"
+          grep -q "applicationId 'ai.laneriq.antiscam'" "$PROJECT_DIR/app/build.gradle"
+          node projects/laneriq-anti-scam/release/store-static-gate.mjs
+
+      - name: Verify production signing configuration
+        env:
+          LANERIQ_ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.LANERIQ_ANDROID_UPLOAD_KEY_ALIAS }}
+          LANERIQ_ANDROID_UPLOAD_STORE_PASSWORD: ${{ secrets.LANERIQ_ANDROID_UPLOAD_STORE_PASSWORD }}
+          LANERIQ_ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.LANERIQ_ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: gradle -p "$PROJECT_DIR" verifyProductionSigningConfigured --stacktrace
+
+      - name: Run release tests and lint
+        env:
+          LANERIQ_ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.LANERIQ_ANDROID_UPLOAD_KEY_ALIAS }}
+          LANERIQ_ANDROID_UPLOAD_STORE_PASSWORD: ${{ secrets.LANERIQ_ANDROID_UPLOAD_STORE_PASSWORD }}
+          LANERIQ_ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.LANERIQ_ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node --test projects/laneriq-anti-scam/fabric/test/*.test.mjs projects/laneriq-anti-scam/release/test/*.test.mjs
+          gradle -p "$PROJECT_DIR" testReleaseUnitTest lintRelease --stacktrace
+
+      - name: Build production-signed AAB candidate
+        env:
+          LANERIQ_ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.LANERIQ_ANDROID_UPLOAD_KEY_ALIAS }}
+          LANERIQ_ANDROID_UPLOAD_STORE_PASSWORD: ${{ secrets.LANERIQ_ANDROID_UPLOAD_STORE_PASSWORD }}
+          LANERIQ_ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.LANERIQ_ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: gradle -p "$PROJECT_DIR" bundleRelease --stacktrace
+
+      - name: Record artifact hash and signing certificate evidence
+        env:
+          LANERIQ_ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.LANERIQ_ANDROID_UPLOAD_KEY_ALIAS }}
+          LANERIQ_ANDROID_UPLOAD_STORE_PASSWORD: ${{ secrets.LANERIQ_ANDROID_UPLOAD_STORE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          AAB="$PROJECT_DIR/app/build/outputs/bundle/release/app-release.aab"
+          test -f "$AAB"
+          AAB_SHA=$(sha256sum "$AAB" | awk '{print $1}')
+          printf '%s  %s\n' "$AAB_SHA" "$AAB" | tee "$AAB.sha256"
+          CERT_SHA=$(keytool -list -v \
+            -keystore "$LANERIQ_ANDROID_UPLOAD_KEYSTORE_PATH" \
+            -alias "$LANERIQ_ANDROID_UPLOAD_KEY_ALIAS" \
+            -storepass "$LANERIQ_ANDROID_UPLOAD_STORE_PASSWORD" \
+            | awk -F'SHA256: ' '/SHA256:/{gsub(/:/,"",$2); gsub(/[[:space:]]/,"",$2); print tolower($2); exit}')
+          test -n "$CERT_SHA"
+          printf 'signing_certificate_sha256=%s\n' "$CERT_SHA" | tee "$AAB.signing-cert.txt"
+          mkdir -p projects/laneriq-anti-scam/release/evidence
+          cat > projects/laneriq-anti-scam/release/evidence/l5-production-aab-candidate.json <<JSON
+          {
+            "schema": 1,
+            "gateId": "L5.production_signed_artifact_candidate",
+            "sourceSha": "$LANERIQ_ANTI_SCAM_SIGNING_SOURCE_SHA",
+            "aabSha256": "$AAB_SHA",
+            "signingCertificateSha256": "$CERT_SHA",
+            "workflowRunId": "$GITHUB_RUN_ID",
+            "status": "SIGNED_CANDIDATE_NOT_STORE_AUTHORIZATION",
+            "truth": "The AAB was produced from exact current main with the controlled upload signing configuration. This does not authorize public store submission until the Final Store Release Gate and signed external evidence are READY for this exact artifact."
+          }
+          JSON
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laneriq-anti-scam-production-aab-candidate-evidence
+          path: |
+            projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab
+            projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab.sha256
+            projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab.signing-cert.txt
+            projects/laneriq-anti-scam/release/evidence/l5-production-aab-candidate.json
+          if-no-files-found: error
+
+      - name: Remove ephemeral keystore
+        if: always()
+        run: rm -f "$LANERIQ_ANDROID_UPLOAD_KEYSTORE_PATH"
