@@ -15,13 +15,13 @@ The Production route now enforces:
 - Legacy provider results without the new hardened evidence are not re-released as verified model output.
 - Provider capture and observer timeouts remain active until their response bodies are fully read.
 
-CI closure evidence on PR #392:
+Validated code-head evidence on PR #392:
 - Dedicated `LANERIQ AI Image Market Readiness Gate`: PASS.
 - Creative Media Image 5-layer contract: PASS.
 - Image Studio regression contract: PASS.
 - Main `LANERIQ AI 100 CI`: Image Studio, Runtime Reliability, Non-production 100, Structural 100 and Next.js Production Build: PASS.
 
-**Truth boundary:** Layer 1 is CODE/CI verified. It is not LIVE VERIFIED merely because the wiring exists. Layer 2 still requires real provider outputs and real independent observations.
+**Truth boundary:** Layer 1 is CODE/CI verified. Documentation-only follow-up commits do not upgrade it to LIVE VERIFIED. Layer 2 still requires real provider outputs and real independent observations.
 
 ## Layer 2 — Real provider and output proof
 Required:
