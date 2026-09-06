@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.net.Uri;
+import android.net.VpnService;
 import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
@@ -27,6 +28,7 @@ import java.util.Date;
 public class MainActivity extends Activity {
     private static final int REQUEST_PICK_SECURITY_FILE = 7101;
     private static final int REQUEST_CONFIRM_PAUSE_CREDENTIAL = 7102;
+    private static final int REQUEST_WEB_SHIELD_VPN = 7103;
 
     private TextView status;
     private TextView protectionTools;
@@ -51,6 +53,20 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_PICK_SECURITY_FILE && resultCode == RESULT_OK && data != null && data.getData() != null) {
             scanSelectedFile(data.getData());
+            return;
+        }
+        if (requestCode == REQUEST_WEB_SHIELD_VPN) {
+            WebShieldStateStore web = new WebShieldStateStore(this);
+            if (resultCode == RESULT_OK) {
+                web.setUserOptedIn(true);
+                web.markConsent(true, "user-vpn-consent");
+                startWebShieldAfterConsent();
+            } else {
+                web.setUserOptedIn(false);
+                web.markConsent(false, "user-declined-vpn-consent");
+                protectionTools.setText("System Web Shield remains off. Android VPN permission was not granted.");
+            }
+            refreshStatus();
             return;
         }
         if (requestCode == REQUEST_CONFIRM_PAUSE_CREDENTIAL) {
@@ -116,6 +132,10 @@ public class MainActivity extends Activity {
         web.setOnClickListener(v -> showWebsiteCheck());
         root.addView(web, matchWrap(dp(12)));
 
+        Button webShield = button("Prepare System Web Shield");
+        webShield.setOnClickListener(v -> requestWebShieldConsent());
+        root.addView(webShield, matchWrap(dp(12)));
+
         Button file = button("Scan Selected App / APK / File");
         file.setOnClickListener(v -> pickSecurityFile());
         root.addView(file, matchWrap(dp(12)));
@@ -131,7 +151,8 @@ public class MainActivity extends Activity {
         protectionTools = card(
                 "Protection tools ready\n" +
                 "• Website check: local heuristics + privacy-safe reputation cache\n" +
-                "• App/APK/file check: SHA-256 + APK package/signer/permission evidence\n" +
+                "• Web Shield: Android VpnService control plane + consent Truth Gate; packet engine stays off until externally verified\n" +
+                "• App/APK/file check: SHA-256 + APK package/signer/permission evidence + signed hash-bound reputation cache\n" +
                 "• Remote-control check: local technical risk + sensitive-action freeze policy\n" +
                 "• Anti-tamper: unexpected Guardian loss + signer continuity + alert-delivery truth\n" +
                 "• Hardened Pause: no one-tap notification stop; elevated-risk pause requires Android device credential\n" +
@@ -152,14 +173,14 @@ public class MainActivity extends Activity {
                 "• Risk-aware Guardian Pause + device-credential step-up\n" +
                 "• Developer Options / ADB / Accessibility risk snapshots\n" +
                 "• App install/update awareness\n" +
-                "• Safe Web local risk + offline reputation policy\n" +
+                "• Safe Web local risk + offline signed reputation policy\n" +
                 "• User-selected APK signer/permission/capability inspection\n" +
                 "• Sensitive banking/payment action fail-closed policy\n" +
                 "• Bounded structured local event evidence\n" +
                 "• Power-save / thermal-aware cadence\n" +
                 "• Privacy-first minimal cloud/witness contract\n\n" +
                 "A true Android Force Stop can prevent ordinary background components from restarting until the package is allowed to run again. " +
-                "System-wide Web Shield remains MANUAL_CHECK_ONLY until a real platform-compliant network filter is established. " +
+                "System-wide Web Shield cannot become Active until a real platform-compliant forwarding/filter data plane has external evidence. " +
                 "This test build does not claim hacker-proof, impossible-to-stop, CLEAN, virus-free, BANKING_SAFE, guaranteed theft prevention, guaranteed remote-control prevention, or unrestricted system-wide malware scanning.");
         note.setTextSize(13);
         root.addView(note);
@@ -220,6 +241,47 @@ public class MainActivity extends Activity {
                 .show();
     }
 
+    private void requestWebShieldConsent() {
+        if (!WebShieldDataPlaneContract.isProductionDataPlaneReady()) {
+            new WebShieldStateStore(this).markTunnel(false, false, false, WebShieldDataPlaneContract.reason());
+            protectionTools.setText(
+                    "System Web Shield control plane is installed, but the packet/filter data plane is not yet externally verified.\n\n" +
+                    "LANERIQ will not request Android VPN permission early and will not create a fake tunnel just to display Active. " +
+                    "Manual website checks and signed local reputation remain available.");
+            new LocalEventStore(this).recordOnce("web_shield_consent_deferred", "dataplane-not-ready", 60_000L);
+            refreshStatus();
+            return;
+        }
+
+        WebShieldStateStore web = new WebShieldStateStore(this);
+        web.setUserOptedIn(true);
+        Intent prepare = VpnService.prepare(this);
+        if (prepare == null) {
+            web.markConsent(true, "vpn-consent-already-granted");
+            startWebShieldAfterConsent();
+            return;
+        }
+        try {
+            startActivityForResult(prepare, REQUEST_WEB_SHIELD_VPN);
+        } catch (Exception e) {
+            web.setUserOptedIn(false);
+            web.markConsent(false, "vpn-consent-launch-failed");
+            protectionTools.setText("Android VPN permission screen could not be opened. Web Shield remains off.");
+        }
+    }
+
+    private void startWebShieldAfterConsent() {
+        Intent i = new Intent(this, WebShieldVpnService.class).setAction(WebShieldVpnService.ACTION_START);
+        try {
+            startService(i);
+            new LocalEventStore(this).recordOnce("web_shield_start_requested", "user-consented", 10_000L);
+        } catch (Exception e) {
+            new WebShieldStateStore(this).markStopped("vpn-service-start-failed");
+            new LocalEventStore(this).recordOnce("web_shield_start_failed", e.getClass().getSimpleName(), 60_000L);
+        }
+        status.postDelayed(this::refreshStatus, 500L);
+    }
+
     private void pickSecurityFile() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
@@ -238,8 +300,7 @@ public class MainActivity extends Activity {
             try {
                 String sha256 = SelectedFileHasher.sha256(getContentResolver(), uri);
                 new LocalEventStore(this).recordOnce("selected_file_hash", sha256, 30_000L);
-                LocalThreatReputationStore.Entry reputation =
-                        new LocalThreatReputationStore(this).lookupFileHash(sha256);
+                LocalThreatReputationStore.Entry reputation = new LocalThreatReputationStore(this).lookupFileHash(sha256);
 
                 try {
                     SelectedApkInspector.Result apk = SelectedApkInspector.inspect(this, uri);
@@ -249,6 +310,20 @@ public class MainActivity extends Activity {
                             apk.dangerousPermissionCount,
                             apk.remoteControlCapabilitySignal));
                     String signer = apk.signerSha256.isEmpty() ? "unavailable" : apk.signerSha256.get(0);
+                    final String verdictLabel;
+                    final String verdictReason;
+                    if (reputation.verdict == LocalThreatReputationStore.Verdict.KNOWN_MALICIOUS
+                            && reputation.verifiedStrongEvidence) {
+                        verdictLabel = "KNOWN_MALICIOUS";
+                        verdictReason = "fresh signed hash-bound threat evidence " + reputation.evidenceId;
+                    } else if (reputation.verdict == LocalThreatReputationStore.Verdict.KNOWN_BENIGN
+                            && reputation.verifiedStrongEvidence) {
+                        verdictLabel = "SIGNED_REPUTATION_BENIGN + " + risk.verdict.name();
+                        verdictReason = "signed reputation exists, but LANERIQ still reports local risk signals separately; this is not a universal virus-free guarantee";
+                    } else {
+                        verdictLabel = risk.verdict.name();
+                        verdictReason = risk.reason;
+                    }
                     runOnUiThread(() -> protectionTools.setText(
                             "Selected APK assessment\n" +
                             "Package: " + apk.packageName +
@@ -260,18 +335,22 @@ public class MainActivity extends Activity {
                             "\nDevice admin declared: " + apk.deviceAdminServiceDeclared +
                             "\nOverlay permission requested: " + apk.overlayPermissionRequested +
                             "\nCached reputation: " + reputation.verdict.name() +
-                            "\n\nVerdict: " + risk.verdict.name() +
-                            "\nRisk score: " + risk.riskScore + "/100" +
-                            "\nReason: " + risk.reason +
-                            "\n\nCurrent local metadata/capability evidence cannot emit a MALICIOUS or virus verdict. " +
-                            "A strong malware conclusion requires the future verified signed-evidence adapter."));
+                            "\nSigned evidence: " + reputation.verifiedStrongEvidence +
+                            "\n\nVerdict: " + verdictLabel +
+                            "\nLocal metadata risk score: " + risk.riskScore + "/100" +
+                            "\nReason: " + verdictReason +
+                            "\n\nMetadata/permissions alone never produce a malware verdict. Strong malware claims require fresh signed evidence bound to this exact SHA-256."));
                 } catch (Exception notApkOrUnreadable) {
+                    final String strong = reputation.verdict == LocalThreatReputationStore.Verdict.KNOWN_MALICIOUS
+                            && reputation.verifiedStrongEvidence
+                            ? "\nStrong result: KNOWN_MALICIOUS from fresh signed hash-bound evidence."
+                            : "\nA hash alone does not prove the file is clean or malicious.";
                     runOnUiThread(() -> protectionTools.setText(
                             "Selected file assessment\n" +
                             "SHA-256: " + sha256 +
                             "\nCached reputation: " + reputation.verdict.name() +
-                            "\n\nThe file was fingerprinted locally. It was not parsed as an APK package. " +
-                            "A hash alone does not prove the file is clean or malicious."));
+                            "\nSigned evidence: " + reputation.verifiedStrongEvidence +
+                            "\n\nThe file was fingerprinted locally. It was not parsed as an APK package." + strong));
                 }
             } catch (Exception e) {
                 runOnUiThread(() -> protectionTools.setText(
@@ -348,7 +427,8 @@ public class MainActivity extends Activity {
                         "• No cross-user mobile compute\n" +
                         "• Domain reputation keys are stored as hashes\n" +
                         "• Guardian Witness shares only minimal protection state\n" +
-                        "• Default cloud telemetry is restricted to allowlisted technical threat fields\n\n" +
+                        "• Default cloud telemetry is restricted to allowlisted technical threat fields\n" +
+                        "• Raw file upload for a deep cloud scan requires explicit user authorization\n\n" +
                         "The Guardian monitors local technical security state, not your private content.")
                 .setPositiveButton("OK", null)
                 .show();
@@ -578,14 +658,8 @@ public class MainActivity extends Activity {
         AlertDeliveryIntegrity.Decision alertDelivery = AlertDeliveryIntegrity.capture(this);
         EmergencyModeStore.State emergency = new EmergencyModeStore(this).read();
 
-        NetworkProtectionCapability.Evidence networkEvidence = new NetworkProtectionCapability.Evidence(
-                false,
-                lease.userOptedIn,
-                false,
-                false,
-                false,
-                true);
-        NetworkProtectionCapability.State networkState = NetworkProtectionCapability.evaluate(networkEvidence);
+        WebShieldStateStore.State webShield = new WebShieldStateStore(this).read();
+        NetworkProtectionCapability.State networkState = NetworkProtectionCapability.evaluate(webShield.asCapabilityEvidence());
 
         boolean mayClaimActive = lease.mayClaimGuardianActive()
                 && GuardianHealth.mayClaimGuardianActive(health)
@@ -643,6 +717,9 @@ public class MainActivity extends Activity {
                 "\nLocal risk: " + lease.localRiskLevel +
                 "\nActive engines: " + lease.activeEngineSet +
                 "\nSystem-wide Web Shield: " + networkState.name() +
+                "\nWeb Shield consent: " + webShield.vpnConsentGranted +
+                "\nWeb Shield tunnel evidence: " + webShield.tunnelEstablished +
+                "\nWeb Shield reason: " + webShield.lastReason +
                 "\nLease epoch: " + lease.epoch +
                 "\nHeartbeat sequence: " + lease.heartbeatSequence +
                 "\nLease remaining: " + (lease.remainingMs / 1000L) + "s" +
