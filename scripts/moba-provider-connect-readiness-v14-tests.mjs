@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import "./moba-live-completion-v15-v18-tests.mjs";
 import {buildMobaCreatorProviderConnectStatus,evaluateMobaProviderConnectReadiness,MOBA_PROVIDER_CONNECT_READINESS_V14,readMobaProviderConnectionChecklist} from "../lib/game/moba-provider-connect-readiness-v14.js";
 
 assert.equal(MOBA_PROVIDER_CONNECT_READINESS_V14.providerNeutral,true);
@@ -47,8 +48,15 @@ const route=fs.readFileSync("app/api/game/multiplayer/capacity/route.js","utf8")
 const readiness=fs.readFileSync("lib/game/game-creator-readiness-v2.js","utf8");
 assert.match(route,/moba-provider-connect-readiness-v14\.js/);
 assert.match(route,/buildMobaCreatorProviderConnectStatus/);
+assert.match(route,/moba-production-certification-v18\.js/);
+assert.match(route,/buildMobaV15V18CreatorStatus/);
+assert.match(route,/completion/);
 assert.match(route,/connection/);
 assert.doesNotMatch(route,/MULTIPLAYER_PROVIDER_TOKEN/);
 assert.match(readiness,/mobaProviderConnectReadinessV14/);
+assert.match(readiness,/mobaRealProviderSmokeV15/);
+assert.match(readiness,/mobaLiveSelfHealingV16/);
+assert.match(readiness,/mobaDeviceNetworkLabV17/);
+assert.match(readiness,/mobaProductionCertificationV18/);
 
-console.log("✓ MOBA Provider Connect Readiness V14 passed: creator-safe missing-setting guidance and exact-build Preview smoke eligibility expose no provider secret values and remain Production fail-closed.");
+console.log("✓ MOBA Provider Connect Readiness V14 passed: creator-safe connection guidance plus V15–V18 completion status expose no provider secret values and remain Production fail-closed.");
