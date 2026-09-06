@@ -118,7 +118,7 @@ public final class ProtectionLeaseStore {
                 .putLong(K_HEARTBEAT_SEQ, nextSeq)
                 .putString(K_RISK, riskLevel == null ? "unknown" : riskLevel)
                 .putString(K_ENGINE_SET, engineSet == null ? "guardian" : engineSet)
-                .putString(K_POLICY, "p0-local-3")
+                .putString(K_POLICY, "p0.5-survival-1")
                 .putString(K_REPUTATION, "local-none")
                 .apply();
     }
