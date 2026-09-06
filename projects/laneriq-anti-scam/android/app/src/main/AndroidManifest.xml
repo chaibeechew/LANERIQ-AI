@@ -34,6 +34,15 @@
                 android:value="User-enabled anti-scam Guardian device-risk monitoring" />
         </service>
 
+        <service
+            android:name=".WebShieldVpnService"
+            android:permission="android.permission.BIND_VPN_SERVICE"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.net.VpnService" />
+            </intent-filter>
+        </service>
+
         <provider
             android:name=".ProtectionStatusProvider"
             android:authorities="${applicationId}.protection"
