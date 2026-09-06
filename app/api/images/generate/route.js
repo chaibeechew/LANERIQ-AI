@@ -34,6 +34,8 @@ function iconSvg({primary,accent,background,variation=0,title=""}){const mark=va
 function noStore(payload,status=200){return NextResponse.json(payload,{status,headers:{"Cache-Control":"private, no-store, max-age=0","Pragma":"no-cache","X-Content-Type-Options":"nosniff"}});}
 function localImages({count,mode,style,paletteName,placement,placementPrompt,primary,accent,background,textColor,includeText,prompt}){const images=[];for(let i=0;i<count;i++){if(mode==="icon"){const svg=iconSvg({primary,accent,background,variation:i,title:includeText?prompt.split(/[.!?。！？]/)[0]:""});images.push({id:`icon-${i+1}`,image:`data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,mode,style,palette:paletteName,source:"local",placement});continue;}const wallpaperPreset=pickWallpaperForStage(`${mode}-${style}-${i}`,`${placementPrompt}-${paletteName}`);const image=wallpaperDataUri(wallpaperPreset,{primary,accent,background,surface:textColor});images.push({id:`visual-${i+1}`,image,mode,style,palette:paletteName,wallpaperPreset,wallpaperName:WALLPAPER_PRESETS.find(x=>x.id===wallpaperPreset)?.name||wallpaperPreset,source:"local",placement});}return images;}
 function requestHash(value){return createHash("sha256").update(JSON.stringify(value)).digest("hex");}
+function evidenceOperationId(userId,requestId){return createHash("sha256").update(`${String(userId||"")}:${String(requestId||"")}`).digest("hex");}
+function emitMarketEvidence(event,payload={}){try{console.info("AI_IMAGE_MARKET_EVENT",JSON.stringify({schemaVersion:1,event,at:new Date().toISOString(),environment:process.env.VERCEL_ENV||null,gitRef:process.env.VERCEL_GIT_COMMIT_REF||null,productionSha:process.env.VERCEL_GIT_COMMIT_SHA||null,...payload}));}catch{}}
 async function readRequest(admin,userId,requestId){const{data,error}=await admin.from("image_generation_requests").select("id,user_id,request_id,request_hash,status,result,error_code,created_at,updated_at").eq("user_id",userId).eq("request_id",requestId).maybeSingle();if(error)throw new Error("IMAGE_REQUEST_LOOKUP_FAILED");return data||null;}
 async function claimRequest(admin,{userId,requestId,hash}){
   const now=new Date().toISOString();
@@ -71,11 +73,13 @@ export async function POST(request){
     if(claim.state==="failed")return noStore({error:"This image request finished unsuccessfully. Start a new image request.",code:"IMAGE_GENERATION_RETRY_NEW_ID"},409);
     if(claim.state==="pending")return noStore({error:"This image request is still processing.",code:"IMAGE_GENERATION_IN_PROGRESS",retryAfterMs:2000},409);
     requestRowId=claim.row.id;
+    const operationId=evidenceOperationId(user.id,chargeRequestId);
 
     if(claim.state==="replay"){
       const saved=claim.row.result||{};
       if(saved.source==="model"&&saved.truth==="REAL_OUTPUT_QUALITY_VERIFIED"){
         const images=await replayPersistedImages({admin,userId:user.id,assetIds:saved.assetIds,mode,style,palette:paletteName,placement});
+        emitMarketEvidence("idempotent_replay",{operationId,truth:saved.truth,qualityScore:Number(saved.qualityScore||0),evidenceDigest:saved.evidenceDigest||null,artifactDigest:saved.artifactDigest||null});
         return noStore({success:true,image:images[0]?.image||null,images,engine:"LANERIQ Hardened Image Runtime",generated:true,replayed:true,durable:true,mode,style,palette:paletteName,source:"model",placement,truth:saved.truth,quality:{score:Number(saved.qualityScore||0),decision:"accept",gatePassed:true},credits:{charged:0,requestId:chargeRequestId,balance:null},note:"Recovered the same hash-bound, quality-gated provider generation from your private Asset Library without running the provider again."});
       }
       const legacyUnverified=saved.source==="model";
@@ -85,6 +89,7 @@ export async function POST(request){
 
     const gateway=getImageGenerationConfig();let modelFailureCode="";let balance=null;
     if(mode!=="icon"&&gateway.configured){
+      const modelStartedAt=Date.now();
       try{
         const charge=await consumeAiCredits(user.id,{amount:IMAGE_GENERATION_CREDIT_COST,requestId:chargeRequestId,description:"AI image generation",metadata:{operation:"image_generate_hardened",mode,count}});charged=Boolean(charge?.charged);balance=charge?.balance??null;
         const colorDirection=`Primary ${primary}, accent ${accent}, background ${background}.`;
@@ -93,11 +98,14 @@ export async function POST(request){
           const promptDigest=createHash("sha256").update(placementPrompt).digest("hex");
           const durableImages=await persistGeneratedImages({admin,userId:user.id,requestId:chargeRequestId,items:hardened.images,mode,style,palette:paletteName,placement,lifecycle:{task:"image.generate",promptHash:promptDigest,truth:[hardened.truth],quality:{score:hardened.qualityScore,decision:hardened.qualityDecision,gatePassed:true},evidenceDigest:hardened.evidenceDigest}});
           await completeRequest(admin,{rowId:requestRowId,userId:user.id,status:"succeeded",result:{source:"model",assetIds:durableImages.map(item=>item.assetId),truth:hardened.truth,qualityScore:hardened.qualityScore,evidenceDigest:hardened.evidenceDigest,artifactDigest:hardened.artifactDigest,rounds:hardened.rounds}});
+          emitMarketEvidence("generation_success",{operationId,success:true,latencyMs:Date.now()-modelStartedAt,charged:Boolean(charged),refundSucceeded:null,truth:hardened.truth,qualityScore:Number(hardened.qualityScore||0),evidenceDigest:hardened.evidenceDigest||null,artifactDigest:hardened.artifactDigest||null,observerSignedEvidence:true,artifactHashBound:true,safetyPassed:true,provenanceVerified:true,outputValidated:true,providerSelfReported:false});
           return noStore({success:true,image:durableImages[0]?.image||null,images:durableImages,engine:"LANERIQ Hardened Image Runtime",generated:true,replayed:false,durable:true,mode,style,palette:paletteName,source:"model",placement,truth:hardened.truth,quality:{score:hardened.qualityScore,decision:hardened.qualityDecision,gatePassed:true},evidenceDigest:hardened.evidenceDigest,artifactDigest:hardened.artifactDigest,hardening:{wired:true,rounds:hardened.rounds,independentObserver:true,byteHashBound:true},credits:{charged:charged?IMAGE_GENERATION_CREDIT_COST:0,requestId:chargeRequestId,balance},note:"Provider bytes were captured server-side, independently observed, safety/provenance/output validated, quality-gated, hash-bound to the observation, and only then saved to your private Asset Library."});
         }
       }catch(error){
         modelFailureCode=error instanceof ImageGenerationGatewayError||error instanceof DurableImageOutputError?error.code:/insufficient credits/i.test(String(error?.message||""))?"IMAGE_CREDITS_UNAVAILABLE":"IMAGE_MODEL_UNAVAILABLE";
-        if(charged){try{await refundAiCredits(user.id,{requestId:chargeRequestId,amount:IMAGE_GENERATION_CREDIT_COST,description:"AI image hardened generation failed - automatic refund",metadata:{operation:"image_generate_hardened",mode}})}catch{}charged=false;}
+        const wasCharged=charged;let refundSucceeded=!wasCharged;
+        if(wasCharged){try{await refundAiCredits(user.id,{requestId:chargeRequestId,amount:IMAGE_GENERATION_CREDIT_COST,description:"AI image hardened generation failed - automatic refund",metadata:{operation:"image_generate_hardened",mode}});refundSucceeded=true;}catch{refundSucceeded=false;}charged=false;}
+        emitMarketEvidence("generation_failure",{operationId,success:false,latencyMs:Date.now()-modelStartedAt,charged:wasCharged,refundSucceeded,failureCode:modelFailureCode});
       }
     }
 
