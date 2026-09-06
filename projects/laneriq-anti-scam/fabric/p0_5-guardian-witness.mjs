@@ -42,6 +42,7 @@ export function evaluateGuardianWitness(snapshot, { nowMs = Date.now() } = {}) {
   const unexpectedProtectionLoss = snapshot.unexpectedProtectionLoss === true;
   const emergencyLevel = String(snapshot.emergencyLevel || 'NONE');
   const alertDeliveryDegraded = snapshot.alertDeliveryAvailable === false;
+  const platformIntegrityState = String(snapshot.platformIntegrityState || 'UNKNOWN');
 
   if (!userOptedIn) {
     return Object.freeze({
@@ -60,16 +61,18 @@ export function evaluateGuardianWitness(snapshot, { nowMs = Date.now() } = {}) {
     && sameBootSession;
 
   if (claimableActive && leaseFresh && integrityState === 'ACTIVE') {
+    const deliveryDegraded = alertDeliveryDegraded
+      || ['ALERTS_DEGRADED', 'BACKGROUND_RESTRICTED', 'POWER_RESTRICTED', 'MULTIPLE_RESTRICTIONS'].includes(platformIntegrityState);
     return Object.freeze({
       state: WitnessState.VERIFIED_ACTIVE,
       protectedClaimAllowed: true,
       freezeSensitiveLaneriqActions: emergencyLevel === 'URGENT',
-      shouldNotifyUser: emergencyLevel === 'URGENT' || alertDeliveryDegraded,
+      shouldNotifyUser: emergencyLevel === 'URGENT' || deliveryDegraded,
       hackerAttributionAllowed: false,
       reason: emergencyLevel === 'URGENT'
         ? 'guardian_active_but_emergency_risk_present'
-        : alertDeliveryDegraded
-        ? 'guardian_active_but_alert_delivery_degraded'
+        : deliveryDegraded
+        ? 'guardian_active_but_platform_delivery_degraded'
         : 'fresh_guardian_lease_verified',
     });
   }
@@ -147,6 +150,12 @@ export function evaluateGuardianWitnessObservation({
   return unknownWitness('guardian_provider_unavailable_reverification_required');
 }
 
+const HEARTBEAT_ALLOWED_FIELDS = Object.freeze([
+  'schemaVersion', 'devicePseudonym', 'leaseEpoch', 'heartbeatSequence',
+  'integrityState', 'emergencyLevel', 'alertDeliveryState', 'platformIntegrityState',
+  'policyVersion', 'observedAtMs',
+]);
+
 /**
  * Minimal cloud/witness heartbeat. Deliberately contains no raw URL, file name,
  * app history, local event log, message content, contact, token, or stable raw
@@ -159,6 +168,7 @@ export function buildPrivacySafeGuardianHeartbeat({
   integrityState,
   emergencyLevel = 'NONE',
   alertDeliveryState = 'UNKNOWN',
+  platformIntegrityState = 'UNKNOWN',
   policyVersion = 'unknown',
   observedAtMs = Date.now(),
 } = {}) {
@@ -169,14 +179,96 @@ export function buildPrivacySafeGuardianHeartbeat({
     throw new Error('valid observedAtMs required');
   }
   return Object.freeze({
-    schemaVersion: 2,
+    schemaVersion: 3,
     devicePseudonym: devicePseudonym.trim(),
     leaseEpoch: Math.max(0, Number(leaseEpoch || 0)),
     heartbeatSequence: Math.max(0, Number(heartbeatSequence || 0)),
     integrityState: String(integrityState || 'UNKNOWN'),
     emergencyLevel: String(emergencyLevel || 'NONE'),
     alertDeliveryState: String(alertDeliveryState || 'UNKNOWN'),
+    platformIntegrityState: String(platformIntegrityState || 'UNKNOWN'),
     policyVersion: String(policyVersion || 'unknown'),
     observedAtMs: Number(observedAtMs),
+  });
+}
+
+export function validatePrivacySafeGuardianHeartbeat(heartbeat = {}) {
+  if (!heartbeat || typeof heartbeat !== 'object' || Array.isArray(heartbeat)) {
+    return Object.freeze({ valid: false, reason: 'invalid_heartbeat' });
+  }
+  const unknown = Object.keys(heartbeat).filter((k) => !HEARTBEAT_ALLOWED_FIELDS.includes(k));
+  if (unknown.length > 0) {
+    return Object.freeze({ valid: false, reason: 'non_minimal_fields_present', unknown: Object.freeze(unknown.sort()) });
+  }
+  if (typeof heartbeat.devicePseudonym !== 'string' || heartbeat.devicePseudonym.trim() === '') {
+    return Object.freeze({ valid: false, reason: 'missing_device_pseudonym' });
+  }
+  if (!Number.isFinite(Number(heartbeat.observedAtMs)) || Number(heartbeat.observedAtMs) <= 0) {
+    return Object.freeze({ valid: false, reason: 'invalid_observed_at' });
+  }
+  return Object.freeze({ valid: true, reason: 'minimal_guardian_heartbeat' });
+}
+
+export const CloudDeadManState = Object.freeze({
+  FRESH: 'FRESH',
+  STALE: 'STALE',
+  SEQUENCE_REGRESSION: 'SEQUENCE_REGRESSION',
+  IDENTITY_CHANGED: 'IDENTITY_CHANGED',
+  FUTURE_TIMESTAMP: 'FUTURE_TIMESTAMP',
+  UNAVAILABLE: 'UNAVAILABLE',
+});
+
+/**
+ * Cloud dead-man verification. It can say that verification was lost; it can
+ * never conclude that a hacker caused the loss and it cannot replace the local Guardian.
+ */
+export function evaluateCloudDeadManHeartbeat({
+  current = null,
+  previous = null,
+  nowMs = Date.now(),
+  maxAgeMs = 180_000,
+  maxFutureSkewMs = 60_000,
+} = {}) {
+  const fail = (state, reason, notify = true) => Object.freeze({
+    state,
+    verificationHealthy: false,
+    protectedClaimAllowed: false,
+    shouldNotifyUser: notify,
+    hackerAttributionAllowed: false,
+    reason,
+  });
+
+  if (!current) return fail(CloudDeadManState.UNAVAILABLE, 'guardian_cloud_heartbeat_unavailable', false);
+  const validation = validatePrivacySafeGuardianHeartbeat(current);
+  if (!validation.valid) return fail(CloudDeadManState.UNAVAILABLE, validation.reason);
+
+  const observedAt = Number(current.observedAtMs);
+  if (observedAt > nowMs + maxFutureSkewMs) {
+    return fail(CloudDeadManState.FUTURE_TIMESTAMP, 'guardian_heartbeat_from_future');
+  }
+  if (nowMs - observedAt > maxAgeMs) {
+    return fail(CloudDeadManState.STALE, 'guardian_cloud_heartbeat_stale');
+  }
+
+  if (previous) {
+    if (String(previous.devicePseudonym || '') !== String(current.devicePseudonym || '')) {
+      return fail(CloudDeadManState.IDENTITY_CHANGED, 'guardian_witness_identity_changed');
+    }
+    const prevEpoch = Number(previous.leaseEpoch || 0);
+    const curEpoch = Number(current.leaseEpoch || 0);
+    const prevSeq = Number(previous.heartbeatSequence || 0);
+    const curSeq = Number(current.heartbeatSequence || 0);
+    if (curEpoch < prevEpoch || (curEpoch === prevEpoch && curSeq < prevSeq)) {
+      return fail(CloudDeadManState.SEQUENCE_REGRESSION, 'guardian_heartbeat_sequence_regressed');
+    }
+  }
+
+  return Object.freeze({
+    state: CloudDeadManState.FRESH,
+    verificationHealthy: true,
+    protectedClaimAllowed: false,
+    shouldNotifyUser: false,
+    hackerAttributionAllowed: false,
+    reason: 'fresh_minimal_guardian_cloud_heartbeat',
   });
 }
