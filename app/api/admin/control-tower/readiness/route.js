@@ -61,9 +61,7 @@ export async function GET(request) {
     try {
       bundle = await loadReleaseBundle(auth.supabase, releaseId);
     } catch (error) {
-      if (isControlTowerStorageMissing(error)) {
-        return json({ storageReady: false, scorecard: null });
-      }
+      if (isControlTowerStorageMissing(error)) return json({ storageReady: false, scorecard: null });
       throw error;
     }
     if (!bundle.release) return json({ error: "Release not found." }, 404);
@@ -86,10 +84,12 @@ export async function POST(request) {
 
     const payload = CONTROL_TOWER_STANDARD_GATES.map((gate) => ({
       release_id: releaseId,
-      ...gate,
+      gate_key: gate.gate_key,
+      label: gate.label,
+      required: gate.required,
       state: "pending",
       detail: "Awaiting verified evidence.",
-      evidence: {},
+      evidence: { phase: gate.phase },
     }));
 
     const { data, error } = await auth.supabase
@@ -98,9 +98,7 @@ export async function POST(request) {
       .select("id,release_id,gate_key,label,state,required,detail,evidence,checked_at,updated_at");
 
     if (error) {
-      if (isControlTowerStorageMissing(error)) {
-        return json({ error: "Control Tower storage migration is not active in this environment." }, 503);
-      }
+      if (isControlTowerStorageMissing(error)) return json({ error: "Control Tower storage migration is not active in this environment." }, 503);
       if (error.code === "23503") return json({ error: "Release does not exist." }, 409);
       throw error;
     }
