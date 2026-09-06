@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../../lib/supabase/server.js";
-import { canAccessControlTower } from "../../../../../lib/admin-access.js";
+import {
+  canAccessControlTower,
+  controlTowerCapabilities,
+  normalizeInternalRole,
+} from "../../../../../lib/admin-access.js";
 import { getControlTowerLiveStatus } from "../../../../../lib/control-tower-runtime.js";
 import {
   CONTROL_TOWER_STANDARD_GATES,
@@ -25,10 +29,9 @@ async function requireControlTowerAdmin() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: json({ error: "Authentication required." }, 401) };
-  if (!canAccessControlTower(user.app_metadata?.role)) {
-    return { error: json({ error: "Control Tower access required." }, 403) };
-  }
-  return { supabase, user };
+  const role = normalizeInternalRole(user.app_metadata?.role);
+  if (!canAccessControlTower(role)) return { error: json({ error: "Control Tower access required." }, 403) };
+  return { supabase, user, role, capabilities: controlTowerCapabilities(role) };
 }
 
 async function loadReleaseBundle(supabase, releaseId) {
@@ -61,14 +64,14 @@ export async function GET(request) {
     try {
       bundle = await loadReleaseBundle(auth.supabase, releaseId);
     } catch (error) {
-      if (isControlTowerStorageMissing(error)) return json({ storageReady: false, scorecard: null });
+      if (isControlTowerStorageMissing(error)) return json({ storageReady: false, scorecard: null, capabilities: auth.capabilities });
       throw error;
     }
     if (!bundle.release) return json({ error: "Release not found." }, 404);
 
     const liveStatus = await getControlTowerLiveStatus();
     const scorecard = computeReleaseScorecard({ ...bundle, liveStatus });
-    return json({ storageReady: true, ...bundle, liveStatus, scorecard });
+    return json({ storageReady: true, ...bundle, liveStatus, scorecard, capabilities: auth.capabilities });
   } catch {
     return json({ error: "Unable to evaluate release readiness." }, 500);
   }
