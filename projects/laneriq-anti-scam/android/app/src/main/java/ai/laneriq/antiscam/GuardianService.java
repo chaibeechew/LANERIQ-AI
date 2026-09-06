@@ -30,6 +30,8 @@ public class GuardianService extends Service {
     private LocalEventStore eventStore;
     private ResourceGovernor governor;
     private EmergencyModeStore emergencyStore;
+    private AppSelfIntegrityStore selfIntegrityStore;
+    private AppSelfIntegrityStore.Result selfIntegrity;
     private String lastAlertFingerprint = "";
     private int consecutiveHealthyTicks = 0;
     private int consecutiveLowRiskTicks = 0;
@@ -48,7 +50,18 @@ public class GuardianService extends Service {
         eventStore = new LocalEventStore(this);
         governor = new ResourceGovernor(this);
         emergencyStore = new EmergencyModeStore(this);
+        selfIntegrityStore = new AppSelfIntegrityStore(this);
         createChannels();
+
+        selfIntegrity = selfIntegrityStore.probe();
+        eventStore.recordOnce("self_integrity_state", selfIntegrity.state.name(), 60_000L);
+        if (selfIntegrity.unexpectedSignerChange) {
+            emergencyStore.refresh(EmergencyModeStore.Level.URGENT, "app-signer-mismatch");
+            showAlert(
+                    "LANERIQ integrity warning",
+                    "The Anti Scam app signing identity changed unexpectedly. Protection claims are suspended until the app integrity is reviewed. " +
+                            "This signal alone does not prove a hacker changed the app.");
+        }
     }
 
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
@@ -102,6 +115,7 @@ public class GuardianService extends Service {
     private void runRiskCheck() {
         DeviceRiskSnapshot snapshot = DeviceRiskSnapshot.capture(getContentResolver());
         boolean constrained = governor.shouldReduceBackgroundWork();
+        selfIntegrity = selfIntegrityStore.probe();
 
         EmergencyModeStore.State currentEmergency = emergencyStore.read();
         EmergencyModePolicy.Decision emergencyDecision = EmergencyModePolicy.evaluate(
@@ -109,7 +123,10 @@ public class GuardianService extends Service {
                 currentEmergency.level,
                 consecutiveLowRiskTicks);
         consecutiveLowRiskTicks = emergencyDecision.nextLowRiskTicks;
-        if (emergencyDecision.shouldClearStoredState) {
+        if (selfIntegrity.unexpectedSignerChange) {
+            emergencyStore.refresh(EmergencyModeStore.Level.URGENT, "app-signer-mismatch");
+            consecutiveLowRiskTicks = 0;
+        } else if (emergencyDecision.shouldClearStoredState) {
             emergencyStore.clear();
         } else if (emergencyDecision.level != EmergencyModeStore.Level.NONE) {
             emergencyStore.refresh(emergencyDecision.level, snapshot.fingerprint);
@@ -117,7 +134,7 @@ public class GuardianService extends Service {
 
         leaseStore.heartbeat(
                 snapshot.riskLevel,
-                "guardian,device-signals,event-dedup,resource-governor,emergency-mode,anti-tamper,lease-v3");
+                "guardian,device-signals,event-dedup,resource-governor,emergency-mode,anti-tamper,self-integrity,lease-v3");
 
         ProtectionLeaseStore.Lease lease = leaseStore.read();
         EmergencyModeStore.State emergency = emergencyStore.read();
@@ -128,7 +145,8 @@ public class GuardianService extends Service {
                 lease.recentRestartAttempts);
         GuardianIntegrityPolicy.Decision integrity = GuardianIntegrityPolicy.evaluate(lease);
 
-        if (lease.mayClaimGuardianActive() && integrity.mayClaimProtected) {
+        boolean integrityClaimable = integrity.mayClaimProtected && selfIntegrity.continuityAcceptable;
+        if (lease.mayClaimGuardianActive() && integrityClaimable) {
             consecutiveHealthyTicks++;
             if (consecutiveHealthyTicks >= 3) {
                 leaseStore.resetAutomaticRestartCircuit();
@@ -138,7 +156,9 @@ public class GuardianService extends Service {
         }
 
         String summary;
-        if (emergency.level == EmergencyModeStore.Level.URGENT) {
+        if (selfIntegrity.unexpectedSignerChange) {
+            summary = "URGENT • app integrity mismatch • protection claims suspended";
+        } else if (emergency.level == EmergencyModeStore.Level.URGENT) {
             summary = "URGENT • remote-control risk signals • avoid banking/payments until reviewed";
         } else if (!integrity.mayClaimProtected) {
             summary = "Guardian integrity • " + integrity.state.name() + " • " + integrity.reason;
@@ -165,6 +185,10 @@ public class GuardianService extends Service {
 
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         nm.notify(NOTIFICATION_ID, buildProtectionNotification(summary));
+
+        if (selfIntegrity.unexpectedSignerChange) {
+            eventStore.recordOnce("self_integrity_mismatch", selfIntegrity.state.name(), 120_000L);
+        }
 
         if (snapshot.signalCount > 0 && !snapshot.fingerprint.equals(lastAlertFingerprint)) {
             String eventId = eventStore.recordOnce(
