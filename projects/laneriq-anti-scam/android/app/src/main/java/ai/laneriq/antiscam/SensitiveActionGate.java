@@ -10,17 +10,33 @@ public final class SensitiveActionGate {
         public final int remoteControlSignalCount;
         public final boolean suspiciousNewApp;
         public final boolean guardianFresh;
+        public final boolean unexpectedProtectionLoss;
 
         public Signals(boolean webBlocked,
                        boolean knownMaliciousDestination,
                        int remoteControlSignalCount,
                        boolean suspiciousNewApp,
                        boolean guardianFresh) {
+            this(webBlocked,
+                    knownMaliciousDestination,
+                    remoteControlSignalCount,
+                    suspiciousNewApp,
+                    guardianFresh,
+                    false);
+        }
+
+        public Signals(boolean webBlocked,
+                       boolean knownMaliciousDestination,
+                       int remoteControlSignalCount,
+                       boolean suspiciousNewApp,
+                       boolean guardianFresh,
+                       boolean unexpectedProtectionLoss) {
             this.webBlocked = webBlocked;
             this.knownMaliciousDestination = knownMaliciousDestination;
             this.remoteControlSignalCount = Math.max(0, remoteControlSignalCount);
             this.suspiciousNewApp = suspiciousNewApp;
             this.guardianFresh = guardianFresh;
+            this.unexpectedProtectionLoss = unexpectedProtectionLoss;
         }
     }
 
@@ -45,6 +61,10 @@ public final class SensitiveActionGate {
 
         if (signals.knownMaliciousDestination) {
             return new Decision(Action.FREEZE, "known malicious destination");
+        }
+        if (sensitive && signals.unexpectedProtectionLoss) {
+            return new Decision(Action.FREEZE,
+                    "guardian protection was lost unexpectedly during a sensitive action");
         }
         if (sensitive && signals.webBlocked && signals.remoteControlSignalCount >= 1) {
             return new Decision(Action.FREEZE, "web risk plus remote-control signal during sensitive action");
