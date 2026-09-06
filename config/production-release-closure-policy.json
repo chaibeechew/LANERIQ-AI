@@ -4,116 +4,31 @@
   "repository": "chaibeechew/LANERIQ-AI",
   "productionUrl": "https://laneriq-ai.vercel.app",
   "alwaysRequiredWorkflows": [
-    {
-      "id": "core-release",
-      "workflowFile": "core-release-gate.yml",
-      "name": "0 - LANERIQ Core Release Gate",
-      "evidenceArtifactPrefix": "laneriq-core-release-"
-    },
-    {
-      "id": "runtime-convergence",
-      "workflowFile": "production-runtime-convergence.yml",
-      "name": "0.1 - LANERIQ Production Runtime Convergence Gate",
-      "evidenceArtifactPrefix": "laneriq-production-runtime-"
-    },
-    {
-      "id": "main-ci",
-      "workflowFile": "ci.yml",
-      "name": "LANERIQ AI 100 CI"
-    },
-    {
-      "id": "release-integrity",
-      "workflowFile": "release-integrity-chain.yml",
-      "name": "LANERIQ Release Integrity Chain"
-    },
-    {
-      "id": "cloud-contract",
-      "workflowFile": "cloud-independent.yml",
-      "name": "Independent Cloud Data Service Contract"
-    },
-    {
-      "id": "generation-contract",
-      "workflowFile": "generation-independent.yml",
-      "name": "Independent Generation Service Contract"
-    },
-    {
-      "id": "ui-product-surface",
-      "workflowFile": "18-page-product-surface-gate.yml",
-      "name": "LANERIQ 18-Page Product Surface Gate"
-    },
-    {
-      "id": "production-browser",
-      "workflowFile": "production-mobile-browser-qa.yml",
-      "name": "LANERIQ AI Production Mobile Browser QA"
-    }
+    {"id":"core-release","workflowFile":"core-release-gate.yml","name":"0 - LANERIQ Core Release Gate","evidenceArtifactPrefix":"laneriq-core-release-"},
+    {"id":"runtime-convergence","workflowFile":"production-runtime-convergence.yml","name":"0.1 - LANERIQ Production Runtime Convergence Gate","evidenceArtifactPrefix":"laneriq-production-runtime-"},
+    {"id":"main-ci","workflowFile":"ci.yml","name":"LANERIQ AI 100 CI"},
+    {"id":"release-integrity","workflowFile":"release-integrity-chain.yml","name":"LANERIQ Release Integrity Chain"},
+    {"id":"cloud-contract","workflowFile":"cloud-independent.yml","name":"Independent Cloud Data Service Contract"},
+    {"id":"generation-contract","workflowFile":"generation-independent.yml","name":"Independent Generation Service Contract"},
+    {"id":"ui-product-surface","workflowFile":"18-page-product-surface-gate.yml","name":"LANERIQ 18-Page Product Surface Gate"},
+    {"id":"production-browser","workflowFile":"production-mobile-browser-qa.yml","name":"LANERIQ AI Production Mobile Browser QA"}
   ],
   "conditionalDomains": [
-    {
-      "id": "app-builder",
-      "workflowFile": "app-builder-production-closure-e2e.yml",
-      "name": "LANERIQ App Builder Production Closure Gate"
-    },
-    {
-      "id": "ui-interaction",
-      "workflowFile": "18-page-interaction-integrity.yml",
-      "name": "LANERIQ 18-Page Interaction Integrity"
-    },
-    {
-      "id": "production-evidence-attestation",
-      "workflowFile": "production-evidence-attestation.yml",
-      "name": "LANERIQ Production Evidence Attestation Gate"
-    },
-    {
-      "id": "production-evidence-ledger",
-      "workflowFile": "production-evidence-ledger.yml",
-      "name": "LANERIQ Production Evidence Ledger & Replay Gate"
-    },
-    {
-      "id": "malware-defense",
-      "workflowFile": "malware-defense-level10.yml",
-      "name": "LANERIQ Malware Defense Level 10 Gate"
-    },
-    {
-      "id": "malware-live-canary-contract",
-      "workflowFile": "malware-live-canary.yml",
-      "name": "LANERIQ Malware Defense Live Canary Contract"
-    },
-    {
-      "id": "supabase-admin-rpc-isolation",
-      "workflowFile": "supabase-admin-rpc-isolation-v2.yml",
-      "name": "LANERIQ Supabase Admin RPC Isolation v2 Gate"
-    }
+    {"id":"app-builder","workflowFile":"app-builder-production-closure-e2e.yml","name":"LANERIQ App Builder Production Closure Gate"},
+    {"id":"ui-interaction","workflowFile":"18-page-interaction-integrity.yml","name":"LANERIQ 18-Page Interaction Integrity"},
+    {"id":"production-evidence-attestation","workflowFile":"production-evidence-attestation.yml","name":"LANERIQ Production Evidence Attestation Gate"},
+    {"id":"production-evidence-ledger","workflowFile":"production-evidence-ledger.yml","name":"LANERIQ Production Evidence Ledger & Replay Gate"},
+    {"id":"malware-defense","workflowFile":"malware-defense-level10.yml","name":"LANERIQ Malware Defense Level 10 Gate"},
+    {"id":"malware-live-canary-contract","workflowFile":"malware-live-canary.yml","name":"LANERIQ Malware Defense Live Canary Contract"},
+    {"id":"supabase-admin-rpc-isolation","workflowFile":"supabase-admin-rpc-isolation-v2.yml","name":"LANERIQ Supabase Admin RPC Isolation v2 Gate"},
+    {"id":"supabase-public-object-default-deny","workflowFile":"supabase-public-object-default-deny.yml","name":"LANERIQ Supabase Public Object Default-Deny Gate"}
   ],
   "globalProductionEvidence": [
-    {
-      "id": "supabase-production-live-schema-security",
-      "required": true,
-      "verifiedByThisGate": false
-    },
-    {
-      "id": "supabase-auth-leaked-password-protection",
-      "required": true,
-      "verifiedByThisGate": false
-    },
-    {
-      "id": "provider-live-output",
-      "required": true,
-      "verifiedByThisGate": false
-    },
-    {
-      "id": "physical-device-native-behavior",
-      "required": true,
-      "verifiedByThisGate": false
-    },
-    {
-      "id": "official-store-submission-or-release",
-      "required": false,
-      "verifiedByThisGate": false
-    },
-    {
-      "id": "independent-third-party-audit",
-      "required": false,
-      "verifiedByThisGate": false
-    }
+    {"id":"supabase-production-live-schema-security","required":true,"verifiedByThisGate":false},
+    {"id":"supabase-auth-leaked-password-protection","required":true,"verifiedByThisGate":false},
+    {"id":"provider-live-output","required":true,"verifiedByThisGate":false},
+    {"id":"physical-device-native-behavior","required":true,"verifiedByThisGate":false},
+    {"id":"official-store-submission-or-release","required":false,"verifiedByThisGate":false},
+    {"id":"independent-third-party-audit","required":false,"verifiedByThisGate":false}
   ]
 }

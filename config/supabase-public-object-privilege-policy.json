@@ -1,0 +1,26 @@
+{
+  "policyVersion": 1,
+  "product": "LANERIQ AI",
+  "productionProjectRef": "uyizbmajxcvtkgzuoykg",
+  "schema": "public",
+  "creatorRoles": ["postgres", "supabase_admin"],
+  "defaultObjectPolicy": {
+    "functions": "explicit-grant-only",
+    "tables": "explicit-grant-only",
+    "sequences": "explicit-grant-only"
+  },
+  "implicitApiRolesDenied": ["public", "anon", "authenticated", "service_role"],
+  "rules": [
+    "Existing objects are not changed by ALTER DEFAULT PRIVILEGES.",
+    "Every future public-schema object that requires Data API or service-role access must receive an explicit minimal GRANT in its migration.",
+    "Browser-facing tables still require explicit RLS design; default privileges are not a substitute for RLS.",
+    "Server-only objects should remain inaccessible to anon/authenticated unless a reviewed use case explicitly requires otherwise."
+  ],
+  "liveAuditBasis": {
+    "postgresFunctionDefaultsBroad": true,
+    "supabaseAdminFunctionDefaultsBroad": true,
+    "postgresTableSequenceDefaultsBroad": true,
+    "supabaseAdminTableSequenceDefaultsBroad": true,
+    "productionMutationPerformedByThisBranch": false
+  }
+}

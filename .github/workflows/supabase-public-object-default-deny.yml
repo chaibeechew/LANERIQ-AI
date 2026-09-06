@@ -1,0 +1,43 @@
+name: LANERIQ Supabase Public Object Default-Deny Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/20260906081500_public_object_default_privileges_fail_closed.sql"
+      - "config/supabase-public-object-privilege-policy.json"
+      - "config/production-release-closure-policy.json"
+      - "scripts/supabase-public-object-default-deny-contract-tests.mjs"
+      - ".github/workflows/supabase-public-object-default-deny.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/20260906081500_public_object_default_privileges_fail_closed.sql"
+      - "config/supabase-public-object-privilege-policy.json"
+      - "config/production-release-closure-policy.json"
+      - "scripts/supabase-public-object-default-deny-contract-tests.mjs"
+      - ".github/workflows/supabase-public-object-default-deny.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify future public-object default-deny contract
+        run: node scripts/supabase-public-object-default-deny-contract-tests.mjs
+      - name: Truth boundary
+        run: |
+          echo "✓ This gate validates CODE + migration contract only and does not mutate Production Supabase."
+          echo "✓ Existing table/sequence ACLs are intentionally untouched."
+          echo "✓ Future public tables/sequences created by postgres or supabase_admin default to no implicit API/service-role privileges."
+          echo "✓ Explicit minimal GRANTs remain required when a future object intentionally needs access."
+          echo "✓ RLS remains independently required for browser-facing tables; default ACL hardening is defense in depth, not an RLS substitute."
