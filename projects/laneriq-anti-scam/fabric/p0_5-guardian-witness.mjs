@@ -41,6 +41,7 @@ export function evaluateGuardianWitness(snapshot, { nowMs = Date.now() } = {}) {
   const integrityState = String(snapshot.integrityState || 'UNKNOWN');
   const unexpectedProtectionLoss = snapshot.unexpectedProtectionLoss === true;
   const emergencyLevel = String(snapshot.emergencyLevel || 'NONE');
+  const alertDeliveryDegraded = snapshot.alertDeliveryAvailable === false;
 
   if (!userOptedIn) {
     return Object.freeze({
@@ -63,10 +64,12 @@ export function evaluateGuardianWitness(snapshot, { nowMs = Date.now() } = {}) {
       state: WitnessState.VERIFIED_ACTIVE,
       protectedClaimAllowed: true,
       freezeSensitiveLaneriqActions: emergencyLevel === 'URGENT',
-      shouldNotifyUser: emergencyLevel === 'URGENT',
+      shouldNotifyUser: emergencyLevel === 'URGENT' || alertDeliveryDegraded,
       hackerAttributionAllowed: false,
       reason: emergencyLevel === 'URGENT'
         ? 'guardian_active_but_emergency_risk_present'
+        : alertDeliveryDegraded
+        ? 'guardian_active_but_alert_delivery_degraded'
         : 'fresh_guardian_lease_verified',
     });
   }
@@ -155,6 +158,7 @@ export function buildPrivacySafeGuardianHeartbeat({
   heartbeatSequence,
   integrityState,
   emergencyLevel = 'NONE',
+  alertDeliveryState = 'UNKNOWN',
   policyVersion = 'unknown',
   observedAtMs = Date.now(),
 } = {}) {
@@ -165,12 +169,13 @@ export function buildPrivacySafeGuardianHeartbeat({
     throw new Error('valid observedAtMs required');
   }
   return Object.freeze({
-    schemaVersion: 1,
+    schemaVersion: 2,
     devicePseudonym: devicePseudonym.trim(),
     leaseEpoch: Math.max(0, Number(leaseEpoch || 0)),
     heartbeatSequence: Math.max(0, Number(heartbeatSequence || 0)),
     integrityState: String(integrityState || 'UNKNOWN'),
     emergencyLevel: String(emergencyLevel || 'NONE'),
+    alertDeliveryState: String(alertDeliveryState || 'UNKNOWN'),
     policyVersion: String(policyVersion || 'unknown'),
     observedAtMs: Number(observedAtMs),
   });
