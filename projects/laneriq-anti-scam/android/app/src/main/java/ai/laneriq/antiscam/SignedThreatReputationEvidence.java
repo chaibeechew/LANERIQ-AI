@@ -1,12 +1,11 @@
 package ai.laneriq.antiscam;
 
-import android.util.Base64;
-
 import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Locale;
@@ -90,13 +89,13 @@ public final class SignedThreatReputationEvidence {
             if (publicKeyBase64 == null || publicKeyBase64.trim().isEmpty()) return null;
 
             try {
-                byte[] encodedKey = Base64.decode(publicKeyBase64, Base64.DEFAULT);
+                byte[] encodedKey = Base64.getDecoder().decode(publicKeyBase64.trim());
                 PublicKey key = KeyFactory.getInstance("EC")
                         .generatePublic(new X509EncodedKeySpec(encodedKey));
                 Signature signature = Signature.getInstance("SHA256withECDSA");
                 signature.initVerify(key);
                 signature.update(canonicalPayload(payload).getBytes(StandardCharsets.UTF_8));
-                byte[] signatureBytes = Base64.decode(signatureBase64, Base64.DEFAULT);
+                byte[] signatureBytes = Base64.getDecoder().decode(signatureBase64.trim());
                 if (signatureBytes.length == 0 || !signature.verify(signatureBytes)) return null;
                 return new VerifiedEvidence(payload);
             } catch (Exception ignored) {
