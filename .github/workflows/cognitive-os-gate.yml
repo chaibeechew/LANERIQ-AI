@@ -16,9 +16,11 @@ on:
       - 'scripts/cognitive-cross-feature-contract-tests.mjs'
       - 'scripts/cognitive-final-six-contract-tests.mjs'
       - 'scripts/cognitive-round5-contract-tests.mjs'
+      - 'scripts/cognitive-round6-2046-contract-tests.mjs'
       - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
       - 'docs/LANERIQ_COGNITIVE_OS_FINAL_SIX.md'
       - 'docs/LANERIQ_COGNITIVE_OS_ROUND5_AGENTIC_INTELLIGENCE.md'
+      - 'docs/LANERIQ_COGNITIVE_OS_ROUND6_2046_HORIZON.md'
       - '.github/workflows/cognitive-os-gate.yml'
   pull_request:
     branches: [main]
@@ -35,9 +37,11 @@ on:
       - 'scripts/cognitive-cross-feature-contract-tests.mjs'
       - 'scripts/cognitive-final-six-contract-tests.mjs'
       - 'scripts/cognitive-round5-contract-tests.mjs'
+      - 'scripts/cognitive-round6-2046-contract-tests.mjs'
       - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
       - 'docs/LANERIQ_COGNITIVE_OS_FINAL_SIX.md'
       - 'docs/LANERIQ_COGNITIVE_OS_ROUND5_AGENTIC_INTELLIGENCE.md'
+      - 'docs/LANERIQ_COGNITIVE_OS_ROUND6_2046_HORIZON.md'
       - '.github/workflows/cognitive-os-gate.yml'
 
 permissions:
@@ -68,6 +72,8 @@ jobs:
         run: node scripts/cognitive-final-six-contract-tests.mjs
       - name: Round 5 adaptive inference, context, protocol, tool guardrail and trace contracts
         run: node scripts/cognitive-round5-contract-tests.mjs
+      - name: Round 6 / 2046 horizon world-model, recursive-improvement, skill-synthesis and collective-intelligence contracts
+        run: node scripts/cognitive-round6-2046-contract-tests.mjs
       - name: Existing App Builder zero-cost admission regression
         run: node scripts/app-builder-zero-cost-admission-contract-tests.mjs
       - name: Existing Image Studio regression
