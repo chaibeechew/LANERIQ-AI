@@ -29,12 +29,14 @@ public class MainActivity extends Activity {
     private TextView status;
     private TextView protectionTools;
     private TextView eventLog;
+    private boolean recoveryAttemptedThisLaunch = false;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
         setContentView(buildUi());
         requestNotificationPermissionIfNeeded();
         refreshStatus();
+        status.postDelayed(this::attemptGuardianRecoveryOnUserOpen, 250L);
     }
 
     @Override protected void onResume() {
@@ -58,12 +60,12 @@ public class MainActivity extends Activity {
         scroll.addView(root);
 
         root.addView(text("LANERIQ Anti Scam", 30, true));
-        TextView subtitle = text("Privacy-First Guardian + Anti-Scam Protection • 0.3.0-protection.2", 15, false);
+        TextView subtitle = text("Privacy-First Guardian + Anti-Scam Protection • 0.3.0-protection.3", 15, false);
         subtitle.setTextColor(Color.DKGRAY);
         root.addView(subtitle);
 
         TextView truth = text(
-                "Truth Gate: protection status, website checks and app/file checks only claim what current evidence can support.",
+                "Truth Gate: protection, integrity, website and app/file results only claim what current evidence can support.",
                 13,
                 true);
         truth.setTextColor(Color.rgb(150, 85, 0));
@@ -74,7 +76,7 @@ public class MainActivity extends Activity {
         status.setTextIsSelectable(true);
         root.addView(status);
 
-        Button start = button("Enable Always-On Guardian");
+        Button start = button("Enable / Restore Always-On Guardian");
         start.setOnClickListener(v -> startGuardian());
         root.addView(start, matchWrap(dp(12)));
 
@@ -110,6 +112,7 @@ public class MainActivity extends Activity {
                 "• Website check: local heuristics + privacy-safe reputation cache\n" +
                 "• App/APK/file check: SHA-256 + APK package/signer/permission evidence\n" +
                 "• Remote-control check: local technical risk + sensitive-action freeze policy\n" +
+                "• Anti-tamper: unexpected Guardian loss + signer continuity + alert-delivery truth\n" +
                 "• Privacy Center: local-first data enforcement\n\n" +
                 "A low-risk result is not a guarantee that a site or app is safe.");
         protectionTools.setTextSize(13);
@@ -119,8 +122,11 @@ public class MainActivity extends Activity {
         TextView note = card(
                 "Current protection scope\n" +
                 "• Guardian lifecycle + explicit user opt-in\n" +
-                "• Lease epoch/session/heartbeat truth evidence\n" +
-                "• Restart circuit breaker + boot/package restore\n" +
+                "• Lease epoch/session/heartbeat Dead-Man evidence\n" +
+                "• Expected user stop vs unexpected protection-loss classification\n" +
+                "• Restart circuit breaker + boot/package/user-reopen restore\n" +
+                "• App signer-continuity self-integrity baseline\n" +
+                "• Notification/alert-delivery integrity state\n" +
                 "• Developer Options / ADB / Accessibility risk snapshots\n" +
                 "• App install/update awareness\n" +
                 "• Safe Web local risk + offline reputation policy\n" +
@@ -128,9 +134,10 @@ public class MainActivity extends Activity {
                 "• Sensitive banking/payment action fail-closed policy\n" +
                 "• Bounded structured local event evidence\n" +
                 "• Power-save / thermal-aware cadence\n" +
-                "• Privacy-first minimal cloud contract\n\n" +
+                "• Privacy-first minimal cloud/witness contract\n\n" +
+                "A true Android Force Stop can prevent ordinary background components from restarting until the package is allowed to run again. " +
                 "System-wide Web Shield remains MANUAL_CHECK_ONLY until a real platform-compliant network filter is established. " +
-                "This test build does not claim CLEAN, virus-free, BANKING_SAFE, guaranteed theft prevention, guaranteed remote-control prevention, or unrestricted system-wide malware scanning.");
+                "This test build does not claim hacker-proof, impossible-to-stop, CLEAN, virus-free, BANKING_SAFE, guaranteed theft prevention, guaranteed remote-control prevention, or unrestricted system-wide malware scanning.");
         note.setTextSize(13);
         root.addView(note);
 
@@ -213,11 +220,7 @@ public class MainActivity extends Activity {
 
                 try {
                     SelectedApkInspector.Result apk = SelectedApkInspector.inspect(this, uri);
-                    boolean knownMalicious = reputation.verdict == LocalThreatReputationStore.Verdict.KNOWN_MALICIOUS;
                     AppRiskVerdict.Result risk = AppRiskVerdict.evaluate(new AppRiskVerdict.Evidence(
-                            knownMalicious,
-                            false,
-                            false,
                             apk.signerSha256.isEmpty(),
                             false,
                             apk.dangerousPermissionCount,
@@ -237,8 +240,8 @@ public class MainActivity extends Activity {
                             "\n\nVerdict: " + risk.verdict.name() +
                             "\nRisk score: " + risk.riskScore + "/100" +
                             "\nReason: " + risk.reason +
-                            "\n\nPermission/capability risk alone never becomes a virus verdict. " +
-                            "MALICIOUS requires dedicated reputation/scanner/sandbox evidence."));
+                            "\n\nCurrent local metadata/capability evidence cannot emit a MALICIOUS or virus verdict. " +
+                            "A strong malware conclusion requires the future verified signed-evidence adapter."));
                 } catch (Exception notApkOrUnreadable) {
                     runOnUiThread(() -> protectionTools.setText(
                             "Selected file assessment\n" +
@@ -257,6 +260,7 @@ public class MainActivity extends Activity {
     private void runRemoteControlSafetyCheck() {
         DeviceRiskSnapshot risk = DeviceRiskSnapshot.capture(getContentResolver());
         ProtectionLeaseStore.Lease lease = new ProtectionLeaseStore(this).read();
+        GuardianIntegrityPolicy.Decision integrity = GuardianIntegrityPolicy.evaluate(lease);
         SensitiveActionGate.Decision bankingGate = SensitiveActionGate.evaluate(
                 SensitiveActionGate.Context.BANKING,
                 new SensitiveActionGate.Signals(
@@ -264,19 +268,23 @@ public class MainActivity extends Activity {
                         false,
                         risk.signalCount,
                         false,
-                        lease.mayClaimGuardianActive()));
+                        lease.mayClaimGuardianActive() && integrity.mayClaimProtected,
+                        integrity.unexpectedProtectionLoss));
         EmergencyProtection.Plan emergency = EmergencyProtection.from(bankingGate, risk.signalCount);
 
         String action = risk.signalCount >= 2
                 ? "Elevated technical risk signals found. Review Accessibility/Developer/ADB settings before banking or payment activity."
                 : risk.signalCount == 1
                 ? "One technical risk signal needs review."
+                : integrity.unexpectedProtectionLoss
+                ? "Guardian protection was lost unexpectedly. Restore protection before banking or payment activity."
                 : "No elevated Developer/ADB/Accessibility signal found in this check.";
 
         protectionTools.setText(
                 "Remote-control safety check\n" +
                 "Risk level: " + risk.riskLevel +
                 "\nSignals: " + risk.summary +
+                "\nGuardian integrity: " + integrity.state.name() +
                 "\nBanking/payment gate: " + bankingGate.action.name() +
                 "\nEmergency level: " + emergency.level.name() +
                 "\n\n" + action +
@@ -287,8 +295,8 @@ public class MainActivity extends Activity {
             new AlertDialog.Builder(this)
                     .setTitle("Sensitive action protection")
                     .setMessage("LANERIQ would freeze its own banking/payment-sensitive flow under these signals. " +
-                            "Do not approve transfers or password recovery while remote-control risk remains. " +
-                            "Review Accessibility services now.")
+                            "Do not approve transfers or password recovery while protection integrity or remote-control risk remains unresolved. " +
+                            "Review Accessibility services and restore Guardian protection first.")
                     .setNegativeButton("Later", null)
                     .setPositiveButton("Open settings", (dialog, which) -> openAccessibilitySettings())
                     .show();
@@ -316,6 +324,7 @@ public class MainActivity extends Activity {
                         "• No hidden screen-content monitoring\n" +
                         "• No cross-user mobile compute\n" +
                         "• Domain reputation keys are stored as hashes\n" +
+                        "• Guardian Witness shares only minimal protection state\n" +
                         "• Default cloud telemetry is restricted to allowlisted technical threat fields\n\n" +
                         "The Guardian monitors local technical security state, not your private content.")
                 .setPositiveButton("OK", null)
@@ -358,6 +367,7 @@ public class MainActivity extends Activity {
 
     private void startGuardian() {
         ProtectionLeaseStore store = new ProtectionLeaseStore(this);
+        store.resetAutomaticRestartCircuit();
         store.setUserOptedIn(true);
         Intent i = new Intent(this, GuardianService.class)
                 .setAction(GuardianService.ACTION_START)
@@ -371,6 +381,59 @@ public class MainActivity extends Activity {
             toast("Guardian could not start on this device state");
         }
         status.postDelayed(this::refreshStatus, 750L);
+    }
+
+    private void attemptGuardianRecoveryOnUserOpen() {
+        if (recoveryAttemptedThisLaunch) return;
+        recoveryAttemptedThisLaunch = true;
+
+        ProtectionLeaseStore store = new ProtectionLeaseStore(this);
+        ProtectionLeaseStore.Lease lease = store.read();
+        GuardianIntegrityPolicy.Decision integrity = GuardianIntegrityPolicy.evaluate(lease);
+        GuardianRecoveryPolicy.Decision recovery = GuardianRecoveryPolicy.evaluate(
+                integrity,
+                lease.userOptedIn,
+                lease.recentRestartAttempts);
+
+        if (!recovery.mayAttemptServiceStart) {
+            if (recovery.action == GuardianRecoveryPolicy.Action.REQUIRE_EXPLICIT_REVIEW) {
+                new LocalEventStore(this).recordOnce(
+                        "guardian_user_reopen_recovery_blocked",
+                        recovery.reason,
+                        60_000L);
+            }
+            return;
+        }
+
+        if (!store.allowAutomaticRestart(System.currentTimeMillis())) {
+            store.serviceStopped("user-reopen-recovery-circuit-open");
+            new LocalEventStore(this).recordOnce(
+                    "guardian_user_reopen_recovery_blocked",
+                    "restart-circuit-open",
+                    60_000L);
+            refreshStatus();
+            return;
+        }
+
+        Intent i = new Intent(this, GuardianService.class)
+                .setAction(GuardianService.ACTION_RESTORE)
+                .putExtra(GuardianService.EXTRA_START_REASON, "user-reopen-recovery");
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(i);
+            else startService(i);
+            new LocalEventStore(this).recordOnce(
+                    "guardian_user_reopen_recovery",
+                    integrity.state.name(),
+                    30_000L);
+            toast("Restoring Guardian protection");
+        } catch (Exception e) {
+            store.serviceStopped("user-reopen-restore-failed");
+            new LocalEventStore(this).recordOnce(
+                    "guardian_user_reopen_recovery_failed",
+                    e.getClass().getSimpleName(),
+                    60_000L);
+        }
+        status.postDelayed(this::refreshStatus, 850L);
     }
 
     private void stopGuardian() {
@@ -394,6 +457,10 @@ public class MainActivity extends Activity {
                 lease.localRiskLevel,
                 governor.shouldReduceBackgroundWork(),
                 lease.recentRestartAttempts);
+        GuardianIntegrityPolicy.Decision integrity = GuardianIntegrityPolicy.evaluate(lease);
+        AppSelfIntegrityStore.Result selfIntegrity = new AppSelfIntegrityStore(this).probe();
+        AlertDeliveryIntegrity.Decision alertDelivery = AlertDeliveryIntegrity.capture(this);
+        EmergencyModeStore.State emergency = new EmergencyModeStore(this).read();
 
         NetworkProtectionCapability.Evidence networkEvidence = new NetworkProtectionCapability.Evidence(
                 false,
@@ -404,8 +471,19 @@ public class MainActivity extends Activity {
                 true);
         NetworkProtectionCapability.State networkState = NetworkProtectionCapability.evaluate(networkEvidence);
 
+        boolean mayClaimActive = lease.mayClaimGuardianActive()
+                && GuardianHealth.mayClaimGuardianActive(health)
+                && integrity.mayClaimProtected
+                && selfIntegrity.continuityAcceptable;
+
         String headline;
-        if (lease.mayClaimGuardianActive() && GuardianHealth.mayClaimGuardianActive(health)) {
+        if (selfIntegrity.unexpectedSignerChange) {
+            headline = "PROTECTION INTEGRITY ALERT — APP SIGNER MISMATCH";
+        } else if (integrity.state == GuardianIntegrityPolicy.State.RESTORE_THROTTLED) {
+            headline = "PROTECTION LOST — AUTOMATIC RESTORE THROTTLED";
+        } else if (integrity.unexpectedProtectionLoss) {
+            headline = "PROTECTION LOST UNEXPECTEDLY — RESTORE BEFORE PAYMENTS";
+        } else if (mayClaimActive) {
             headline = health == GuardianHealth.State.REVIEW_REQUIRED
                     ? "GUARDIAN ACTIVE — REVIEW REQUIRED"
                     : "GUARDIAN ACTIVE";
@@ -424,7 +502,7 @@ public class MainActivity extends Activity {
                     headline = "GUARDIAN PAUSED";
                     break;
                 case ACTIVE:
-                    headline = "PROTECTION DEGRADED — HEALTH GATE BLOCKED ACTIVE CLAIM";
+                    headline = "PROTECTION DEGRADED — INTEGRITY GATE BLOCKED ACTIVE CLAIM";
                     break;
                 default:
                     headline = "PROTECTION STATE UNKNOWN";
@@ -441,7 +519,11 @@ public class MainActivity extends Activity {
         LocalEventStore events = new LocalEventStore(this);
         status.setText(
                 "Protection state\n" + headline +
-                "\n\nHealth gate: " + health.name() +
+                "\n\nGuardian integrity: " + integrity.state.name() +
+                "\nSelf integrity: " + selfIntegrity.state.name() +
+                "\nAlert delivery: " + alertDelivery.state.name() +
+                "\nEmergency level: " + emergency.level.name() +
+                "\nHealth gate: " + health.name() +
                 "\nLocal risk: " + lease.localRiskLevel +
                 "\nActive engines: " + lease.activeEngineSet +
                 "\nSystem-wide Web Shield: " + networkState.name() +
@@ -455,7 +537,8 @@ public class MainActivity extends Activity {
                 "\nLocal evidence events: " + events.count() +
                 "\nPolicy: " + lease.policyVersion +
                 "\nReputation snapshot: " + lease.reputationSnapshotVersion +
-                "\n\nA stale, missing, sessionless or health-gated lease never displays Guardian Active. " +
+                "\n\nProtected requires fresh same-boot Guardian proof plus intact self-integrity. " +
+                "A missing heartbeat never proves a hacker caused the loss, but it always removes the Protected claim. " +
                 "System-wide Web Shield cannot display Active without real network-filter evidence.");
 
         eventLog.setText("Local bounded event log\n" + events.readLog());
