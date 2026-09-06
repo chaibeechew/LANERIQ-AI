@@ -23,11 +23,18 @@ begin
     return new;
   end if;
 
-  if tg_table_name = 'control_tower_releases' then entity := 'release';
-  elsif tg_table_name = 'control_tower_workstreams' then entity := 'workstream';
-  elsif tg_table_name = 'control_tower_items' then entity := coalesce(new.item_type, old.item_type, 'item');
-  elsif tg_table_name = 'control_tower_release_gates' then entity := 'release_gate';
-  else entity := tg_table_name;
+  if tg_table_name = 'control_tower_releases' then
+    entity := 'release';
+  elsif tg_table_name = 'control_tower_workstreams' then
+    entity := 'workstream';
+  elsif tg_table_name = 'control_tower_items' then
+    if tg_op = 'DELETE' then entity := coalesce(old.item_type, 'item');
+    else entity := coalesce(new.item_type, 'item');
+    end if;
+  elsif tg_table_name = 'control_tower_release_gates' then
+    entity := 'release_gate';
+  else
+    entity := tg_table_name;
   end if;
 
   if tg_op = 'INSERT' then
