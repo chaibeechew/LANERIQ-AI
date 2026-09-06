@@ -72,14 +72,24 @@ const rawExecution=verifyGeneratedAppExecution({name:'No pages'});
 assert.equal(rawExecution.ok,false);
 assert.ok(rawExecution.errors.includes('NO_PAGES'));
 
-// Create path: candidate is deterministically verified, repair is re-run, and unverified output is never accepted.
+// Create path: candidate is deterministically verified, normal repair is re-run, targeted rescue is bounded,
+// and an unverified output is never persisted or relabeled as success.
 assert.match(generate,/runSoolenAdultMode/);
 assert.match(generate,/verifyGeneration/);
 assert.match(generate,/buildRepairInstruction/);
 assert.match(generate,/buildSelfHealInstruction/);
 assert.match(generate,/repair:async/);
-assert.match(generate,/if\(adult\.generationStatus!=="verified"\)throw new Error/);
-assert.match(generate,/const verified=verifyGeneration\(adult\.result\);\s*if\(!verified\.passed\)throw new Error/);
+assert.match(generate,/maxRepairs:3/);
+assert.match(generate,/if\(adult\.generationStatus!=="verified"\)\{/);
+assert.match(generate,/for\(let attempt=1;attempt<=QUALITY_GATE_RESCUE_ATTEMPTS;attempt\+=1\)/);
+assert.match(generate,/buildGenerationQualityDiagnostics/);
+assert.match(generate,/buildQualityGateRescueInstruction/);
+assert.match(generate,/review=runCriticChecks\(generationResult,adultRequirements\)/);
+assert.match(generate,/report=verifyGeneration\(generationResult\)/);
+assert.match(generate,/if\(review\.passed&&report\.passed\)/);
+assert.match(generate,/throw qualityGateError\("Soolen Super Brain could not verify the generated specification after autonomous repair attempts\.",rescueDiagnostics\)/);
+assert.match(generate,/const verified=verifyGeneration\(generationResult\),finalReview=runCriticChecks\(generationResult,adultRequirements\);/);
+assert.match(generate,/if\(!verified\.passed\|\|!finalReview\.passed\)/);
 assert.match(generate,/sourceEngineeringEvidence/);
 assert.match(generate,/sandboxVerified:status==="verified"/);
 assert.match(generate,/requiredForGeneration:false/);
@@ -88,7 +98,9 @@ assert.doesNotMatch(generate,/if\(adult\.status!=="verified"\)throw new Error/,'
 assert.match(generate,/persistBuilderGeneratedProject/);
 assert.match(builderDomain,/persistBuilderGeneratedProject/);
 assert.match(builderAdapter,/server_persist_generated_project/);
-assert.ok(generate.indexOf('const verified=verifyGeneration(adult.result)') < generate.indexOf('const persistence=await persistBuilderGeneratedProject'),'Create must finish final verification before LANERIQ Cloud App + Website persistence.');
+const finalVerifyIndex=generate.indexOf('const verified=verifyGeneration(generationResult),finalReview=runCriticChecks(generationResult,adultRequirements)');
+const persistenceIndex=generate.indexOf('const persistence=await persistBuilderGeneratedProject',finalVerifyIndex);
+assert.ok(finalVerifyIndex>=0&&persistenceIndex>finalVerifyIndex,'Create must finish final deterministic verification after any rescue before LANERIQ Cloud App + Website persistence.');
 
 // Modify path: quality regression repair + self-heal revalidation happen before Cloud atomic version persistence.
 assert.match(modify,/function qualityRegressed/);
@@ -116,7 +128,8 @@ assert.match(policy,/Accessibility is explicitly disabled/i);
 console.log('✓ All 10 declared Self-Heal categories have executable deterministic checks');
 console.log('✓ Raw missing-page output is detected before normalization can hide the structural failure');
 console.log('✓ Canonical MAX/design metadata survives Self-Heal while nested credential-like fields remain fail-closed');
-console.log('✓ Create performs autonomous repair plus final deterministic verification before LANERIQ Cloud App + Website persistence');
+console.log('✓ Create performs normal autonomous repair, bounded targeted rescue, and final deterministic verification before LANERIQ Cloud persistence');
+console.log('✓ Targeted rescue cannot bypass the same critic + generation verification gates');
 console.log('✓ Source sandbox evidence remains truthful and separate from verified specification persistence');
 console.log('✓ Modify blocks quality regression, re-verifies self-heal output and saves only after the candidate passes');
 console.log('✓ Unsafe routes, overflow, data contracts, credential fields, media and explicit accessibility failures are fail-closed');
