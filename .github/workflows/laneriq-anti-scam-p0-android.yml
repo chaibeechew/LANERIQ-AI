@@ -59,7 +59,7 @@ jobs:
         run: gradle -p projects/laneriq-anti-scam/android assembleDebug --stacktrace
       - name: Build unsigned release APK and AAB structure
         run: gradle -p projects/laneriq-anti-scam/android assembleRelease bundleRelease --stacktrace
-      - name: Verify debug-only Web Shield test surface is absent from release
+      - name: Verify debug-only test surfaces are absent from release
         run: |
           DEBUG_APK=$(find projects/laneriq-anti-scam/android/app/build/outputs/apk/debug -name '*.apk' -type f | head -n1)
           RELEASE_APK=$(find projects/laneriq-anti-scam/android/app/build/outputs/apk/release -name '*.apk' -type f | head -n1)
@@ -69,13 +69,16 @@ jobs:
           apkanalyzer manifest print "$RELEASE_APK" > /tmp/anti-scam-release-manifest.xml
           grep -q 'InternalWebShieldTestActivity' /tmp/anti-scam-debug-manifest.xml
           grep -q 'InternalWebShieldTestReceiver' /tmp/anti-scam-debug-manifest.xml
+          grep -q 'InternalGuardianTestActivity' /tmp/anti-scam-debug-manifest.xml
           ! grep -q 'InternalWebShieldTestActivity' /tmp/anti-scam-release-manifest.xml
           ! grep -q 'InternalWebShieldTestReceiver' /tmp/anti-scam-release-manifest.xml
+          ! grep -q 'InternalGuardianTestActivity' /tmp/anti-scam-release-manifest.xml
           grep -q 'android.permission.ACCESS_NETWORK_STATE' /tmp/anti-scam-release-manifest.xml
           grep -q 'android.permission.BIND_VPN_SERVICE' /tmp/anti-scam-release-manifest.xml
+          grep -q 'AntiScamApplication' /tmp/anti-scam-release-manifest.xml
       - name: Verify release BuildConfig has no internal threat test trust root
         run: |
-          RELEASE_BUILDCONFIG=$(find projects/laneriq-anti-scam/android/app/build/generated -path '*/release/*/ai/laneriq/antiscam/BuildConfig.java' -type f | head -n1)
+          RELEASE_BUILDCONFIG=$(find projects/laneriq-anti-scam/android/app/build/generated -name BuildConfig.java -type f | grep '/release/' | head -n1)
           test -n "$RELEASE_BUILDCONFIG"
           grep -q 'INTERNAL_TEST_THREAT_KEY_X509_B64 = ""' "$RELEASE_BUILDCONFIG"
       - name: Verify artifacts exist
@@ -109,14 +112,21 @@ jobs:
         run: |
           bash -n projects/laneriq-anti-scam/release/device-tests/android-webshield-l1.sh
           bash -n projects/laneriq-anti-scam/release/device-tests/android-guardian-matrix.sh
-      - name: Validate L4 Cloud Dead-Man storage privacy and anti-replay contract
+      - name: Validate L4 Cloud Dead-Man privacy replay rate retention and deletion contract
         run: |
           SQL=projects/laneriq-anti-scam/cloud/sql/001_guardian_deadman.sql
           grep -q "enable row level security" "$SQL"
           grep -q "revoke all on table public.anti_scam_guardian_leases from anon, authenticated" "$SQL"
           grep -q "p_lease_epoch < current_row.lease_epoch" "$SQL"
           grep -q "p_heartbeat_sequence <= current_row.heartbeat_sequence" "$SQL"
+          grep -q "p_received_at_ms - current_row.received_at_ms < 15000" "$SQL"
+          grep -q "delete_anti_scam_guardian_lease" "$SQL"
+          grep -q "purge_anti_scam_guardian_leases" "$SQL"
+          grep -q "anti_scam_guardian_leases_received_idx" "$SQL"
           grep -q "grant execute.*service_role" "$SQL"
+          grep -q "TRUSTED_INGRESS_REQUIRED" projects/laneriq-anti-scam/cloud/lib/guardian-admission-policy.mjs
+          grep -q "RESIDENCY_REGION_MISMATCH" projects/laneriq-anti-scam/cloud/lib/guardian-admission-policy.mjs
+          grep -q "DEADMAN_RETENTION_MS = 30" projects/laneriq-anti-scam/cloud/lib/supabase-deadman-store.mjs
       - name: Run static store-submission gate
         run: node projects/laneriq-anti-scam/release/store-static-gate.mjs
       - name: Generate launch readiness report
