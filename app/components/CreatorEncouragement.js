@@ -4,14 +4,17 @@ import { useEffect,useState } from "react";
 import { usePathname } from "next/navigation";
 import { isPublicAccountPath } from "../../lib/auth/session-safety.js";
 
+const CANONICAL_CORE_PATHS=new Set(["/","/login","/auth","/create"]);
+
 export default function CreatorEncouragement(){
   const pathname=usePathname();
+  const hidden=CANONICAL_CORE_PATHS.has(String(pathname||"/").split("?")[0]);
   const[status,setStatus]=useState(null);const[open,setOpen]=useState(false);const[reason,setReason]=useState("");const[code,setCode]=useState("");const[busy,setBusy]=useState(false);const[message,setMessage]=useState("");const[error,setError]=useState("");
-  async function load(){if(isPublicAccountPath(pathname))return;try{const r=await fetch("/api/creator-support",{cache:"no-store",credentials:"same-origin"});if(!r.ok){if(r.status===401)return;throw new Error("Unable to load Creator Support.")}const d=await r.json();setStatus(d);if(d?.verifyCode&&!code)setCode(d.verifyCode)}catch{}}
-  useEffect(()=>{if(!isPublicAccountPath(pathname))void load()},[pathname]);
-  useEffect(()=>{const body=document.body;if(open)body.dataset.liuiCreatorOpen="true";else delete body.dataset.liuiCreatorOpen;window.dispatchEvent(new CustomEvent("laneriq:creator-support-state",{detail:{open}}));return()=>{delete body.dataset.liuiCreatorOpen}},[open]);
+  async function load(){if(hidden||isPublicAccountPath(pathname))return;try{const r=await fetch("/api/creator-support",{cache:"no-store",credentials:"same-origin"});if(!r.ok){if(r.status===401)return;throw new Error("Unable to load Creator Support.")}const d=await r.json();setStatus(d);if(d?.verifyCode&&!code)setCode(d.verifyCode)}catch{}}
+  useEffect(()=>{if(hidden){setOpen(false);return}if(!isPublicAccountPath(pathname))void load()},[pathname,hidden]);
+  useEffect(()=>{const body=document.body;if(open&&!hidden)body.dataset.liuiCreatorOpen="true";else delete body.dataset.liuiCreatorOpen;window.dispatchEvent(new CustomEvent("laneriq:creator-support-state",{detail:{open:Boolean(open&&!hidden)}}));return()=>{delete body.dataset.liuiCreatorOpen}},[open,hidden]);
   async function act(payload){setBusy(true);setError("");setMessage("");try{const r=await fetch("/api/creator-support",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});const d=await r.json();if(!r.ok)throw new Error(d.error||"Unable to continue.");if(payload.action==="request")setMessage(d.status==="approved"?"Creator Support approved. Your one-time Verify Code is ready below.":"Request received. Admin will review it.");else setMessage("Creator Support activated. All currently available LANERIQ AI functions are unlocked for 3 months.");await load()}catch(e){setError(e.message||"Unable to continue.")}finally{setBusy(false)}}
-  if(!status?.showButton&&!status?.active&&!status?.request)return null;
+  if(hidden||(!status?.showButton&&!status?.active&&!status?.request))return null;
   const pending=status?.request?.status==="pending";const approved=status?.request?.status==="approved";const canRequest=status?.eligible===true;
   return <aside className={`creatorEncourage ${open?"open":""}`} aria-label="Creator Encouragement Program">
     <button className="creatorSpark" onClick={()=>setOpen(v=>!v)} aria-expanded={open}><span>✨ Encourage Creator</span><small>个人 Creator 项目还没完成？可申请额外 3 个月全部功能使用期。</small></button>
