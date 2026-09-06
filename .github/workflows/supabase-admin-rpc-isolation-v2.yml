@@ -6,11 +6,13 @@ on:
     paths:
       - "supabase/migrations/20260906072500_admin_rpc_isolation_v2_phase_a.sql"
       - "supabase/migrations/20260906074000_public_function_default_privileges_fail_closed.sql"
+      - "supabase/migrations/20260906090000_admin_rpc_isolation_v2_phase_b.sql"
       - "supabase/migrations/20260904003000_creator_support_and_portability.sql"
       - "supabase/migrations/20260904003300_block_draft_migration_agreement_signing.sql"
       - "lib/buyout-license/server.js"
       - "lib/cloud-adapters/creator-support-data.js"
       - "scripts/supabase-admin-rpc-isolation-v2-contract-tests.mjs"
+      - "scripts/supabase-admin-rpc-isolation-v2-phase-b-contract-tests.mjs"
       - "config/supabase-security-definer-policy.json"
       - "config/production-release-closure-policy.json"
       - ".github/workflows/supabase-admin-rpc-isolation-v2.yml"
@@ -19,11 +21,13 @@ on:
     paths:
       - "supabase/migrations/20260906072500_admin_rpc_isolation_v2_phase_a.sql"
       - "supabase/migrations/20260906074000_public_function_default_privileges_fail_closed.sql"
+      - "supabase/migrations/20260906090000_admin_rpc_isolation_v2_phase_b.sql"
       - "supabase/migrations/20260904003000_creator_support_and_portability.sql"
       - "supabase/migrations/20260904003300_block_draft_migration_agreement_signing.sql"
       - "lib/buyout-license/server.js"
       - "lib/cloud-adapters/creator-support-data.js"
       - "scripts/supabase-admin-rpc-isolation-v2-contract-tests.mjs"
+      - "scripts/supabase-admin-rpc-isolation-v2-phase-b-contract-tests.mjs"
       - "config/supabase-security-definer-policy.json"
       - "config/production-release-closure-policy.json"
       - ".github/workflows/supabase-admin-rpc-isolation-v2.yml"
@@ -42,16 +46,17 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: 22
-      - name: Verify Supabase privilege governance + Admin RPC v2 contract
+      - name: Verify service-role Admin RPC v2 caller contract
         run: node scripts/supabase-admin-rpc-isolation-v2-contract-tests.mjs
+      - name: Verify Phase B legacy API decommission contract
+        run: node scripts/supabase-admin-rpc-isolation-v2-phase-b-contract-tests.mjs
       - name: Truth boundary
         run: |
-          echo "✓ Phase A2 switches privileged Admin mutations to service-role v2 only after user-session Admin proof."
-          echo "✓ Each v2 RPC independently revalidates the supplied Admin actor in auth.users metadata."
-          echo "✓ There is no silent fallback to legacy authenticated Admin RPC v1 in server callers."
-          echo "✓ This gate does not mutate Production Supabase or prove that A1 v2 ACLs are LIVE; A1 LIVE verification is a release prerequisite."
-          echo "✓ Legacy v1 authenticated EXECUTE remains until Phase A2 is Production-verified and Phase B is separately released."
-          echo "✓ Future postgres- and supabase_admin-created public functions remain explicit-grant-only."
-          echo "✓ Reviewed auth.uid()-bound self-service RPCs remain intentional authenticated exceptions."
-          echo "✓ Draft migration-agreement signing remains fail-closed pending legal approval."
-          echo "✓ Supabase leaked-password protection remains an unresolved Global Production blocker until LIVE-enabled and re-verified."
+          echo "✓ Phase B is valid only after Phase A2 callers are exact-SHA Production verified."
+          echo "✓ Privileged Admin mutations remain on service-role v2 after user-session Admin proof and DB revalidation."
+          echo "✓ Three legacy Admin RPC v1 functions have all API-role EXECUTE removed; no silent fallback exists."
+          echo "✓ Legacy functions are retained owner-only rather than destructively dropped."
+          echo "✓ This CI gate itself does not mutate Production Supabase or claim LIVE ACL closure."
+          echo "✓ LIVE Supabase ACL verification and Security Advisor rerun remain required after applying Phase B."
+          echo "✓ Reviewed auth.uid()-bound self-service SECURITY DEFINER exceptions remain separately governed."
+          echo "✓ Supabase leaked-password protection remains an independent Global Production blocker until LIVE-enabled."
