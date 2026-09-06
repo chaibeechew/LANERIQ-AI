@@ -10,6 +10,7 @@ on:
       - "supabase/migrations/*control_tower*.sql"
       - "scripts/control-tower-contract-tests.mjs"
       - "scripts/control-tower-resilience-tests.mjs"
+      - "scripts/control-tower-technical-ceiling-tests.mjs"
       - ".github/workflows/control-tower-contract.yml"
   push:
     branches: [main]
@@ -21,6 +22,7 @@ on:
       - "supabase/migrations/*control_tower*.sql"
       - "scripts/control-tower-contract-tests.mjs"
       - "scripts/control-tower-resilience-tests.mjs"
+      - "scripts/control-tower-technical-ceiling-tests.mjs"
       - ".github/workflows/control-tower-contract.yml"
 
 permissions:
@@ -43,3 +45,5 @@ jobs:
         run: node scripts/control-tower-contract-tests.mjs
       - name: Verify operational resilience contracts
         run: node scripts/control-tower-resilience-tests.mjs
+      - name: Verify technical-ceiling contracts
+        run: node scripts/control-tower-technical-ceiling-tests.mjs
