@@ -1,21 +1,16 @@
 import { redirect } from "next/navigation";
-import { createClient } from "../../../lib/supabase/server.js";
-import { canAccessControlTower } from "../../../lib/admin-access.js";
+import { getControlTowerAuthContext } from "../../../lib/control-tower-auth.js";
 
 export const dynamic = "force-dynamic";
 
 export default async function ControlTowerLayout({ children }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  const auth = await getControlTowerAuthContext();
 
-  if (error || !user) {
+  if (!auth.ok && auth.status === 401) {
     redirect("/auth?next=%2Fadmin%2Fcontrol-tower");
   }
 
-  if (!canAccessControlTower(user.app_metadata?.role)) {
+  if (!auth.ok) {
     redirect("/");
   }
 
