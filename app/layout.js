@@ -14,7 +14,7 @@ import "./generated-industry-visual-v2.css";
 import "./home-mobile-input-safety.css";
 import "./mobile-feature-hardening.css";
 import "./liui-real-product-surface.css";
-import "./liui-complete-18-page-surface.css";
+import "./liui-canonical-product-surface.css";
 import "./liui-context-intelligence.css";
 import "./liui-runtime-capabilities.css";
 import "./liui-adaptive-experience.css";
@@ -110,7 +110,7 @@ export default function RootLayout({ children }) {
         <Suspense fallback={null}><LIUIContextIntelligence /></Suspense>
         <ProjectPortabilityMount />
         <CreatorEncouragement />
-        <LIUIRealProductSurface />
+        <Suspense fallback={null}><LIUIRealProductSurface /></Suspense>
         <CreationCapabilityBanner />
         <PreciseEditAssistant />
         <GeneratedDataManager />
