@@ -1,0 +1,47 @@
+name: Stripe Connect LIVE Readiness & Merchant Payment Gate
+on:
+  push:
+    branches: [batch193-stripe-connect-live-readiness]
+    paths:
+      - 'config/stripe-connect-live-release-policy.js'
+      - 'lib/payments/stripe-connect-live-readiness.js'
+      - 'lib/payments/merchant-payment-execution-policy.js'
+      - 'lib/payments/merchant-payment-evidence.js'
+      - 'scripts/stripe-connect-live-readiness-contract-tests.mjs'
+      - '.github/workflows/stripe-connect-live-readiness.yml'
+  pull_request:
+    paths:
+      - 'config/stripe-connect-live-release-policy.js'
+      - 'lib/payments/stripe-connect-live-readiness.js'
+      - 'lib/payments/merchant-payment-execution-policy.js'
+      - 'lib/payments/merchant-payment-evidence.js'
+      - 'scripts/stripe-connect-live-readiness-contract-tests.mjs'
+      - '.github/workflows/stripe-connect-live-readiness.yml'
+permissions:
+  contents: read
+jobs:
+  stripe-connect-live-readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Stripe Connect LIVE readiness contract
+        run: node scripts/stripe-connect-live-readiness-contract-tests.mjs
+      - name: Security regression
+        run: npm run test:security
+      - name: Account/session regression
+        run: npm run test:account && npm run test:session-authority
+      - name: Production build
+        run: npm run build
+      - name: Truth boundary
+        run: |
+          node -e "const fs=require('fs');const p=fs.readFileSync('config/stripe-connect-live-release-policy.js','utf8');if(!p.includes('sandboxCanSatisfyLiveGate: false')||!p.includes('liveClaimRequiresObservedStripeEvidence: true')||!p.includes('sensitivePaymentDataStoredByLaneriq: false'))process.exit(1);console.log('Stripe LIVE truth boundary: PASS')"
