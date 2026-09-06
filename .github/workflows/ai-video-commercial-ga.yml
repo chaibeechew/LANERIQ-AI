@@ -9,9 +9,11 @@ on:
       - 'lib/video/commercial-ga-evidence-bundle.js'
       - 'lib/video/commercial-ga-runtime-evidence.js'
       - 'lib/video/commercial-ga-benchmark-campaign.js'
+      - 'lib/video/commercial-ga-resilience.js'
       - 'scripts/video-commercial-ga-contract-tests.mjs'
       - 'scripts/video-commercial-ga-evidence-bundle-tests.mjs'
       - 'scripts/video-commercial-ga-runtime-evidence-tests.mjs'
+      - 'scripts/video-commercial-ga-resilience-tests.mjs'
       - '.github/workflows/ai-video-commercial-ga.yml'
       - 'lib/ai/creative-media-control-plane.js'
       - 'lib/ai/creative-media-observation-judge.js'
@@ -22,9 +24,11 @@ on:
       - 'lib/video/commercial-ga-evidence-bundle.js'
       - 'lib/video/commercial-ga-runtime-evidence.js'
       - 'lib/video/commercial-ga-benchmark-campaign.js'
+      - 'lib/video/commercial-ga-resilience.js'
       - 'scripts/video-commercial-ga-contract-tests.mjs'
       - 'scripts/video-commercial-ga-evidence-bundle-tests.mjs'
       - 'scripts/video-commercial-ga-runtime-evidence-tests.mjs'
+      - 'scripts/video-commercial-ga-resilience-tests.mjs'
       - '.github/workflows/ai-video-commercial-ga.yml'
       - 'lib/ai/creative-media-control-plane.js'
       - 'lib/ai/creative-media-observation-judge.js'
@@ -50,6 +54,8 @@ jobs:
         run: node scripts/video-commercial-ga-evidence-bundle-tests.mjs
       - name: AI Video runtime evidence and real benchmark campaign contract
         run: node scripts/video-commercial-ga-runtime-evidence-tests.mjs
+      - name: AI Video GA resilience, anomaly and canary contract
+        run: node scripts/video-commercial-ga-resilience-tests.mjs
       - name: Existing AI Video regression
         run: npm run test:video
       - name: Creative Media six-layer regression
