@@ -33,6 +33,8 @@ public final class ProtectionStatusProvider extends ContentProvider {
             "integrity_state",
             "unexpected_protection_loss",
             "freeze_sensitive_laneriq_actions",
+            "self_integrity_state",
+            "self_integrity_continuity_acceptable",
             "last_stop_reason"
     };
 
@@ -56,6 +58,7 @@ public final class ProtectionStatusProvider extends ContentProvider {
         ProtectionLeaseStore.Lease lease = new ProtectionLeaseStore(getContext()).read();
         EmergencyModeStore.State emergency = new EmergencyModeStore(getContext()).read();
         GuardianIntegrityPolicy.Decision integrity = GuardianIntegrityPolicy.evaluate(lease);
+        AppSelfIntegrityStore.Result selfIntegrity = new AppSelfIntegrityStore(getContext()).probe();
         NetworkProtectionCapability.State network = NetworkProtectionCapability.evaluate(
                 new NetworkProtectionCapability.Evidence(
                         false,
@@ -65,11 +68,18 @@ public final class ProtectionStatusProvider extends ContentProvider {
                         false,
                         true));
 
+        boolean claimable = lease.mayClaimGuardianActive()
+                && integrity.mayClaimProtected
+                && selfIntegrity.continuityAcceptable;
+        boolean freezeSensitive = integrity.freezeSensitiveLaneriqActions
+                || selfIntegrity.unexpectedSignerChange
+                || emergency.level == EmergencyModeStore.Level.URGENT;
+
         MatrixCursor cursor = new MatrixCursor(COLUMNS, 1);
         cursor.addRow(new Object[] {
-                4,
+                5,
                 lease.state.name(),
-                lease.mayClaimGuardianActive() && integrity.mayClaimProtected ? 1 : 0,
+                claimable ? 1 : 0,
                 lease.sameBootSession ? 1 : 0,
                 lease.userOptedIn ? 1 : 0,
                 lease.expiresAtMs,
@@ -82,7 +92,9 @@ public final class ProtectionStatusProvider extends ContentProvider {
                 network.name(),
                 integrity.state.name(),
                 integrity.unexpectedProtectionLoss ? 1 : 0,
-                integrity.freezeSensitiveLaneriqActions ? 1 : 0,
+                freezeSensitive ? 1 : 0,
+                selfIntegrity.state.name(),
+                selfIntegrity.continuityAcceptable ? 1 : 0,
                 lease.lastStopReason == null ? "" : lease.lastStopReason
         });
         return cursor;
