@@ -123,8 +123,8 @@ jobs:
         run: npm run test:image-studio
       - name: LIUI 2026.2 Page 1 contract tests
         run: node scripts/batch65-page1-liui-completion-tests.mjs
-      - name: LIUI 2026.2 18-page product surface tests
-        run: node scripts/batch39-18-page-product-surface-tests.mjs
+      - name: Canonical UI Regression Gate
+        run: node scripts/ui-regression-gate.mjs
       - name: AI Video Generator contract tests
         run: npm run test:video
       - name: AI Avatar Creator contract tests

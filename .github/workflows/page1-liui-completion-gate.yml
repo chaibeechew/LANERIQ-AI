@@ -1,33 +1,36 @@
-name: LANERIQ Page 1 LIUI Completion Gate
+name: LANERIQ Canonical Home LIUI Gate
 
 on:
   pull_request:
+    branches: [main]
     paths:
       - "app/page.js"
-      - "app/home-liui-v5.css"
+      - "app/layout.js"
+      - "app/home-*.css"
+      - "app/liui-*.css"
       - "app/components/AdaptiveWallpaperEngine.js"
       - "app/components/LIUIRealProductSurface.js"
-      - "lib/product/laneriq-18-page-master.js"
-      - "docs/LANERIQ_AI_18_PAGE_MASTER_PRODUCT_SPEC.md"
       - "scripts/batch65-page1-liui-completion-tests.mjs"
+      - "scripts/ui-regression-gate.mjs"
       - ".github/workflows/page1-liui-completion-gate.yml"
   push:
     branches: [main]
     paths:
       - "app/page.js"
-      - "app/home-liui-v5.css"
+      - "app/layout.js"
+      - "app/home-*.css"
+      - "app/liui-*.css"
       - "app/components/AdaptiveWallpaperEngine.js"
       - "app/components/LIUIRealProductSurface.js"
-      - "lib/product/laneriq-18-page-master.js"
-      - "docs/LANERIQ_AI_18_PAGE_MASTER_PRODUCT_SPEC.md"
       - "scripts/batch65-page1-liui-completion-tests.mjs"
+      - "scripts/ui-regression-gate.mjs"
       - ".github/workflows/page1-liui-completion-gate.yml"
 
 permissions:
   contents: read
 
 jobs:
-  page1-liui-completion:
+  canonical-home-liui:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -37,31 +40,28 @@ jobs:
       LANERIQ_EVIDENCE_LEVEL: CODE_CI_ONLY
     steps:
       - name: Checkout exact commit
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
 
-      - name: Validate Page 1 LIUI completion contract
+      - name: Validate Home LIUI completion contract
         run: node scripts/batch65-page1-liui-completion-tests.mjs
 
-      - name: Re-run 18-page and LIUI regression contracts
-        run: |
-          node scripts/batch39-18-page-product-surface-tests.mjs
-          node scripts/batch40-liui-real-product-surface-tests.mjs
-          node scripts/batch41-liui-complete-18-page-surface-tests.mjs
+      - name: Validate Canonical UI regression contract
+        run: node scripts/ui-regression-gate.mjs
 
       - name: Build runtime integration
         run: npm run build
 
       - name: Evidence boundary
         run: |
-          echo "✓ Batch 65 proves CODE + CI + build integration for Page 1."
-          echo "✓ It does not by itself prove Production exact SHA or physical-device rendering."
-          echo "✓ Production deployment + browser/mobile runtime evidence remains required after merge."
+          echo "✓ CODE + CI + build integration for the Canonical Home/UI surface."
+          echo "✓ Fixed 18-page structure is no longer UI authority."
+          echo "✓ Production exact SHA and browser/mobile runtime evidence remain separately mandatory."

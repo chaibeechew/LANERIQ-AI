@@ -1,0 +1,27 @@
+name: 0.05 - LANERIQ UI / Feature Integration Lock
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  ui-feature-integration-lock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout PR with full history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Enforce latest-main alignment and Canonical UI ownership
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: node scripts/ui-feature-integration-lock.mjs
+      - name: Evidence boundary
+        run: echo "This gate blocks stale PR heads and non-Canonical feature PR changes to protected Global UI paths. It does not replace UI regression, runtime browser QA, or Production exact-SHA convergence."
