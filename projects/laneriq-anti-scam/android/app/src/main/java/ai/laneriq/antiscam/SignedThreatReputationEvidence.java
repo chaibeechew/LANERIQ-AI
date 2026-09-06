@@ -56,22 +56,41 @@ public final class SignedThreatReputationEvidence {
 
     /** Opaque proof token. Constructor is private so ordinary callers cannot forge it. */
     public static final class VerifiedEvidence {
+        public final int schema;
         public final String evidenceId;
         public final String sourceId;
         public final String sourceVersion;
         public final IndicatorType indicatorType;
         public final String indicatorHash;
         public final LocalThreatReputationStore.Verdict verdict;
+        public final long issuedAtMs;
         public final long expiresAtMs;
+        public final String signatureBase64;
 
-        private VerifiedEvidence(Payload payload) {
+        private VerifiedEvidence(Payload payload, String signatureBase64) {
+            schema = payload.schema;
             evidenceId = payload.evidenceId;
             sourceId = payload.sourceId;
             sourceVersion = payload.sourceVersion;
             indicatorType = payload.indicatorType;
             indicatorHash = payload.indicatorHash;
             verdict = payload.verdict;
+            issuedAtMs = payload.issuedAtMs;
             expiresAtMs = payload.expiresAtMs;
+            this.signatureBase64 = signatureBase64.trim();
+        }
+
+        public Payload payload() {
+            return new Payload(
+                    schema,
+                    evidenceId,
+                    sourceId,
+                    sourceVersion,
+                    indicatorType,
+                    indicatorHash,
+                    verdict,
+                    issuedAtMs,
+                    expiresAtMs);
         }
     }
 
@@ -97,7 +116,7 @@ public final class SignedThreatReputationEvidence {
                 signature.update(canonicalPayload(payload).getBytes(StandardCharsets.UTF_8));
                 byte[] signatureBytes = Base64.getDecoder().decode(signatureBase64.trim());
                 if (signatureBytes.length == 0 || !signature.verify(signatureBytes)) return null;
-                return new VerifiedEvidence(payload);
+                return new VerifiedEvidence(payload, signatureBase64);
             } catch (Exception ignored) {
                 return null;
             }
