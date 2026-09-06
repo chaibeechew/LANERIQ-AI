@@ -11,11 +11,13 @@ on:
       - 'lib/video/commercial-ga-benchmark-campaign.js'
       - 'lib/video/commercial-ga-resilience.js'
       - 'lib/video/commercial-ga-scale-operations.js'
+      - 'lib/video/commercial-ga-final-closure.js'
       - 'scripts/video-commercial-ga-contract-tests.mjs'
       - 'scripts/video-commercial-ga-evidence-bundle-tests.mjs'
       - 'scripts/video-commercial-ga-runtime-evidence-tests.mjs'
       - 'scripts/video-commercial-ga-resilience-tests.mjs'
       - 'scripts/video-commercial-ga-scale-operations-tests.mjs'
+      - 'scripts/video-commercial-ga-final-closure-tests.mjs'
       - '.github/workflows/ai-video-commercial-ga.yml'
       - 'lib/ai/creative-media-control-plane.js'
       - 'lib/ai/creative-media-observation-judge.js'
@@ -28,11 +30,13 @@ on:
       - 'lib/video/commercial-ga-benchmark-campaign.js'
       - 'lib/video/commercial-ga-resilience.js'
       - 'lib/video/commercial-ga-scale-operations.js'
+      - 'lib/video/commercial-ga-final-closure.js'
       - 'scripts/video-commercial-ga-contract-tests.mjs'
       - 'scripts/video-commercial-ga-evidence-bundle-tests.mjs'
       - 'scripts/video-commercial-ga-runtime-evidence-tests.mjs'
       - 'scripts/video-commercial-ga-resilience-tests.mjs'
       - 'scripts/video-commercial-ga-scale-operations-tests.mjs'
+      - 'scripts/video-commercial-ga-final-closure-tests.mjs'
       - '.github/workflows/ai-video-commercial-ga.yml'
       - 'lib/ai/creative-media-control-plane.js'
       - 'lib/ai/creative-media-observation-judge.js'
@@ -62,6 +66,8 @@ jobs:
         run: node scripts/video-commercial-ga-resilience-tests.mjs
       - name: AI Video scale operations contract
         run: node scripts/video-commercial-ga-scale-operations-tests.mjs
+      - name: AI Video final four-layer commercial closure contract
+        run: node scripts/video-commercial-ga-final-closure-tests.mjs
       - name: Existing AI Video regression
         run: npm run test:video
       - name: Creative Media six-layer regression
