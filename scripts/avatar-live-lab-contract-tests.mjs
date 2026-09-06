@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const page=fs.readFileSync('app/avatar-studio/live/page.js','utf8');
+assert.match(page,/Real-Time Character Lab/);
+assert.match(page,/createAvatarWebGLRenderer/);
+assert.match(page,/renderAvatarWebGLFrame/);
+assert.match(page,/speakBrowserAvatarVoice/);
+assert.match(page,/estimateAvatarVisemeTimeline/);
+assert.match(page,/createLivingAvatarSession/);
+assert.match(page,/AI_THINKING/);
+assert.match(page,/AI_RESPONSE_START/);
+assert.match(page,/statusRef\.current/);
+assert.match(page,/useEffect\(\(\)=>\{/);
+assert.match(page,/\},\[\]\);/);
+assert.match(page,/High-fidelity photoreal mesh, native mobile renderer and external neural TTS remain separate LIVE evidence gates/);
+assert.doesNotMatch(page,/lib\/supabase\/|@supabase\/|SERVICE_ROLE|API_KEY/);
+console.log('Avatar Live Lab contract passed: one persistent WebGL/Session lifecycle drives browser-live speech and legal behavior transitions without provider secrets or false high-fidelity/native LIVE claims.');

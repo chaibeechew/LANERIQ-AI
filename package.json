@@ -63,7 +63,7 @@
     "test:upload-ref-mobile": "node scripts/upload-ref-mobile-contract-tests.mjs",
     "test:image-studio": "node scripts/image-studio-contract-tests.mjs",
     "test:video": "node scripts/video-generator-contract-tests.mjs",
-    "test:avatar": "node scripts/avatar-creator-contract-tests.mjs",
+    "test:avatar": "node scripts/avatar-creator-contract-tests.mjs && node scripts/avatar-full-system-v3-smoke-tests.mjs && node scripts/avatar-cloud-boundary-contract-tests.mjs",
     "test:web-publish": "node scripts/web-publish-contract-tests.mjs",
     "test:web-publish-public": "node scripts/web-publish-public-runtime-contract-tests.mjs",
     "test:web-publish-evidence": "node scripts/web-publish-live-evidence-contract-tests.mjs",
