@@ -1,0 +1,94 @@
+name: LANERIQ AI Image Market Readiness Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/api/images/**"
+      - "lib/ai/image-generation-gateway.js"
+      - "lib/ai/creative-image-generation-gateway.js"
+      - "lib/ai/image-production-hardened-runtime.js"
+      - "lib/ai/image-market-readiness.js"
+      - "lib/ai/image-market-runtime.js"
+      - "lib/ai/image-output-persistence.js"
+      - "lib/ai/creative-media-*.js"
+      - "scripts/ai-image-market-readiness-contract-tests.mjs"
+      - "scripts/ai-image-production-wiring-contract-tests.mjs"
+      - "scripts/ai-image-live-evidence-contract-tests.mjs"
+      - "scripts/ai-image-evidence-bundle-contract-tests.mjs"
+      - "scripts/ai-image-production-release-contract-tests.mjs"
+      - "scripts/image-market-evidence-bundle.mjs"
+      - "scripts/image-market-release-gate.mjs"
+      - "scripts/image-market-production-verify.mjs"
+      - "scripts/image-studio-contract-tests.mjs"
+      - "scripts/creative-media-six-layer-contract-tests.mjs"
+      - "docs/AI-IMAGE-MARKET-SALES-GATE.md"
+      - ".github/workflows/ai-image-market-readiness.yml"
+      - ".github/workflows/ai-image-production-release-verify.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/api/images/**"
+      - "lib/ai/image-generation-gateway.js"
+      - "lib/ai/creative-image-generation-gateway.js"
+      - "lib/ai/image-production-hardened-runtime.js"
+      - "lib/ai/image-market-readiness.js"
+      - "lib/ai/image-market-runtime.js"
+      - "lib/ai/image-output-persistence.js"
+      - "lib/ai/creative-media-*.js"
+      - "scripts/ai-image-market-readiness-contract-tests.mjs"
+      - "scripts/ai-image-production-wiring-contract-tests.mjs"
+      - "scripts/ai-image-live-evidence-contract-tests.mjs"
+      - "scripts/ai-image-evidence-bundle-contract-tests.mjs"
+      - "scripts/ai-image-production-release-contract-tests.mjs"
+      - "scripts/image-market-evidence-bundle.mjs"
+      - "scripts/image-market-release-gate.mjs"
+      - "scripts/image-market-production-verify.mjs"
+      - "scripts/image-studio-contract-tests.mjs"
+      - "scripts/creative-media-six-layer-contract-tests.mjs"
+      - "docs/AI-IMAGE-MARKET-SALES-GATE.md"
+      - ".github/workflows/ai-image-market-readiness.yml"
+      - ".github/workflows/ai-image-production-release-verify.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify four-layer commercial gate semantics
+        run: node scripts/ai-image-market-readiness-contract-tests.mjs
+      - name: Verify signed live evidence bundle semantics
+        run: node scripts/ai-image-live-evidence-contract-tests.mjs
+      - name: Verify raw output and reliability evidence aggregation
+        run: node scripts/ai-image-evidence-bundle-contract-tests.mjs
+      - name: Verify external Production release verifier
+        run: node scripts/ai-image-production-release-contract-tests.mjs
+      - name: Verify Production runtime hardened wiring
+        run: node scripts/ai-image-production-wiring-contract-tests.mjs
+      - name: Verify Creative Media Image 5-layer contracts
+        run: node scripts/creative-media-six-layer-contract-tests.mjs
+      - name: Verify Image Studio regression contract
+        run: node scripts/image-studio-contract-tests.mjs
+      - name: Verify release gate remains fail-closed without real signed evidence
+        run: |
+          if node scripts/image-market-release-gate.mjs; then
+            echo "Release gate unexpectedly passed without live evidence" >&2
+            exit 1
+          fi
+          echo "✓ Release gate correctly remains HOLD without a signed live evidence bundle."
+      - name: Truth boundary
+        run: |
+          echo "✓ CI proves code/runtime/evidence-validation contracts only."
+          echo "✓ Layer 2 requires >=20 real byte-hash-bound independently observed outputs with a signed evidence bundle."
+          echo "✓ Layer 3 requires >=100 measured commercial samples, >=98% success, p95 <=45s, zero refund failures and idempotency/rate-limit/abuse/failover evidence where applicable."
+          echo "✓ Layer 4 requires authenticated Production E2E, browser + real mobile + abuse + monitoring proof, explicit approval and exact 40-char main=Production SHA."
+          echo "✓ Provider self-report, Preview deployments or configured booleans never count as LIVE verified evidence."
