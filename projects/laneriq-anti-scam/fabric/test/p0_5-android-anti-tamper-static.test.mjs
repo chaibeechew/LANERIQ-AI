@@ -10,6 +10,10 @@ const mainActivity = readFileSync(
   new URL('../../android/app/src/main/java/ai/laneriq/antiscam/MainActivity.java', import.meta.url),
   'utf8',
 );
+const gradle = readFileSync(
+  new URL('../../android/app/build.gradle', import.meta.url),
+  'utf8',
+);
 
 test('P0.5 persistent Guardian notification has no one-tap Stop action', () => {
   assert.equal(guardian.includes('"Stop Guardian"'), false);
@@ -28,4 +32,13 @@ test('P0.5 in-app Pause button routes through GuardianPausePolicy flow', () => {
 test('P0.5 direct stop remains an internal service action, not an exported notification control', () => {
   assert.match(guardian, /ACTION_STOP/);
   assert.equal(guardian.includes('PendingIntent.getService(\n                this, 2, stop'), false);
+});
+
+test('P0.5 visible test-build version matches Gradle versionName', () => {
+  const match = gradle.match(/versionName\s+'([^']+)'/);
+  assert.ok(match, 'versionName missing from Gradle');
+  assert.ok(
+    mainActivity.includes(match[1]),
+    `MainActivity must surface current test-build version ${match[1]}`,
+  );
 });
