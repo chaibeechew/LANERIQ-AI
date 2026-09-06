@@ -58,6 +58,7 @@ assert.equal(freshness.healthy, true);
 assert.equal(freshness.score, 100);
 assert.deepEqual(freshness.missing, []);
 assert.deepEqual(freshness.stale, []);
+assert.deepEqual(freshness.invalid, []);
 
 const staleFreshness = evaluateControlTowerEvidenceFreshness({
   items: items.map((item) =>
@@ -70,6 +71,30 @@ const staleFreshness = evaluateControlTowerEvidenceFreshness({
 });
 assert.equal(staleFreshness.healthy, false);
 assert.ok(staleFreshness.stale.includes("github_ci"));
+
+const unsignedFreshness = evaluateControlTowerEvidenceFreshness({
+  items: items.map((item) =>
+    item.metadata.kind === "security"
+      ? evidenceItem("security", "2026-09-06T22:00:00.000Z", null, { critical: 0 })
+      : item,
+  ),
+  phase: "production",
+  now,
+});
+assert.equal(unsignedFreshness.healthy, false);
+assert.ok(unsignedFreshness.invalid.includes("security"));
+
+const futureFreshness = evaluateControlTowerEvidenceFreshness({
+  items: items.map((item) =>
+    item.metadata.kind === "github_ci"
+      ? evidenceItem("github_ci", "2026-09-07T02:00:00.000Z", "ci-future", { state: "success" })
+      : item,
+  ),
+  phase: "production",
+  now,
+});
+assert.equal(futureFreshness.healthy, false);
+assert.ok(futureFreshness.invalid.includes("github_ci"));
 
 const healthyBudget = evaluateControlTowerSloBudget({
   availabilityTarget: 0.999,
@@ -93,8 +118,18 @@ const missingBudget = evaluateControlTowerSloBudget({});
 assert.equal(missingBudget.healthy, false);
 assert.equal(missingBudget.state, "missing");
 
+const partialRequestBudget = evaluateControlTowerSloBudget({
+  availabilityTarget: 0.999,
+  windowMinutes: 43200,
+  requests: 1000,
+});
+assert.equal(partialRequestBudget.healthy, false);
+assert.equal(partialRequestBudget.state, "missing");
+assert.equal(partialRequestBudget.errorRate, null);
+
 const rollback = selectControlTowerRollbackCandidate({
   currentSha: "main-sha",
+  now,
   deployments: [
     { sha: "main-sha", environment: "production", state: "ready", healthy: true, verified: true, capturedAt: now },
     { sha: "previous-sha", environment: "production", state: "ready", healthy: true, verified: true, capturedAt: "2026-09-06T20:00:00.000Z" },
@@ -103,12 +138,42 @@ const rollback = selectControlTowerRollbackCandidate({
 });
 assert.equal(rollback.ready, true);
 assert.equal(rollback.candidate?.sha, "previous-sha");
+assert.ok(rollback.candidate?.ageMinutes >= 0);
 
 const noRollback = selectControlTowerRollbackCandidate({
   currentSha: "main-sha",
-  deployments: [{ sha: "main-sha", environment: "production", state: "ready", healthy: true, verified: true }],
+  now,
+  deployments: [{ sha: "main-sha", environment: "production", state: "ready", healthy: true, verified: true, capturedAt: now }],
 });
 assert.equal(noRollback.ready, false);
+
+const staleRollback = selectControlTowerRollbackCandidate({
+  currentSha: "main-sha",
+  now,
+  deployments: [{
+    sha: "old-sha",
+    environment: "production",
+    state: "ready",
+    healthy: true,
+    verified: true,
+    capturedAt: "2026-07-01T00:00:00.000Z",
+  }],
+});
+assert.equal(staleRollback.ready, false);
+
+const futureRollback = selectControlTowerRollbackCandidate({
+  currentSha: "main-sha",
+  now,
+  deployments: [{
+    sha: "future-sha",
+    environment: "production",
+    state: "ready",
+    healthy: true,
+    verified: true,
+    capturedAt: "2026-09-07T02:00:00.000Z",
+  }],
+});
+assert.equal(futureRollback.ready, false);
 
 const liveStatus = {
   github: { mainSha: "main-sha" },
