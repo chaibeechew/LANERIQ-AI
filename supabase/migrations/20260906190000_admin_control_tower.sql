@@ -97,6 +97,9 @@ create table if not exists public.control_tower_audit_log (
 
 create index if not exists control_tower_releases_status_stage_idx
   on public.control_tower_releases(release_status, stage);
+create unique index if not exists control_tower_single_active_release_idx
+  on public.control_tower_releases ((release_status))
+  where release_status = 'active';
 create index if not exists control_tower_workstreams_release_stage_idx
   on public.control_tower_workstreams(release_id, stage);
 create index if not exists control_tower_items_release_stage_idx
@@ -119,23 +122,114 @@ begin
 end;
 $$;
 
+create or replace function public.control_tower_guard_release_stage_transition()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  stages constant text[] := array['idea','planned','ready','in_progress','code_complete','verification','release_candidate','production','observed','closed'];
+  old_index integer;
+  new_index integer;
+begin
+  if new.stage = old.stage then return new; end if;
+  old_index := array_position(stages, old.stage);
+  new_index := array_position(stages, new.stage);
+  if new_index = old_index + 1 then return new; end if;
+  if new_index = old_index - 1 and old.stage not in ('production','observed','closed') then return new; end if;
+  raise exception 'Invalid Control Tower release stage transition: % -> %', old.stage, new.stage
+    using errcode = 'check_violation';
+end;
+$$;
+
+create or replace function public.control_tower_guard_workstream_mutation()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  release_stage text;
+  target_release uuid;
+begin
+  target_release := coalesce(new.release_id, old.release_id);
+  select r.stage into release_stage from public.control_tower_releases r where r.id = target_release;
+  if release_stage in ('release_candidate','production','observed','closed') then
+    raise exception 'Control Tower release is frozen at stage %', release_stage
+      using errcode = 'object_not_in_prerequisite_state';
+  end if;
+  return coalesce(new, old);
+end;
+$$;
+
+create or replace function public.control_tower_guard_item_mutation()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+declare
+  release_stage text;
+  target_release uuid;
+  target_type text;
+begin
+  target_release := coalesce(new.release_id, old.release_id);
+  target_type := coalesce(new.item_type, old.item_type);
+  select r.stage into release_stage from public.control_tower_releases r where r.id = target_release;
+  if release_stage in ('release_candidate','production','observed','closed') and target_type not in ('evidence','decision') then
+    raise exception 'Control Tower release is frozen at stage %; only evidence/decision append activity is allowed', release_stage
+      using errcode = 'object_not_in_prerequisite_state';
+  end if;
+  return coalesce(new, old);
+end;
+$$;
+
+create or replace function public.control_tower_reject_audit_mutation()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  raise exception 'Control Tower audit log is append-only'
+    using errcode = 'insufficient_privilege';
+end;
+$$;
+
 revoke all on function public.control_tower_set_updated_at() from public, anon, authenticated;
+revoke all on function public.control_tower_guard_release_stage_transition() from public, anon, authenticated;
+revoke all on function public.control_tower_guard_workstream_mutation() from public, anon, authenticated;
+revoke all on function public.control_tower_guard_item_mutation() from public, anon, authenticated;
+revoke all on function public.control_tower_reject_audit_mutation() from public, anon, authenticated;
 
 create trigger control_tower_releases_updated_at
 before update on public.control_tower_releases
 for each row execute function public.control_tower_set_updated_at();
 
+create trigger control_tower_release_stage_guard
+before update of stage on public.control_tower_releases
+for each row execute function public.control_tower_guard_release_stage_transition();
+
 create trigger control_tower_workstreams_updated_at
 before update on public.control_tower_workstreams
 for each row execute function public.control_tower_set_updated_at();
+
+create trigger control_tower_workstreams_freeze_guard
+before insert or update or delete on public.control_tower_workstreams
+for each row execute function public.control_tower_guard_workstream_mutation();
 
 create trigger control_tower_items_updated_at
 before update on public.control_tower_items
 for each row execute function public.control_tower_set_updated_at();
 
+create trigger control_tower_items_freeze_guard
+before insert or update or delete on public.control_tower_items
+for each row execute function public.control_tower_guard_item_mutation();
+
 create trigger control_tower_release_gates_updated_at
 before update on public.control_tower_release_gates
 for each row execute function public.control_tower_set_updated_at();
+
+create trigger control_tower_audit_immutable
+before update or delete on public.control_tower_audit_log
+for each row execute function public.control_tower_reject_audit_mutation();
 
 alter table public.control_tower_releases enable row level security;
 alter table public.control_tower_workstreams enable row level security;
