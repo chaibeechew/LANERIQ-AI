@@ -1,0 +1,44 @@
+name: LANERIQ AI Image Production Release Verify
+
+on:
+  workflow_dispatch:
+    inputs:
+      production_url:
+        description: "Canonical Production base URL"
+        required: true
+        default: "https://laneriq-ai.vercel.app"
+
+permissions:
+  contents: read
+
+jobs:
+  verify-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Require main dispatch
+        run: |
+          if [ "${GITHUB_REF_NAME}" != "main" ]; then
+            echo "Production release verification must be dispatched from main." >&2
+            exit 1
+          fi
+      - name: Checkout exact main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Resolve exact main SHA
+        id: main
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Verify canonical Production four-layer exact-SHA closure
+        env:
+          IMAGE_MARKET_PRODUCTION_URL: ${{ inputs.production_url }}
+          IMAGE_MARKET_EXPECTED_MAIN_SHA: ${{ steps.main.outputs.sha }}
+        run: node scripts/image-market-production-verify.mjs
+      - name: Truth boundary
+        run: |
+          echo "✓ This workflow is read-only and does not generate paid images."
+          echo "✓ It passes only when the canonical Production URL reports a verified signed evidence bundle, all four market layers and exact Production SHA = current main SHA."
