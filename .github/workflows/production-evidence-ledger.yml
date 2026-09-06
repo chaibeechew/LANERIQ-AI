@@ -1,0 +1,55 @@
+name: LANERIQ Production Evidence Ledger & Replay Gate
+
+on:
+  pull_request:
+    paths:
+      - "app/api/production-e2e/attest/route.js"
+      - "app/api/production-e2e/ledger/route.js"
+      - "lib/cloud/production-evidence-ledger.js"
+      - "lib/cloud-adapters/production-evidence-ledger-data.js"
+      - "scripts/production-evidence-ledger-contract-tests.mjs"
+      - "supabase/migrations/20260905155000_production_evidence_ledger.sql"
+      - ".github/workflows/production-evidence-ledger.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/api/production-e2e/attest/route.js"
+      - "app/api/production-e2e/ledger/route.js"
+      - "lib/cloud/production-evidence-ledger.js"
+      - "lib/cloud-adapters/production-evidence-ledger-data.js"
+      - "scripts/production-evidence-ledger-contract-tests.mjs"
+      - "supabase/migrations/20260905155000_production_evidence_ledger.sql"
+      - ".github/workflows/production-evidence-ledger.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  production-evidence-ledger-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      LANERIQ_EVIDENCE_LEVEL: CODE_CI_ONLY
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Validate immutable ledger and replay contract
+        run: node scripts/production-evidence-ledger-contract-tests.mjs
+      - name: Build runtime integration
+        run: npm run build
+      - name: Evidence boundary
+        run: |
+          echo "✓ CODE + CI only until the migration is applied to the active LANERIQ Production database."
+          echo "✓ Runtime appends are serialized per project, owner/version checked, idempotent and mutation-blocked."
+          echo "✓ Replay recomputes every sequence + previous-hash + entry-hash link."
+          echo "✓ Internal persistent evidence is not presented as a cryptographic signature, independent audit, physical-device result, provider-LIVE proof or official store verification."
