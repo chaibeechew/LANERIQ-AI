@@ -9,12 +9,14 @@ on:
       - 'projects/laneriq-anti-scam/fabric/**'
       - 'projects/laneriq-anti-scam/release/**'
       - '.github/workflows/laneriq-anti-scam-p0-android.yml'
+      - '.github/workflows/laneriq-anti-scam-production-aab.yml'
   pull_request:
     paths:
       - 'projects/laneriq-anti-scam/android/**'
       - 'projects/laneriq-anti-scam/fabric/**'
       - 'projects/laneriq-anti-scam/release/**'
       - '.github/workflows/laneriq-anti-scam-p0-android.yml'
+      - '.github/workflows/laneriq-anti-scam-production-aab.yml'
   workflow_dispatch:
 
 permissions:
@@ -74,8 +76,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run P0-P6 Security Fabric contract tests
+      - name: Run P0-P6 Security Fabric and release contract tests
         run: node --test projects/laneriq-anti-scam/fabric/test/*.test.mjs projects/laneriq-anti-scam/release/test/*.test.mjs
+      - name: Run static store-submission gate
+        run: node projects/laneriq-anti-scam/release/store-static-gate.mjs
+      - name: Verify production signing workflow exists
+        run: |
+          test -f .github/workflows/laneriq-anti-scam-production-aab.yml
+          grep -q "LANERIQ_ANDROID_UPLOAD_KEYSTORE_B64" .github/workflows/laneriq-anti-scam-production-aab.yml
+          grep -q "verifyProductionSigningConfigured" .github/workflows/laneriq-anti-scam-production-aab.yml
       - name: Enforce no billion-scale claim without evidence
         run: |
           node -e "import('./projects/laneriq-anti-scam/fabric/p6-capacity-evidence.mjs').then(({CapacityEvidenceLedger})=>{const x=new CapacityEvidenceLedger(); if(x.summary().billionScaleVerified) process.exit(1); console.log(x.summary())})"
