@@ -32,7 +32,7 @@ jobs:
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.10.2'
+          gradle-version: '8.11.1'
       - name: Build legacy debug APK
         run: gradle -p apps/laneriq-security-android assembleDebug --stacktrace
       - name: Verify legacy APK exists
@@ -55,7 +55,7 @@ jobs:
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.10.2'
+          gradle-version: '8.11.1'
       - name: Run Anti Scam P0 truth-state tests
         run: gradle -p projects/laneriq-anti-scam/android testDebugUnitTest --stacktrace
       - name: Build Anti Scam P0 debug APK
