@@ -2,12 +2,10 @@ import { execFileSync } from 'node:child_process';
 
 const baseSha=String(process.env.BASE_SHA||'').trim();
 const headSha=String(process.env.HEAD_SHA||'').trim();
-const labelsRaw=String(process.env.PR_LABELS||'[]');
-let labels=[];
-try{labels=JSON.parse(labelsRaw)}catch{labels=[]}
-labels=Array.isArray(labels)?labels.map(String):[];
-
-const CANONICAL_UI_LABEL='canonical-ui-owner';
+const prNumber=Number(process.env.PR_NUMBER||0);
+const headBranch=String(process.env.HEAD_BRANCH||'').trim();
+const CANONICAL_UI_PR=407;
+const CANONICAL_UI_BRANCH='ui/canonical-cleanup-round1';
 
 function fail(message,details=[]){
   console.error(`\nUI / Feature Integration Lock: BLOCKED\n${message}`);
@@ -34,15 +32,15 @@ const changed=execFileSync('git',['diff','--name-only',`${baseSha}...${headSha}`
 
 const exactProtected=new Set([
   'app/layout.js',
+  'app/template.js',
   'app/globals.css',
   'app/page.js',
+  'app/canonical-core-ui.css',
 ]);
-const protectedPrefixes=[
-  'app/auth/',
-];
+const protectedPrefixes=['app/auth/','app/login/'];
 const protectedPatterns=[
-  /^app\/components\/.*(?:Header|Navigation|BottomNav|Nav|Logo|Brand|LIUI).*\.(?:js|jsx|ts|tsx)$/i,
-  /^app\/(?:liui|home)-.*\.css$/i,
+  /^app\/components\/.*(?:Canonical|Header|Navigation|BottomNav|Nav|Logo|Brand|LIUI).*\.(?:js|jsx|ts|tsx)$/i,
+  /^app\/(?:canonical|liui|home)-.*\.css$/i,
   /^lib\/product\/laneriq-.*(?:master|registry).*\.(?:js|mjs|ts)$/i,
   /^public\/(?:laneriq|soolen).+\.(?:png|jpe?g|webp|svg|avif)$/i,
 ];
@@ -54,15 +52,18 @@ const protectedChanges=changed.filter(path=>
 );
 
 if(!protectedChanges.length){
-  console.log('✓ UI / Feature Integration Lock: no protected global UI files changed.');
+  console.log('✓ UI / Feature Integration Lock: no protected Global UI files changed.');
   console.log('✓ PR head contains the latest main/base SHA.');
   process.exit(0);
 }
 
-if(!labels.includes(CANONICAL_UI_LABEL)){
-  fail(`Feature PR modifies protected Global UI files but is not the Canonical UI Owner PR. Add no bypass; move/adapt these changes through the UI owner PR instead. Required owner label: ${CANONICAL_UI_LABEL}.`,protectedChanges);
+if(prNumber!==CANONICAL_UI_PR||headBranch!==CANONICAL_UI_BRANCH){
+  fail(`Protected Global UI changes belong only to Canonical UI PR #${CANONICAL_UI_PR}.`,[
+    `current PR=${prNumber||'unknown'} branch=${headBranch||'unknown'}`,
+    `canonical branch=${CANONICAL_UI_BRANCH}`,
+    ...protectedChanges,
+  ]);
 }
 
-console.log(`✓ Canonical UI Owner label present: ${CANONICAL_UI_LABEL}`);
-console.log('✓ Protected Global UI changes are allowed only for this explicitly designated UI owner PR.');
+console.log(`✓ Canonical UI Owner verified: PR #${CANONICAL_UI_PR} (${CANONICAL_UI_BRANCH}).`);
 for(const path of protectedChanges)console.log(`  UI: ${path}`);
