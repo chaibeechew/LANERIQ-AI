@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {buildDeviceSimulationMatrixV26,createAdaptivePolicyFromSimulationV26} from '../lib/game/game-world-device-simulation-v26.js';
+const m=buildDeviceSimulationMatrixV26({seed:'v26-sim',worldId:'v26-world',worldSizeMeters:9000,city:{sizeMeters:720,blockMeters:120,maxBuildings:48}});
+assert.equal(m.readiness.internal100,true);
+assert.equal(m.readiness.production100,false);
+assert.equal(m.evidenceClass,'SIMULATED');
+assert.equal(m.runs.length,18);
+assert.ok(m.runs.every(r=>r.simulated===true&&r.measured===false));
+assert.equal(m.truth.realIosDeviceVerified,false);
+assert.equal(m.truth.realAndroidDeviceVerified,false);
+assert.equal(m.truth.hardwareGpuMeasured,false);
+assert.equal(m.truth.thermalSoakVerified,false);
+assert.equal(m.truth.simulationMayPromoteRealEvidence,false);
+const p=createAdaptivePolicyFromSimulationV26(m);
+assert.equal(p.realDeviceOverrideRequired,true);
+assert.ok(p.defaultRenderScale>=.5&&p.defaultRenderScale<=1);
+console.log('Game World Device Simulation V26: PASS',JSON.stringify({runs:m.summary.runs,syntheticPassRate:m.summary.syntheticPassRate,policy:p}));
