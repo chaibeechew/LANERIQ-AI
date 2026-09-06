@@ -30,16 +30,19 @@ export function buildL1L5ExecutionStatus({ root = process.cwd(), evidence = {} }
     && staticGate.checks.l1DebugTestSurfaceSeparated
     && staticGate.checks.l1ReleaseHasNoInternalThreatTrustRoot
     && staticGate.checks.l1RealDeviceHarnessPresent
-    && staticGate.checks.signedReputationCryptoPathPresent;
+    && staticGate.checks.signedReputationCryptoPathPresent
+    && projectFile(root, 'fabric/l1-network-evidence-matrix.mjs');
 
   const l2Code = staticGate.checks.l2SharedMalwareBrokerHashBound
     && staticGate.checks.l2DeepScanConsentAndAttestation
-    && staticGate.checks.l2BenchmarkFactoryPresent;
+    && staticGate.checks.l2BenchmarkFactoryPresent
+    && projectFile(root, 'fabric/l2-malware-benchmark-evidence.mjs');
 
   const l3Code = staticGate.checks.l3ColdProcessLeaseInvalidation
     && staticGate.checks.l3RealDeviceHarnessPresent
     && staticGate.checks.l3DebugControllerSeparated
-    && projectFile(root, 'fabric/app-builder-witness-consumer.mjs');
+    && projectFile(root, 'fabric/app-builder-witness-consumer.mjs')
+    && projectFile(root, 'fabric/l3-guardian-soak-evidence.mjs');
 
   const l4Code = staticGate.checks.l4AttestationAndWitnessRequired
     && staticGate.checks.l4PrivateHeartbeatFieldsRejected
@@ -47,11 +50,13 @@ export function buildL1L5ExecutionStatus({ root = process.cwd(), evidence = {} }
     && staticGate.checks.l4DeadmanRlsReplayAndRateLimit
     && staticGate.checks.l4RetentionAndDeletionPresent
     && projectFile(root, 'cloud/lib/supabase-deadman-store.mjs')
+    && projectFile(root, 'fabric/l4-production-rollout-safety.mjs')
     && repoFile(root, '.github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml');
 
   const l5Code = repoFile(root, '.github/workflows/laneriq-anti-scam-production-aab.yml')
     && repoFile(root, '.github/workflows/laneriq-anti-scam-final-store-release-gate.yml')
-    && projectFile(root, 'release/PUBLIC_RELEASE_EVIDENCE.json');
+    && projectFile(root, 'release/PUBLIC_RELEASE_EVIDENCE.json')
+    && projectFile(root, 'fabric/l5-release-convergence.mjs');
 
   const code = [l1Code, l2Code, l3Code, l4Code, l5Code];
   const launchLayers = launch.layers || [];
@@ -75,6 +80,13 @@ export function buildL1L5ExecutionStatus({ root = process.cwd(), evidence = {} }
     product: 'LANERIQ Anti Scam',
     staticStorePackage: staticGate.readyForExternalEvidenceCollection ? 'READY' : 'BLOCKED',
     allFiveLayerCodeSurfacesImplemented: layers.every(layer => layer.codeImplemented),
+    evidenceEngines: Object.freeze({
+      L1: projectFile(root, 'fabric/l1-network-evidence-matrix.mjs'),
+      L2: projectFile(root, 'fabric/l2-malware-benchmark-evidence.mjs'),
+      L3: projectFile(root, 'fabric/l3-guardian-soak-evidence.mjs'),
+      L4: projectFile(root, 'fabric/l4-production-rollout-safety.mjs'),
+      L5: projectFile(root, 'fabric/l5-release-convergence.mjs'),
+    }),
     publicProduction: launch.publicProduction,
     layers: Object.freeze(layers),
     truth: launch.publicProduction === 'READY'
