@@ -8,6 +8,7 @@ import android.content.pm.Signature;
 import android.os.Build;
 
 import java.security.MessageDigest;
+import java.util.Locale;
 
 /**
  * Lightweight package signing-continuity probe.
@@ -91,7 +92,7 @@ public final class AppSelfIntegrityStore {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         byte[] hash = digest.digest(signatures[0].toByteArray());
         StringBuilder out = new StringBuilder(hash.length * 2);
-        for (byte b : hash) out.append(String.format("%02x", b & 0xff));
+        for (byte b : hash) out.append(String.format(Locale.US, "%02x", b & 0xff));
         return out.toString();
     }
 }
