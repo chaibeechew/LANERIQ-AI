@@ -82,7 +82,7 @@ public class MainActivity extends Activity {
 
         Button stop = button("Pause Guardian");
         stop.setBackgroundTintList(ColorStateList.valueOf(Color.rgb(96, 105, 120)));
-        stop.setOnClickListener(v -> stopGuardian());
+        stop.setOnClickListener(v -> requestPauseGuardian());
         root.addView(stop, matchWrap(dp(12)));
 
         Button refresh = button("Refresh Protection Evidence");
@@ -113,6 +113,7 @@ public class MainActivity extends Activity {
                 "• App/APK/file check: SHA-256 + APK package/signer/permission evidence\n" +
                 "• Remote-control check: local technical risk + sensitive-action freeze policy\n" +
                 "• Anti-tamper: unexpected Guardian loss + signer continuity + alert-delivery truth\n" +
+                "• Hardened Pause: no one-tap notification stop; risk-aware in-app confirmation\n" +
                 "• Privacy Center: local-first data enforcement\n\n" +
                 "A low-risk result is not a guarantee that a site or app is safe.");
         protectionTools.setTextSize(13);
@@ -127,6 +128,7 @@ public class MainActivity extends Activity {
                 "• Restart circuit breaker + boot/package/user-reopen restore\n" +
                 "• App signer-continuity self-integrity baseline\n" +
                 "• Notification/alert-delivery integrity state\n" +
+                "• Risk-aware Guardian Pause policy\n" +
                 "• Developer Options / ADB / Accessibility risk snapshots\n" +
                 "• App install/update awareness\n" +
                 "• Safe Web local risk + offline reputation policy\n" +
@@ -436,7 +438,60 @@ public class MainActivity extends Activity {
         status.postDelayed(this::refreshStatus, 850L);
     }
 
-    private void stopGuardian() {
+    private void requestPauseGuardian() {
+        DeviceRiskSnapshot risk = DeviceRiskSnapshot.capture(getContentResolver());
+        ProtectionLeaseStore.Lease lease = new ProtectionLeaseStore(this).read();
+        GuardianIntegrityPolicy.Decision integrity = GuardianIntegrityPolicy.evaluate(lease);
+        EmergencyModeStore.State emergency = new EmergencyModeStore(this).read();
+        AppSelfIntegrityStore.Result selfIntegrity = new AppSelfIntegrityStore(this).probe();
+        GuardianPausePolicy.Decision pause = GuardianPausePolicy.evaluate(
+                risk.signalCount,
+                emergency.level,
+                integrity.unexpectedProtectionLoss,
+                selfIntegrity.unexpectedSignerChange);
+
+        if (pause.action == GuardianPausePolicy.Action.BLOCK_DURING_URGENT_RISK) {
+            new LocalEventStore(this).recordOnce(
+                    "guardian_pause_blocked",
+                    pause.reason,
+                    30_000L);
+            new AlertDialog.Builder(this)
+                    .setTitle("Guardian pause blocked during urgent risk")
+                    .setMessage("LANERIQ found urgent remote-control or integrity risk. Ordinary Pause is disabled so a remote operator cannot easily remove protection. " +
+                            "Review device settings and end any remote-support or screen-sharing session first. This does not prove a hacker is present.")
+                    .setNegativeButton("Close", null)
+                    .setPositiveButton("Review Accessibility", (dialog, which) -> openAccessibilitySettings())
+                    .show();
+            return;
+        }
+
+        if (pause.action == GuardianPausePolicy.Action.REQUIRE_HIGH_FRICTION_REVIEW) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Extra review required")
+                    .setMessage("Protection integrity or a device-risk signal needs attention. Pausing Guardian now could increase risk. " +
+                            "Only continue if you are physically controlling this device and intentionally want protection paused.")
+                    .setNegativeButton("Keep Guardian On", null)
+                    .setPositiveButton("Review Again", (dialog, which) -> showFinalPauseConfirmation(true))
+                    .show();
+            return;
+        }
+
+        showFinalPauseConfirmation(false);
+    }
+
+    private void showFinalPauseConfirmation(boolean highFriction) {
+        String message = highFriction
+                ? "Final confirmation: pause Always-On Guardian despite the current review state? LANERIQ will remove the Protected claim until Guardian is restored."
+                : "Pause Always-On Guardian? LANERIQ will stop claiming active device protection until you enable it again.";
+        new AlertDialog.Builder(this)
+                .setTitle("Confirm Guardian Pause")
+                .setMessage(message)
+                .setNegativeButton("Keep Guardian On", null)
+                .setPositiveButton("Pause Guardian", (dialog, which) -> stopGuardianConfirmed())
+                .show();
+    }
+
+    private void stopGuardianConfirmed() {
         ProtectionLeaseStore store = new ProtectionLeaseStore(this);
         store.setUserOptedIn(false);
         Intent i = new Intent(this, GuardianService.class).setAction(GuardianService.ACTION_STOP);
@@ -445,6 +500,7 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) {
             store.serviceStopped("pause-fallback");
         }
+        new LocalEventStore(this).recordOnce("guardian_pause_confirmed", "in-app-confirmed", 5_000L);
         toast("Guardian paused");
         status.postDelayed(this::refreshStatus, 300L);
     }
