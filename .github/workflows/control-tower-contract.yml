@@ -11,6 +11,7 @@ on:
       - "scripts/control-tower-contract-tests.mjs"
       - "scripts/control-tower-resilience-tests.mjs"
       - "scripts/control-tower-technical-ceiling-tests.mjs"
+      - "scripts/control-tower-attestation-tests.mjs"
       - ".github/workflows/control-tower-contract.yml"
   push:
     branches: [main]
@@ -23,6 +24,7 @@ on:
       - "scripts/control-tower-contract-tests.mjs"
       - "scripts/control-tower-resilience-tests.mjs"
       - "scripts/control-tower-technical-ceiling-tests.mjs"
+      - "scripts/control-tower-attestation-tests.mjs"
       - ".github/workflows/control-tower-contract.yml"
 
 permissions:
@@ -47,3 +49,5 @@ jobs:
         run: node scripts/control-tower-resilience-tests.mjs
       - name: Verify technical-ceiling contracts
         run: node scripts/control-tower-technical-ceiling-tests.mjs
+      - name: Verify atomic Production attestation contracts
+        run: node scripts/control-tower-attestation-tests.mjs
