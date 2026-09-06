@@ -5,18 +5,28 @@ on:
     branches: [main]
     paths:
       - 'lib/soolen/**'
+      - 'lib/ai/app-builder-admission.js'
+      - 'lib/ai/image-generation-gateway.js'
+      - 'lib/video/render-gateway.js'
+      - 'services/malware-defense/lib/runtime-defense-pipeline.js'
       - 'lib/project-memory.js'
       - 'scripts/cognitive-os-contract-tests.mjs'
       - 'scripts/cognitive-runtime-contract-tests.mjs'
+      - 'scripts/cognitive-cross-feature-contract-tests.mjs'
       - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
       - '.github/workflows/cognitive-os-gate.yml'
   pull_request:
     branches: [main]
     paths:
       - 'lib/soolen/**'
+      - 'lib/ai/app-builder-admission.js'
+      - 'lib/ai/image-generation-gateway.js'
+      - 'lib/video/render-gateway.js'
+      - 'services/malware-defense/lib/runtime-defense-pipeline.js'
       - 'lib/project-memory.js'
       - 'scripts/cognitive-os-contract-tests.mjs'
       - 'scripts/cognitive-runtime-contract-tests.mjs'
+      - 'scripts/cognitive-cross-feature-contract-tests.mjs'
       - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
       - '.github/workflows/cognitive-os-gate.yml'
 
@@ -40,8 +50,18 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Cognitive OS fail-closed contracts
         run: node scripts/cognitive-os-contract-tests.mjs
-      - name: Cognitive runtime, failure memory and benchmark campaign contracts
+      - name: Cognitive runtime, provider diversity, failure memory and benchmark contracts
         run: node scripts/cognitive-runtime-contract-tests.mjs
+      - name: Cross-feature Cognitive integration contracts
+        run: node scripts/cognitive-cross-feature-contract-tests.mjs
+      - name: Existing App Builder zero-cost admission regression
+        run: node scripts/app-builder-zero-cost-admission-contract-tests.mjs
+      - name: Existing Image Studio regression
+        run: node scripts/image-studio-contract-tests.mjs
+      - name: Existing Video Generator regression
+        run: node scripts/video-generator-contract-tests.mjs
+      - name: Existing Malware runtime regression
+        run: node services/malware-defense/test/next-round-runtime-hardening.mjs
       - name: Existing Project Memory regression
         run: node scripts/project-memory-contract-tests.mjs
       - name: Super Brain integration smoke
