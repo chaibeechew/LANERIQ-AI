@@ -41,5 +41,5 @@ jobs:
         run: node scripts/image-market-hardening-contract-tests.mjs
       - name: Existing Creative Media 5-layer regression
         run: node scripts/creative-media-six-layer-contract-tests.mjs
-      - name: Existing Image Studio provider regression
-        run: npm run test:image-provider
+      - name: Existing Image Studio regression
+        run: npm run test:image-studio
