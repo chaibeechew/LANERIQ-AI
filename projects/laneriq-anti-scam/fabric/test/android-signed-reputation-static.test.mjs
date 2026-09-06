@@ -24,9 +24,14 @@ test('production Android call sites cannot use the test-only threat-feed verifie
   assert.deepEqual(offenders, []);
 });
 
-test('production trust root is fail-closed until an approved feed key is deliberately pinned', () => {
-  const source = fs.readFileSync(path.join(mainRoot, 'TrustedThreatFeedKeys.java'), 'utf8');
-  assert.match(source, /Collections\.emptyMap\(\)/);
+test('production verifier uses an explicit source-id pinned trust root with no accept-any fallback', () => {
+  const verifier = fs.readFileSync(path.join(mainRoot, 'SignedThreatReputationEvidence.java'), 'utf8');
+  const keys = fs.readFileSync(path.join(mainRoot, 'TrustedThreatFeedKeys.java'), 'utf8');
+  assert.match(verifier, /TrustedThreatFeedKeys\.pinnedX509Base64BySource\(\)/);
+  assert.match(verifier, /pinnedKeys\.get\(payload\.sourceId\)/);
+  assert.match(verifier, /publicKeyBase64 == null/);
+  assert.doesNotMatch(keys, /["']\*["']/);
+  assert.doesNotMatch(keys, /acceptAny|trustAll|allowAll/i);
 });
 
 test('strong cache lookup re-verifies the signed evidence envelope', () => {
