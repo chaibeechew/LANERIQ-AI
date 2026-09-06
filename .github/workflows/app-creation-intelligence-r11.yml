@@ -11,6 +11,7 @@ on:
       - 'lib/ai/app-builder-design-judge.js'
       - 'lib/ai/app-builder-live-verification.js'
       - 'lib/ai/app-builder-creation-pipeline.js'
+      - 'lib/ai/app-builder-admission.js'
       - 'lib/ai/app-creation-intelligence-policy.js'
       - 'lib/buildStandards.js'
       - 'lib/templateCatalog.js'
@@ -20,6 +21,7 @@ on:
       - 'scripts/template-contract-tests.mjs'
       - 'scripts/generated-experience-standard-tests.mjs'
       - 'scripts/generation-outcome-intelligence-contract-tests.mjs'
+      - 'scripts/app-builder-zero-cost-admission-contract-tests.mjs'
       - '.github/workflows/app-creation-intelligence-r11.yml'
   workflow_dispatch:
 
@@ -48,6 +50,8 @@ jobs:
         run: node scripts/generated-experience-standard-tests.mjs
       - name: Generation Outcome + Self-Heal regression
         run: node scripts/generation-outcome-intelligence-contract-tests.mjs
+      - name: App Builder zero-cost admission regression
+        run: node scripts/app-builder-zero-cost-admission-contract-tests.mjs
       - name: Syntax checks
         run: |
           node --check lib/ai/app-builder-design-intent.js
@@ -58,6 +62,7 @@ jobs:
           node --check lib/ai/app-builder-design-judge.js
           node --check lib/ai/app-builder-live-verification.js
           node --check lib/ai/app-builder-creation-pipeline.js
+          node --check lib/ai/app-builder-admission.js
           node --check lib/ai/app-creation-intelligence-policy.js
           node --check lib/buildStandards.js
       - name: LIVE truth boundary
