@@ -98,6 +98,8 @@ Automatic restore remains bounded by the Restart Circuit Breaker.
 - repeated restart failures do not create an infinite crash/restart loop
 - circuit-open state removes active protection claims
 - reboot / update restore attempts remain evidence-gated
+- if the user reopens Anti Scam while still opted in and Guardian proof is missing, a bounded user-reopen recovery attempt may establish a new session/epoch
+- `Protected` returns only after new Guardian proof exists
 
 ### 8. Force Stop recovery boundary
 
@@ -112,11 +114,48 @@ The correct recovery model is:
 5. Guardian establishes a new session/epoch/heartbeat
 6. only then may `Protected` return
 
+### 9. Hardened Guardian Pause
+
+A remote-control scammer should not get a convenient one-tap shutdown path.
+
+- the persistent Guardian notification has no `Stop Guardian` action
+- notification exposes only `Open Anti Scam`
+- the in-app Pause button runs `GuardianPausePolicy`
+- ordinary low-risk Pause requires explicit confirmation
+- one remote-control/review signal or unexpected integrity state requires a higher-friction second review
+- URGENT state, multiple remote-control signals, or app signer mismatch blocks the ordinary Pause path
+- CI statically prevents the one-tap notification Stop control from being reintroduced
+
+This raises shutdown friction but does not claim an attacker with system/root control cannot stop the package.
+
+### 10. Witness anti-replay
+
+A stale `Guardian Active` heartbeat must never be reusable after protection disappears.
+
+The independent Witness replay guard tracks:
+
+- scoped device pseudonym
+- `leaseEpoch`
+- `heartbeatSequence`
+- `observedAtMs`
+
+It rejects:
+
+- epoch rollback
+- repeated or decreasing sequence in the same epoch
+- stale heartbeat
+- excessively future-dated heartbeat
+
+A higher epoch may restart its sequence because it represents a new Guardian service session.
+
+This is a freshness/rollback defense, **not yet cryptographic remote device-origin proof**. Production-grade remote Witness origin should additionally use a device/app-held signing key or approved platform attestation with explicit key enrollment/rotation/revocation rules. The system must not claim remote heartbeat authenticity until that gate exists and is tested.
+
 ## Remaining P0.5 exit gates
 
 P0.5 is not complete until real-device tests prove at least:
 
 - explicit Stop vs process death classification
+- hardened Pause behavior under normal/review/urgent states
 - UI task removal while Guardian remains active
 - process kill / OS reclamation
 - true Android Force Stop recovery boundary
@@ -127,6 +166,7 @@ P0.5 is not complete until real-device tests prove at least:
 - signer-continuity behavior across test updates
 - restart circuit-open behavior
 - companion-provider unreachable + cached lease expiry behavior
+- Witness replay/rollback rejection in consumer integration
 - battery saver and thermal severe conditions
 - 24-hour soak
 - representative Samsung / Pixel / Xiaomi / Oppo / Vivo or equivalent OEM lifecycle matrix
@@ -140,4 +180,4 @@ Until those tests pass, this work is an anti-tamper/survival foundation. It must
 - always impossible to remotely control
 - guaranteed 24/7 protection under every Android state
 
-The truthful claim target is: LANERIQ continuously verifies its protection state, detects and surfaces unexpected loss of protection, restores when the platform permits, and fails closed in LANERIQ-controlled sensitive flows when protection integrity cannot be trusted.
+The truthful claim target is: LANERIQ continuously verifies its protection state, detects and surfaces unexpected loss of protection, restores when the platform permits, removes easy shutdown paths during elevated risk, and fails closed in LANERIQ-controlled sensitive flows when protection integrity cannot be trusted.
