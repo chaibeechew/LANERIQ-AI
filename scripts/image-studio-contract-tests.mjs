@@ -10,6 +10,7 @@ const generate=read('app/api/images/generate/route.js');
 const save=read('app/api/images/save/route.js');
 const readiness=read('app/api/images/readiness/route.js');
 const gateway=read('lib/ai/image-generation-gateway.js');
+const hardenedRuntime=read('lib/ai/image-production-hardened-runtime.js');
 const persistence=read('lib/ai/image-output-persistence.js');
 const placement=read('lib/ai/image-placement-policy.js');
 const assetMigration=read('supabase/migrations/20260901124338_harden_upload_reference_asset_contract.sql');
@@ -37,7 +38,7 @@ assert.match(page,/item\.source==="model"\?"Model":"Local"/);
 assert.match(page,/font-size:16px/);
 assert.match(page,/min-height:44px/);
 
-// Generate: authenticated + verified, bounded, request-ledger idempotent, placement-aware and credit-aware.
+// Generate: authenticated + verified, bounded, request-ledger idempotent, placement-aware, credit-aware and hardened before release.
 assert.match(generate,/auth\.getUser\(\)/);
 assert.match(generate,/confirmed_at/);
 assert.match(generate,/createAdminClient/);
@@ -68,16 +69,32 @@ assert.match(generate,/failRequest\(admin/);
 assert.match(generate,/source:"model"/);
 assert.match(generate,/source:"local"/);
 assert.match(generate,/modelFallback:Boolean\(modelFailureCode\)/);
-const providerCallIndex=generate.indexOf('const generated=await generateExternalImages');
+assert.match(generate,/runImageProductionHardenedGeneration/);
+assert.match(generate,/REAL_OUTPUT_QUALITY_VERIFIED/);
+assert.doesNotMatch(generate,/generateExternalImages/);
+const providerCallIndex=generate.indexOf('const hardened=await runImageProductionHardenedGeneration');
 const requestClaimIndex=generate.indexOf('claimRequest(admin');
-const durableCaptureIndex=generate.indexOf('const durableImages=await persistGeneratedImages',providerCallIndex);
+const hardenedSuccessIndex=generate.indexOf('if(hardened.generated)',providerCallIndex);
+const durableCaptureIndex=generate.indexOf('const durableImages=await persistGeneratedImages',hardenedSuccessIndex);
 const providerSuccessIndex=generate.indexOf('replayed:false,durable:true',durableCaptureIndex);
-assert.ok(requestClaimIndex>=0&&providerCallIndex>requestClaimIndex,'Provider execution must happen only after the request replay ledger is claimed.');
-assert.ok(durableCaptureIndex>providerCallIndex&&providerSuccessIndex>durableCaptureIndex,'Provider bytes must be durably captured before first-run model output is returned to the browser.');
+assert.ok(requestClaimIndex>=0&&providerCallIndex>requestClaimIndex,'Hardened provider execution must happen only after the request replay ledger is claimed.');
+assert.ok(hardenedSuccessIndex>providerCallIndex&&durableCaptureIndex>hardenedSuccessIndex&&providerSuccessIndex>durableCaptureIndex,'Provider output must pass hardened execution and then be durably captured before first-run model output is returned to the browser.');
 assert.match(generate,/return noStore\(\{error:"Unable to generate image right now\."\},500\)/);
 assert.doesNotMatch(generate,/return noStore\(\{error:error\?\.message/);
 
-// Provider capture: approved host/data output only, signature validation, private storage, signed display and rollback on partial failure.
+// Hardened runtime: approved provider bytes are server-captured, independently observed and hash/signature bound before the route may claim model success.
+assert.match(hardenedRuntime,/runCreativeMediaHardenedExecution/);
+assert.match(hardenedRuntime,/generateCreativeImage/);
+assert.match(hardenedRuntime,/isApprovedImageOutputUrl/);
+assert.match(hardenedRuntime,/captureHttpsImage/);
+assert.match(hardenedRuntime,/capturedSha256/);
+assert.match(hardenedRuntime,/IMAGE_OBSERVER_CAPTURE_HASH_MISMATCH/);
+assert.match(hardenedRuntime,/createHmac\('sha256'/);
+assert.match(hardenedRuntime,/providerSelfReported:false/);
+assert.match(hardenedRuntime,/REAL_OUTPUT_QUALITY_VERIFIED/);
+assert.match(hardenedRuntime,/IMAGE_HARDENED_QUALITY_GATE_FAILED/);
+
+// Provider persistence: approved host/data output only, signature validation, private storage, signed display and rollback on partial failure.
 assert.match(persistence,/isApprovedImageOutputUrl/);
 assert.match(persistence,/MAX_IMAGE_BYTES=8\*1024\*1024/);
 assert.match(persistence,/89504e470d0a1a0a/);
@@ -154,8 +171,12 @@ assert.match(readiness,/externalProviderConnected:config\.connected/);
 assert.match(readiness,/externalProviderAllowed:config\.configured/);
 assert.match(readiness,/durableProviderCapture:true/);
 assert.match(readiness,/idempotentReplay:true/);
+assert.match(readiness,/hardenedExecutionWired:true/);
+assert.match(readiness,/independentObserverRequired:true/);
+assert.match(readiness,/marketSalesReady:false/);
+assert.match(readiness,/truth:"EVIDENCE_REQUIRED"/);
 assert.match(readiness,/Cache-Control":"private, no-store/);
-assert.doesNotMatch(readiness,/IMAGE_GENERATION_TOKEN|IMAGE_GENERATION_ENDPOINT|CLOUDFLARE_AI_API_TOKEN|GEMINI_API_KEY|SUPABASE_SERVICE_ROLE_KEY/);
+assert.doesNotMatch(readiness,/IMAGE_GENERATION_TOKEN|IMAGE_GENERATION_ENDPOINT|IMAGE_QUALITY_OBSERVER_TOKEN|IMAGE_QUALITY_OBSERVER_SIGNING_SECRET|CLOUDFLARE_AI_API_TOKEN|GEMINI_API_KEY|SUPABASE_SERVICE_ROLE_KEY/);
 
 // Placement contract must explicitly cover every Image Studio output type with responsive crop guidance.
 for(const mode of ['wallpaper','background','hero','product','icon','image'])assert.match(placement,new RegExp(`${mode}:\\{usage:`));
@@ -176,4 +197,4 @@ assert.equal(gatewayModule.normalizeGeneratedImageValue('https://evil.example.te
 assert.ok(gatewayModule.normalizeGeneratedImageValue('data:image/png;base64,iVBORw0KGgo='));
 assert.equal(gatewayModule.normalizeGeneratedImageValue('data:image/svg+xml;base64,PHN2Zz48L3N2Zz4='),null);
 
-console.log('Image Studio contract passed: auth, replay-safe provider execution, durable private provider capture, bounded output hosts, automatic credit refund, mobile request recovery and private Asset Library persistence are locked.');
+console.log('Image Studio contract passed: auth, replay-safe hardened provider execution, independent byte-hash-bound quality evidence, durable private provider capture, bounded output hosts, automatic credit refund, mobile request recovery and private Asset Library persistence are locked.');
