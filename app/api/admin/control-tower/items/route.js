@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../../lib/supabase/server.js";
 import { canAccessControlTower } from "../../../../../lib/admin-access.js";
+import { isControlTowerReleaseFrozen } from "../../../../../lib/control-tower-state-machine.js";
 import {
   isControlTowerStorageMissing,
   validateControlTowerItemInput,
@@ -62,6 +63,28 @@ export async function POST(request) {
     const validation = validateControlTowerItemInput(input);
     if (!validation.ok) return json({ error: validation.error }, 400);
 
+    const { data: release, error: releaseError } = await auth.supabase
+      .from("control_tower_releases")
+      .select("id,stage")
+      .eq("id", validation.value.release_id)
+      .maybeSingle();
+    if (releaseError) {
+      if (isControlTowerStorageMissing(releaseError)) {
+        return json({ error: "Control Tower storage migration is not active in this environment." }, 503);
+      }
+      throw releaseError;
+    }
+    if (!release) return json({ error: "Release does not exist." }, 409);
+
+    const frozen = isControlTowerReleaseFrozen(release.stage);
+    const allowedWhileFrozen = ["evidence", "decision"].includes(validation.value.item_type);
+    if (frozen && !allowedWhileFrozen) {
+      return json({
+        error: `Release is frozen at ${release.stage}. Only evidence or decision records may be appended without rolling the release back.`,
+        code: "RELEASE_FROZEN",
+      }, 409);
+    }
+
     const { data, error } = await auth.supabase
       .from("control_tower_items")
       .insert(validation.value)
@@ -82,6 +105,7 @@ export async function POST(request) {
       entity_type: data.item_type,
       entity_id: data.id,
       after_state: data,
+      metadata: { release_stage: release.stage, release_frozen: frozen },
     });
 
     return json({ item: data }, 201);
