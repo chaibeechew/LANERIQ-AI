@@ -21,6 +21,7 @@ public final class ProtectionStatusProvider extends ContentProvider {
             "state",
             "claimable_active",
             "same_boot_session",
+            "user_opted_in",
             "lease_expires_at_ms",
             "heartbeat_sequence",
             "local_risk_level",
@@ -28,7 +29,11 @@ public final class ProtectionStatusProvider extends ContentProvider {
             "policy_version",
             "emergency_level",
             "emergency_expires_at_ms",
-            "system_web_shield_state"
+            "system_web_shield_state",
+            "integrity_state",
+            "unexpected_protection_loss",
+            "freeze_sensitive_laneriq_actions",
+            "last_stop_reason"
     };
 
     @Override public boolean onCreate() {
@@ -50,6 +55,7 @@ public final class ProtectionStatusProvider extends ContentProvider {
 
         ProtectionLeaseStore.Lease lease = new ProtectionLeaseStore(getContext()).read();
         EmergencyModeStore.State emergency = new EmergencyModeStore(getContext()).read();
+        GuardianIntegrityPolicy.Decision integrity = GuardianIntegrityPolicy.evaluate(lease);
         NetworkProtectionCapability.State network = NetworkProtectionCapability.evaluate(
                 new NetworkProtectionCapability.Evidence(
                         false,
@@ -61,10 +67,11 @@ public final class ProtectionStatusProvider extends ContentProvider {
 
         MatrixCursor cursor = new MatrixCursor(COLUMNS, 1);
         cursor.addRow(new Object[] {
-                3,
+                4,
                 lease.state.name(),
-                lease.mayClaimGuardianActive() ? 1 : 0,
+                lease.mayClaimGuardianActive() && integrity.mayClaimProtected ? 1 : 0,
                 lease.sameBootSession ? 1 : 0,
+                lease.userOptedIn ? 1 : 0,
                 lease.expiresAtMs,
                 lease.heartbeatSequence,
                 lease.localRiskLevel,
@@ -72,7 +79,11 @@ public final class ProtectionStatusProvider extends ContentProvider {
                 lease.policyVersion,
                 emergency.level.name(),
                 emergency.active ? emergency.expiresAtMs : 0L,
-                network.name()
+                network.name(),
+                integrity.state.name(),
+                integrity.unexpectedProtectionLoss ? 1 : 0,
+                integrity.freezeSensitiveLaneriqActions ? 1 : 0,
+                lease.lastStopReason == null ? "" : lease.lastStopReason
         });
         return cursor;
     }
