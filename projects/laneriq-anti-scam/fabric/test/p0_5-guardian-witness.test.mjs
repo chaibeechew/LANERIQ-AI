@@ -18,10 +18,31 @@ test('P0.5 witness accepts only a fresh active same-boot lease as protected', ()
     leaseExpiresAtMs: now + 60_000,
     integrityState: 'ACTIVE',
     emergencyLevel: 'NONE',
+    alertDeliveryAvailable: true,
   }, { nowMs: now });
   assert.equal(result.state, WitnessState.VERIFIED_ACTIVE);
   assert.equal(result.protectedClaimAllowed, true);
+  assert.equal(result.shouldNotifyUser, false);
   assert.equal(result.hackerAttributionAllowed, false);
+});
+
+test('P0.5 active Guardian with disabled Anti Scam notifications asks companion witness to warn', () => {
+  const now = 1_000_000;
+  const result = evaluateGuardianWitness({
+    userOptedIn: true,
+    claimableActive: true,
+    sameBootSession: true,
+    heartbeatSequence: 12,
+    leaseExpiresAtMs: now + 60_000,
+    integrityState: 'ACTIVE',
+    emergencyLevel: 'NONE',
+    alertDeliveryAvailable: false,
+  }, { nowMs: now });
+  assert.equal(result.state, WitnessState.VERIFIED_ACTIVE);
+  assert.equal(result.protectedClaimAllowed, true);
+  assert.equal(result.shouldNotifyUser, true);
+  assert.equal(result.freezeSensitiveLaneriqActions, false);
+  assert.equal(result.reason, 'guardian_active_but_alert_delivery_degraded');
 });
 
 test('P0.5 expired heartbeat becomes protection lost but never hacker attribution', () => {
@@ -119,10 +140,12 @@ test('P0.5 privacy-safe heartbeat contains only minimal protection facts', () =>
     heartbeatSequence: 99,
     integrityState: 'ACTIVE',
     emergencyLevel: 'NONE',
+    alertDeliveryState: 'AVAILABLE',
     policyVersion: 'p0.5',
     observedAtMs: 12345,
   });
   assert.deepEqual(Object.keys(heartbeat).sort(), [
+    'alertDeliveryState',
     'devicePseudonym',
     'emergencyLevel',
     'heartbeatSequence',
@@ -132,6 +155,7 @@ test('P0.5 privacy-safe heartbeat contains only minimal protection facts', () =>
     'policyVersion',
     'schemaVersion',
   ].sort());
+  assert.equal(heartbeat.schemaVersion, 2);
   for (const forbidden of ['rawUrl', 'messageBody', 'fileName', 'eventLog', 'installationId', 'password', 'authToken']) {
     assert.equal(Object.hasOwn(heartbeat, forbidden), false);
   }
