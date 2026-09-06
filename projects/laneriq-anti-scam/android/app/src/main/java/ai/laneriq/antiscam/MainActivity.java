@@ -3,6 +3,7 @@ package ai.laneriq.antiscam;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.KeyguardManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -25,11 +26,13 @@ import java.util.Date;
 
 public class MainActivity extends Activity {
     private static final int REQUEST_PICK_SECURITY_FILE = 7101;
+    private static final int REQUEST_CONFIRM_PAUSE_CREDENTIAL = 7102;
 
     private TextView status;
     private TextView protectionTools;
     private TextView eventLog;
     private boolean recoveryAttemptedThisLaunch = false;
+    private boolean pendingCredentialPause = false;
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -48,6 +51,24 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_PICK_SECURITY_FILE && resultCode == RESULT_OK && data != null && data.getData() != null) {
             scanSelectedFile(data.getData());
+            return;
+        }
+        if (requestCode == REQUEST_CONFIRM_PAUSE_CREDENTIAL) {
+            boolean wasPending = pendingCredentialPause;
+            pendingCredentialPause = false;
+            if (wasPending && resultCode == RESULT_OK) {
+                new LocalEventStore(this).recordOnce(
+                        "guardian_pause_device_credential_verified",
+                        "system-credential-confirmed",
+                        10_000L);
+                showFinalPauseConfirmation(true);
+            } else if (wasPending) {
+                new LocalEventStore(this).recordOnce(
+                        "guardian_pause_device_credential_cancelled",
+                        "not-confirmed",
+                        10_000L);
+                toast("Guardian remains active");
+            }
         }
     }
 
@@ -113,7 +134,7 @@ public class MainActivity extends Activity {
                 "• App/APK/file check: SHA-256 + APK package/signer/permission evidence\n" +
                 "• Remote-control check: local technical risk + sensitive-action freeze policy\n" +
                 "• Anti-tamper: unexpected Guardian loss + signer continuity + alert-delivery truth\n" +
-                "• Hardened Pause: no one-tap notification stop; risk-aware in-app confirmation\n" +
+                "• Hardened Pause: no one-tap notification stop; elevated-risk pause requires Android device credential\n" +
                 "• Privacy Center: local-first data enforcement\n\n" +
                 "A low-risk result is not a guarantee that a site or app is safe.");
         protectionTools.setTextSize(13);
@@ -128,7 +149,7 @@ public class MainActivity extends Activity {
                 "• Restart circuit breaker + boot/package/user-reopen restore\n" +
                 "• App signer-continuity self-integrity baseline\n" +
                 "• Notification/alert-delivery integrity state\n" +
-                "• Risk-aware Guardian Pause policy\n" +
+                "• Risk-aware Guardian Pause + device-credential step-up\n" +
                 "• Developer Options / ADB / Accessibility risk snapshots\n" +
                 "• App install/update awareness\n" +
                 "• Safe Web local risk + offline reputation policy\n" +
@@ -467,11 +488,10 @@ public class MainActivity extends Activity {
 
         if (pause.action == GuardianPausePolicy.Action.REQUIRE_HIGH_FRICTION_REVIEW) {
             new AlertDialog.Builder(this)
-                    .setTitle("Extra review required")
-                    .setMessage("Protection integrity or a device-risk signal needs attention. Pausing Guardian now could increase risk. " +
-                            "Only continue if you are physically controlling this device and intentionally want protection paused.")
+                    .setTitle("Device credential required")
+                    .setMessage("Protection integrity or a device-risk signal needs attention. To reduce the chance that a remote operator pauses Guardian, Android device credential confirmation is required before continuing.")
                     .setNegativeButton("Keep Guardian On", null)
-                    .setPositiveButton("Review Again", (dialog, which) -> showFinalPauseConfirmation(true))
+                    .setPositiveButton("Verify Device Owner", (dialog, which) -> requestDeviceCredentialForPause())
                     .show();
             return;
         }
@@ -479,9 +499,49 @@ public class MainActivity extends Activity {
         showFinalPauseConfirmation(false);
     }
 
+    private void requestDeviceCredentialForPause() {
+        KeyguardManager manager = (KeyguardManager) getSystemService(KEYGUARD_SERVICE);
+        if (manager == null || !manager.isDeviceSecure()) {
+            new LocalEventStore(this).recordOnce(
+                    "guardian_pause_device_credential_unavailable",
+                    "secure-lock-not-configured",
+                    60_000L);
+            new AlertDialog.Builder(this)
+                    .setTitle("Guardian remains active")
+                    .setMessage("A secure Android screen lock is not available for elevated-risk Pause authorization. LANERIQ will fail closed and keep Guardian running. Resolve the risk condition or configure a secure screen lock before trying again.")
+                    .setPositiveButton("OK", null)
+                    .show();
+            return;
+        }
+
+        Intent credential = manager.createConfirmDeviceCredentialIntent(
+                "Confirm Guardian Pause",
+                "Verify the device credential before pausing Anti Scam during an elevated-risk state.");
+        if (credential == null) {
+            new LocalEventStore(this).recordOnce(
+                    "guardian_pause_device_credential_unavailable",
+                    "credential-intent-unavailable",
+                    60_000L);
+            toast("Guardian remains active");
+            return;
+        }
+
+        pendingCredentialPause = true;
+        try {
+            startActivityForResult(credential, REQUEST_CONFIRM_PAUSE_CREDENTIAL);
+        } catch (Exception e) {
+            pendingCredentialPause = false;
+            new LocalEventStore(this).recordOnce(
+                    "guardian_pause_device_credential_failed",
+                    e.getClass().getSimpleName(),
+                    60_000L);
+            toast("Guardian remains active");
+        }
+    }
+
     private void showFinalPauseConfirmation(boolean highFriction) {
         String message = highFriction
-                ? "Final confirmation: pause Always-On Guardian despite the current review state? LANERIQ will remove the Protected claim until Guardian is restored."
+                ? "Device credential verified. Final confirmation: pause Always-On Guardian despite the current review state? LANERIQ will remove the Protected claim until Guardian is restored."
                 : "Pause Always-On Guardian? LANERIQ will stop claiming active device protection until you enable it again.";
         new AlertDialog.Builder(this)
                 .setTitle("Confirm Guardian Pause")
