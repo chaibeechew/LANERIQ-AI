@@ -1,3 +1,4 @@
+import "./laneriq-lotus-brand.css";
 import "./laneriq-launch-splash.css";
 import "./auth/auth-living-intelligence.css";
 import "./living-intelligence-refresh.css";
