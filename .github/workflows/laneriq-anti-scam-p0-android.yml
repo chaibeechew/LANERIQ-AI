@@ -54,8 +54,9 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           text = Path('projects/laneriq-anti-scam/android/app/build.gradle').read_text()
-          needle = "buildConfigField 'String', 'INTERNAL_TEST_THREAT_KEY_X509_B64', '\\"\\"'"
-          if needle not in text:
+          release = text.split('release {', 1)[1].split('}', 1)[0]
+          expected = r'''buildConfigField 'String', 'INTERNAL_TEST_THREAT_KEY_X509_B64', '\"\"' '''.strip()
+          if expected not in release:
               raise SystemExit('release INTERNAL_TEST_THREAT_KEY_X509_B64 must be an empty BuildConfig string')
           PY
       - name: Run Guardian unit tests
