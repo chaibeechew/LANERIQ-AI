@@ -1,0 +1,35 @@
+name: LANERIQ Control Tower Contract
+
+on:
+  pull_request:
+    paths:
+      - "app/admin/control-tower/**"
+      - "app/api/admin/control-tower/**"
+      - "lib/admin-access.js"
+      - "lib/control-tower-runtime.js"
+      - "scripts/control-tower-contract-tests.mjs"
+      - ".github/workflows/control-tower-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/admin/control-tower/**"
+      - "app/api/admin/control-tower/**"
+      - "lib/admin-access.js"
+      - "lib/control-tower-runtime.js"
+      - "scripts/control-tower-contract-tests.mjs"
+      - ".github/workflows/control-tower-contract.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  control-tower-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Verify Control Tower authorization and release truth
+        run: node scripts/control-tower-contract-tests.mjs
