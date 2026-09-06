@@ -20,7 +20,8 @@ jobs:
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: node scripts/ui-feature-integration-lock.mjs
       - name: Evidence boundary
         run: echo "This gate blocks stale PR heads and non-Canonical feature PR changes to protected Global UI paths. It does not replace UI regression, runtime browser QA, or Production exact-SHA convergence."
