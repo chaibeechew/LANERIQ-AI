@@ -1,0 +1,27 @@
+name: Game World External Evidence Harness V29 Gate
+on:
+  push:
+    branches: [batch190-game-world-external-evidence-harness-v29]
+  pull_request:
+    paths:
+      - 'lib/game/game-world-external-evidence-harness-v29.js'
+      - 'scripts/game-world-external-evidence-harness-v29-tests.mjs'
+      - '.github/workflows/game-world-external-evidence-harness-v29.yml'
+jobs:
+  external-evidence-harness-v29:
+    runs-on: ubuntu-24.04
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - run: npm ci --no-audit --no-fund
+      - name: V28 orchestrator regression
+        run: node scripts/game-world-evidence-orchestrator-v28-tests.mjs
+      - name: External evidence harness truth gate
+        run: node scripts/game-world-external-evidence-harness-v29-tests.mjs
+      - name: Next production build
+        run: npm run build
