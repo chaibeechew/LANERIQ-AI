@@ -17,7 +17,12 @@ assert.match(generate,/persistBuilderGeneratedProject\(/,"Generate must persist 
 assert.doesNotMatch(generate,/lib\/supabase\/|@supabase\//,"Generate route must not directly import the current provider.");
 assert.doesNotMatch(generate,/createAdminClient|SERVICE_ROLE|SUPABASE_SECRET_KEY|SUPABASE_SERVICE_ROLE_KEY/,"Generate route must never hold provider admin credentials.");
 assert.ok(generate.indexOf("getBuilderPrincipal({requireVerified:true})")<generate.indexOf("persistBuilderGeneratedProject("),"Verified principal resolution must happen before Cloud persistence.");
-assert.ok(generate.indexOf("const verified=verifyGeneration(adult.result)")<generate.indexOf("persistBuilderGeneratedProject("),"Final AI verification must complete before generated-project persistence.");
+const finalVerifyIndex=generate.indexOf("const verified=verifyGeneration(generationResult),finalReview=runCriticChecks(generationResult,adultRequirements)");
+const persistenceIndex=generate.indexOf("const persistence=await persistBuilderGeneratedProject",finalVerifyIndex);
+assert.ok(finalVerifyIndex>=0&&persistenceIndex>finalVerifyIndex,"Final generation + critic verification must complete after any bounded rescue and before generated-project persistence.");
+assert.ok(generate.indexOf("if(!verified.passed||!finalReview.passed)",finalVerifyIndex)<persistenceIndex,"Failed final verification must remain fail-closed before persistence.");
+assert.match(generate,/for\(let attempt=1;attempt<=QUALITY_GATE_RESCUE_ATTEMPTS;attempt\+=1\)/,"Any post-Adult rescue must remain explicitly bounded.");
+assert.match(generate,/if\(review\.passed&&report\.passed\)/,"A rescue candidate must pass both critic and deterministic generation verification.");
 
 // Provider/domain split: the domain stays provider opaque; only the compatibility adapter can touch current provider clients.
 assert.match(builderDomain,/cloud-adapters\/builder-project-data\.js/);
@@ -46,6 +51,7 @@ assert.match(migration,/insert into public\.app_versions/,"The privileged RPC mu
 assert.match(migration,/update public\.apps set current_version_id=version_row\.id/,"The initial version pointer must still advance atomically.");
 
 console.log("✓ Generated App + Website route is provider-opaque and persists only through LANERIQ Cloud");
+console.log("✓ Bounded quality rescue can only cross persistence after the same final generation + critic gates pass");
 console.log("✓ Cloud adapter re-authenticates before service-role escalation; the user-scoped client cannot call privileged persistence");
 console.log("✓ Final AI verification completes before Cloud persistence and database RPC remains service-role only");
 console.log("✓ Atomic replay, version creation and current-version pointer semantics remain intact");
