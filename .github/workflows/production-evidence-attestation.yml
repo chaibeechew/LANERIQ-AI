@@ -1,0 +1,64 @@
+name: LANERIQ Production Evidence Attestation Gate
+
+on:
+  pull_request:
+    paths:
+      - "app/api/production-e2e/attest/route.js"
+      - "app/production-evidence-attestation/route.js"
+      - "lib/auth/laneriq-session.js"
+      - "lib/auth/session-safety.js"
+      - "lib/cloud/production-evidence.js"
+      - "lib/cloud-adapters/production-evidence-data.js"
+      - "scripts/production-evidence-attestation-contract-tests.mjs"
+      - ".github/workflows/production-evidence-attestation.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/api/production-e2e/attest/route.js"
+      - "app/production-evidence-attestation/route.js"
+      - "lib/auth/laneriq-session.js"
+      - "lib/auth/session-safety.js"
+      - "lib/cloud/production-evidence.js"
+      - "lib/cloud-adapters/production-evidence-data.js"
+      - "scripts/production-evidence-attestation-contract-tests.mjs"
+      - ".github/workflows/production-evidence-attestation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  production-evidence-attestation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      LANERIQ_EVIDENCE_LEVEL: CODE_CI_ONLY
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Production evidence attestation contract
+        run: node scripts/production-evidence-attestation-contract-tests.mjs
+
+      - name: Build runtime integration
+        run: npm run build
+
+      - name: Evidence boundary
+        run: |
+          echo "✓ This gate proves CODE + CI + build integration for authenticated Production evidence attestation."
+          echo "✓ Customer-facing attestation API uses LANERIQ-primary Session Authority and a provider-opaque LANERIQ Cloud evidence domain."
+          echo "✓ Provider-specific project verification is isolated behind an adapter and explicitly constrained by authenticated owner + project ID."
+          echo "✓ The runtime API rebinds a successful 18-stage closure report to exact Production main, the signed-in LANERIQ user, owned project, exact current version and current private state."
+          echo "✓ SHA-256 is used for tamper-evident report hashing; no persistent external audit record or cryptographic signature is claimed."
+          echo "✓ A real authenticated Production closure report is still required before a runtime attestation can be issued."
