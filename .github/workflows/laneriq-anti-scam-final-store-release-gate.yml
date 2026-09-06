@@ -5,6 +5,8 @@ on:
 
 permissions:
   contents: read
+  checks: read
+  statuses: read
 
 env:
   RELEASE_PROJECT: projects/laneriq-anti-scam
@@ -12,6 +14,7 @@ env:
 jobs:
   final-store-release:
     runs-on: ubuntu-latest
+    environment: anti-scam-production-release
     steps:
       - name: Require execution from main
         run: |
@@ -42,27 +45,42 @@ jobs:
             echo "main moved after checkout; release evidence must be regenerated on the new exact SHA." >&2
             exit 1
           }
+          echo "LANERIQ_FINAL_MAIN_SHA=$LOCAL_SHA" >> "$GITHUB_ENV"
 
-      - name: Verify main branch protection and required checks
+      - name: Verify main branch protection and required checks are successful on this SHA
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           BRANCH_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/branches/main")"
           PROTECTED="$(printf '%s' "$BRANCH_JSON" | jq -r '.protected // false')"
-          CONTEXT_COUNT="$(printf '%s' "$BRANCH_JSON" | jq '(.protection.required_status_checks.contexts // []) | length')"
-          CHECK_COUNT="$(printf '%s' "$BRANCH_JSON" | jq '(.protection.required_status_checks.checks // []) | length')"
-          TOTAL=$((CONTEXT_COUNT + CHECK_COUNT))
+          mapfile -t REQUIRED < <(printf '%s' "$BRANCH_JSON" | jq -r '[
+            (.protection.required_status_checks.contexts // [])[],
+            (.protection.required_status_checks.checks // [])[]?.context
+          ] | map(select(type == "string" and length > 0)) | unique[]')
           echo "main_protected=$PROTECTED"
-          echo "required_check_entries=$TOTAL"
+          echo "required_check_entries=${#REQUIRED[@]}"
           test "$PROTECTED" = "true" || {
             echo "main is not protected; public Anti Scam release is blocked." >&2
             exit 1
           }
-          test "$TOTAL" -gt 0 || {
+          test "${#REQUIRED[@]}" -gt 0 || {
             echo "main has no required status checks; public Anti Scam release is blocked." >&2
             exit 1
           }
+
+          CHECK_RUNS="$(gh api -H 'Accept: application/vnd.github+json' "repos/${GITHUB_REPOSITORY}/commits/${LANERIQ_FINAL_MAIN_SHA}/check-runs?per_page=100")"
+          STATUSES="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${LANERIQ_FINAL_MAIN_SHA}/status")"
+          for context in "${REQUIRED[@]}"; do
+            CHECK_STATE="$(printf '%s' "$CHECK_RUNS" | jq -r --arg c "$context" '[.check_runs[] | select(.name == $c)] | sort_by(.started_at // .completed_at // "") | last | if . then (.status + ":" + (.conclusion // "")) else "" end')"
+            STATUS_STATE="$(printf '%s' "$STATUSES" | jq -r --arg c "$context" '[.statuses[] | select(.context == $c)] | sort_by(.updated_at // .created_at // "") | last | if . then .state else "" end')"
+            echo "required_context=$context check=$CHECK_STATE status=$STATUS_STATE"
+            if [[ "$CHECK_STATE" == "completed:success" || "$STATUS_STATE" == "success" ]]; then
+              continue
+            fi
+            echo "Required check '$context' is not successful on exact main ${LANERIQ_FINAL_MAIN_SHA}." >&2
+            exit 1
+          done
 
       - name: Run complete release contracts
         run: node --test "$RELEASE_PROJECT/fabric/test/"*.test.mjs "$RELEASE_PROJECT/release/test/"*.test.mjs
@@ -70,18 +88,37 @@ jobs:
       - name: Run static store package gate
         run: node "$RELEASE_PROJECT/release/store-static-gate.mjs"
 
-      - name: Generate signed-evidence launch report
+      - name: Compute current deterministic release source digest
+        run: |
+          set -euo pipefail
+          DIGEST="$(node "$RELEASE_PROJECT/release/release-source-digest.mjs" --digest-only)"
+          test "${#DIGEST}" -eq 64
+          echo "release_source_digest_sha256=$DIGEST"
+          echo "LANERIQ_FINAL_SOURCE_DIGEST=$DIGEST" >> "$GITHUB_ENV"
+
+      - name: Generate source-bound signed-evidence launch report
         run: node "$RELEASE_PROJECT/release/launch-report.mjs" | tee "$RELEASE_PROJECT/release/final-launch-report.json"
 
-      - name: Require Public Production READY
+      - name: Require Public Production READY for current source digest
         run: |
           set -euo pipefail
           STATE="$(jq -r '.publicProduction' "$RELEASE_PROJECT/release/final-launch-report.json")"
           KEY_COUNT="$(jq -r '.trustedReleaseEvidenceKeyCount' "$RELEASE_PROJECT/release/final-launch-report.json")"
           REJECTED="$(jq -r '.evidenceBundle.rejectedGateIds | length' "$RELEASE_PROJECT/release/final-launch-report.json")"
+          REPORT_DIGEST="$(jq -r '.releaseSourceDigestSha256' "$RELEASE_PROJECT/release/final-launch-report.json")"
+          BUNDLE_DIGEST="$(jq -r '.evidenceBundle.releaseSourceDigestSha256' "$RELEASE_PROJECT/release/final-launch-report.json")"
           echo "public_production=$STATE"
           echo "trusted_release_keys=$KEY_COUNT"
           echo "rejected_evidence_tokens=$REJECTED"
+          echo "report_source_digest=$REPORT_DIGEST"
+          test "$REPORT_DIGEST" = "$LANERIQ_FINAL_SOURCE_DIGEST" || {
+            echo "Launch report digest does not match current source digest." >&2
+            exit 1
+          }
+          test "$BUNDLE_DIGEST" = "$LANERIQ_FINAL_SOURCE_DIGEST" || {
+            echo "Evidence bundle was not verified against current source digest." >&2
+            exit 1
+          }
           test "$STATE" = "READY" || {
             echo "Five-layer Public Production evidence is incomplete." >&2
             exit 1
@@ -91,12 +128,29 @@ jobs:
             exit 1
           }
           test "$REJECTED" -eq 0 || {
-            echo "One or more release-evidence tokens were rejected." >&2
+            echo "One or more release-evidence tokens were rejected or belong to a different release source." >&2
             exit 1
           }
+
+      - name: Record final release authorization evidence
+        run: |
+          set -euo pipefail
+          cat > "$RELEASE_PROJECT/release/final-store-release-authorization.json" <<JSON
+          {
+            "schema": 1,
+            "product": "LANERIQ Anti Scam",
+            "mainSha": "$LANERIQ_FINAL_MAIN_SHA",
+            "releaseSourceDigestSha256": "$LANERIQ_FINAL_SOURCE_DIGEST",
+            "workflowRunId": "$GITHUB_RUN_ID",
+            "status": "FINAL_GATE_PASSED",
+            "truth": "This records that the Final Store Release Gate passed for this exact main SHA and deterministic Anti Scam release-source digest. Production runtime/store convergence must still use the exact artifact evidence represented by the signed L5 gates."
+          }
+          JSON
 
       - uses: actions/upload-artifact@v4
         with:
           name: laneriq-anti-scam-final-store-release-report
-          path: projects/laneriq-anti-scam/release/final-launch-report.json
+          path: |
+            projects/laneriq-anti-scam/release/final-launch-report.json
+            projects/laneriq-anti-scam/release/final-store-release-authorization.json
           if-no-files-found: error
