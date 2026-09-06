@@ -4,6 +4,7 @@ const base={textDecoration:"none",border:"1px solid #fff3",borderRadius:999,padd
 
 export default function GameBuilderLayout({children}){
   return <>{children}<div style={{position:"fixed",right:18,bottom:"calc(18px + env(safe-area-inset-bottom))",zIndex:80,display:"grid",gap:8,justifyItems:"end",maxHeight:"calc(100vh - 36px)",overflowY:"auto",paddingLeft:8}}>
+    <Link href="/game-world-v29" aria-label="Open LANERIQ AI External Evidence Harness V29" style={{...base,background:"linear-gradient(90deg,#fff3a0,#8fffcf,#8abfff)",color:"#03100c",fontSize:12}}>External Evidence V29 →</Link>
     <Link href="/game-world-v28" aria-label="Open LANERIQ AI Evidence Orchestrator V28" style={{...base,background:"linear-gradient(90deg,#f5ff92,#7fffd8,#8bbcff)",color:"#03100c",fontSize:12}}>Evidence Orchestrator V28 →</Link>
     <Link href="/game-world-v25" aria-label="Open LANERIQ AI Production Evidence V25" style={{...base,background:"linear-gradient(90deg,#d8ff72,#7fffd8,#8bc8ff)",color:"#03100c",fontSize:12}}>Production Evidence V25 →</Link>
     <Link href="/game-world-v20" aria-label="Open LANERIQ AI Production World V20" style={{...base,background:"linear-gradient(90deg,#7fffd8,#8bc8ff,#d7a8ff)",color:"#03100c",fontSize:12}}>Production World V20 →</Link>
