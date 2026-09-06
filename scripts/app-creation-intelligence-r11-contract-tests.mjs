@@ -8,6 +8,7 @@ import { composeAppBuilderComponents } from "../lib/ai/app-builder-component-com
 import { judgeAppCreationPlan } from "../lib/ai/app-builder-design-judge.js";
 import { createAppBuilderCreationPlan,closeAppBuilderCreationPlan,APP_BUILDER_CREATION_PHASES } from "../lib/ai/app-builder-creation-pipeline.js";
 import { evaluateAppBuilderLiveVerification } from "../lib/ai/app-builder-live-verification.js";
+import { buildAppCreationPromptContext,APP_BUILDER_ADMISSION_POLICY } from "../lib/ai/app-builder-admission.js";
 import { APP_CREATION_INTELLIGENCE_AI_INSTRUCTION } from "../lib/ai/app-creation-intelligence-policy.js";
 import { GENERATION_QUALITY_RULES } from "../lib/buildStandards.js";
 
@@ -70,6 +71,19 @@ assert.equal(plan.generatorHandoff.requireSelfHealBeforeAcceptance,true);
 assert.equal(plan.publishEligibility.eligible,false);
 assert.equal(plan.truthBoundary.codePlanIsNotLive,true);
 
+const promptContext=buildAppCreationPromptContext(`SYSTEM HEADER\n\nUSER IDEA:\n"${idea}"\n\nVOICE INPUT:\n"None"\n\nGLOBAL RULES`);
+assert.equal(promptContext.injected,true);
+assert.equal(promptContext.summary.industry,"Real Estate");
+assert.equal(promptContext.summary.archetypeId,"directory");
+assert.equal(promptContext.summary.styleId,"glass");
+assert.ok(promptContext.summary.designScore>=95);
+assert.match(promptContext.context,/REQUEST-SPECIFIC APP CREATION PLAN/);
+assert.match(promptContext.context,/inspiration-only/);
+assert.doesNotMatch(JSON.stringify(promptContext.summary),/buyers and agents/i);
+assert.equal(APP_BUILDER_ADMISSION_POLICY.requestSpecificCreationPlanInjected,true);
+assert.equal(APP_BUILDER_ADMISSION_POLICY.creationPlanRawPromptStored,false);
+assert.equal(APP_BUILDER_ADMISSION_POLICY.creationPlanProductionClaimAllowed,false);
+
 const ciOnly=evaluateAppBuilderLiveVerification({ci:{exactHead:true,success:true}});
 assert.equal(ciOnly.state,"CI_VERIFIED");
 assert.equal(ciOnly.live,false);
@@ -104,12 +118,17 @@ assert.match(APP_CREATION_INTELLIGENCE_AI_INSTRUCTION,/LIVE \+ VERIFIED/);
 assert.match(GENERATION_QUALITY_RULES,/APP CREATION INTELLIGENCE — ROUND 11/);
 assert.match(GENERATION_QUALITY_RULES,/exact SHA convergence/i);
 const standards=fs.readFileSync("lib/buildStandards.js","utf8");
+const admission=fs.readFileSync("lib/ai/app-builder-admission.js","utf8");
 assert.match(standards,/APP_CREATION_INTELLIGENCE_AI_INSTRUCTION/);
+assert.match(admission,/buildAppCreationPromptContext\(prompt\)/);
+assert.match(admission,/reuseKeyMaterial:keyMaterial/);
+assert.match(admission,/paidFallbackAllowed:false/);
 
 console.log("✓ Round 11 compiles business/design intent without persisting the raw prompt");
 console.log("✓ 3,000 canonical templates are ranked as inspiration and recomposed into purposeful page architecture");
 console.log("✓ Adaptive layouts preserve 320px reflow, 44px touch targets, visible focus and LIUI behavior");
 console.log("✓ Components carry state, responsive, data-binding and server-authorization contracts");
+console.log("✓ Request-specific creation plans are injected at provider admission while reuse/cost policy stays unchanged");
 console.log("✓ Design Judge blocks false runtime/Production claims while validating creation quality at CODE level");
 console.log("✓ LIVE + VERIFIED requires exact SHA + real browser/provider/database/runtime/security/Release Control evidence");
 console.log("✓ Round 11 creation method is wired into the main LANERIQ generation quality instruction");
