@@ -39,6 +39,11 @@ function walk(dir){
   }
   return out;
 }
+function stripComments(source){
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g,'')
+    .replace(/^\s*\/\/.*$/gm,'');
+}
 
 const appFiles=walk('app');
 const cssFiles=appFiles.filter(file=>file.endsWith('.css'));
@@ -48,7 +53,7 @@ assert.match(css,/env\(safe-area-inset-bottom\)/,'Mobile safe-area bottom protec
 assert.match(css,/max-width\s*:\s*100vw/i,'Mobile overflow guard missing');
 assert.match(css,/min-(?:height|width)\s*:\s*(?:44|48|56)px/i,'Mobile touch-target protection missing');
 
-// Customer-facing source must never expose a fixed total page count. Internal docs/tests are intentionally out of scope.
+// Customer-facing source must never expose a fixed total page count. Internal docs/tests and comment-only historical notes are intentionally out of scope.
 const customerSourceFiles=appFiles.filter(file=>
   /\.(?:js|jsx|ts|tsx)$/.test(file)
   && !file.startsWith('app/api/')
@@ -62,7 +67,7 @@ const fixedPageCopy=[
   /\blegacy\s+18[- ]page\b/ig,
 ];
 for(const file of customerSourceFiles){
-  const source=read(file);
+  const source=stripComments(read(file));
   for(const pattern of fixedPageCopy){
     pattern.lastIndex=0;
     const match=pattern.exec(source);
