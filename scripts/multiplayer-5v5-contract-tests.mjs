@@ -8,6 +8,7 @@ import "./moba-live-evidence-controller-v7-tests.mjs";
 import "./moba-session-shield-v8-tests.mjs";
 import "./moba-adaptive-matchmaking-v9-tests.mjs";
 import "./moba-capacity-verification-runner-v10-tests.mjs";
+import "./moba-ranked-integrity-v11-tests.mjs";
 import {getMultiplayerProviderConfig} from "../lib/game/multiplayer-provider-gateway.js";
 import {evaluateAdapterEvidence} from "../lib/game/multiplayer-adapter-v1.js";
 import {evaluateLiveTransportReadiness} from "../lib/game/live-multiplayer-transport-v1.js";
@@ -62,7 +63,6 @@ assert.match(claimMigration,/pg_advisory_xact_lock/i);
 assert.match(claimMigration,/revoke all on function public\.server_claim_multiplayer_provider_v2/i);
 assert.match(claimMigration,/grant execute on function public\.server_claim_multiplayer_provider_v2.*service_role/is);
 
-// Live 5v5 hardening v2: provider matchmaking is still evidence-gated, but the MOBA combat server no longer trusts client hit/damage claims.
 assert.equal(MOBA_AUTHORITATIVE_COMBAT_V2.authoritative,true);
 assert.equal(MOBA_AUTHORITATIVE_COMBAT_V2.clientDamageTrusted,false);
 assert.equal(MOBA_AUTHORITATIVE_COMBAT_V2.clientHitTrusted,false);
@@ -70,8 +70,6 @@ const combat=createMobaAuthoritativeCombat({name:"Live Test Arena",game:{enabled
 assert.equal(combat.match.heroes.length,10);
 assert.equal(bindMobaPlayer(combat,{playerId:"p-blue",heroId:"blue-1"}).ok,true);
 assert.equal(bindMobaPlayer(combat,{playerId:"p-red",heroId:"red-1"}).ok,true);
-
-// Move both bound heroes into deterministic combat range using server-validated movement/state, then prove forged damage is ignored and scored.
 const blue=combat.match.heroes.find(h=>h.id==="blue-1"),red=combat.match.heroes.find(h=>h.id==="red-1");
 blue.x=400;blue.y=360;red.x=470;red.y=360;
 const move=submitMobaMovementIntent(combat,{playerId:"p-blue",sequence:1,actionId:"move-1",x:1,y:0,now:.05});assert.equal(move.ok,true);
@@ -81,7 +79,6 @@ const replay=submitMobaCombatIntent(combat,{playerId:"p-blue",sequence:2,actionI
 advanceMobaAuthority(combat,1);const q=submitMobaCombatIntent(combat,{playerId:"p-blue",sequence:3,actionId:"q-1",kind:"ability",slot:"Q",targetId:"red-1"});assert.equal(q.ok,true);
 const snapshot=authoritativeMobaSnapshot(combat,{playerId:"p-blue"});assert.equal(snapshot.selfId,"blue-1");assert.equal(snapshot.heroes.length,10);assert.ok(snapshot.eventSequence>=2);
 
-// Matchmaking roster contract: exactly two unique five-player teams before the live session can become ready.
 const queue=buildMobaMatchmakingContract({mode:"ranked",region:"ap-southeast",partySize:2,skill:1400,preferredRole:"mage"});assert.equal(queue.playersPerMatch,10);assert.equal(queue.teamSize,5);assert.equal(queue.constraints.authoritativeResultRequired,true);
 const roster=Array.from({length:10},(_,i)=>({playerId:`p${i+1}`,heroId:i<5?`blue-${i+1}`:`red-${i-4}`,team:i<5?"blue":"red",slot:`slot-${i+1}`,reconnectToken:`resume-${i+1}`}));
 assert.equal(validateMobaMatchedRoster(roster).valid,true);
@@ -90,7 +87,6 @@ const dropped=markMobaDisconnected(session,{playerId:"p1",now:110});assert.equal
 const resumed=resumeMobaPlayer(session,{playerId:"p1",reconnectToken:"resume-1",now:120});assert.equal(resumed.ok,true);assert.equal(resumed.resyncRequired,true);assert.equal(canAcceptMobaInput(session,"p1"),false,"Input stays locked until authoritative snapshot acknowledgement.");
 assert.equal(acknowledgeMobaResync(session,{playerId:"p1",snapshotVersion:resumed.resyncVersion}).ok,true);assert.equal(canAcceptMobaInput(session,"p1"),true);
 
-// Synthetic/default values cannot manufacture production evidence. A measured load envelope and every external gate are required.
 assert.equal(evaluateMobaLoadEvidence({}).passed,false);
 const load=evaluateMobaLoadEvidence({concurrentMatches:100,concurrentPlayers:1000,serverTickP95Ms:32,serverTickP99Ms:46,latencyP95Ms:180,packetLossPct:2,reconnectSuccessRate:.995,errorRatePct:.3,durationMinutes:45});assert.equal(load.passed,true);
 assert.equal(evaluateMobaProductionEvidence({authoritativeCombat:true,reconnectResync:true,antiCheat:true,loadTest:true}).productionReady,false);
