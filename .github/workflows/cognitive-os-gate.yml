@@ -1,0 +1,78 @@
+name: LANERIQ Cognitive OS Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/soolen/**'
+      - 'lib/ai/app-builder-admission.js'
+      - 'lib/ai/image-generation-gateway.js'
+      - 'lib/video/render-gateway.js'
+      - 'services/malware-defense/lib/runtime-defense-pipeline.js'
+      - 'lib/project-memory.js'
+      - 'supabase/migrations/*cognitive*'
+      - 'scripts/cognitive-*-contract-tests.mjs'
+      - 'docs/LANERIQ_*.md'
+      - '.github/workflows/cognitive-os-gate.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/soolen/**'
+      - 'lib/ai/app-builder-admission.js'
+      - 'lib/ai/image-generation-gateway.js'
+      - 'lib/video/render-gateway.js'
+      - 'services/malware-defense/lib/runtime-defense-pipeline.js'
+      - 'lib/project-memory.js'
+      - 'supabase/migrations/*cognitive*'
+      - 'scripts/cognitive-*-contract-tests.mjs'
+      - 'docs/LANERIQ_*.md'
+      - '.github/workflows/cognitive-os-gate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cognitive-os-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cognitive-os-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Cognitive OS fail-closed contracts
+        run: node scripts/cognitive-os-contract-tests.mjs
+      - name: Cognitive runtime, provider diversity, failure memory and benchmark contracts
+        run: node scripts/cognitive-runtime-contract-tests.mjs
+      - name: Cross-feature Cognitive integration contracts
+        run: node scripts/cognitive-cross-feature-contract-tests.mjs
+      - name: Final six durability, benchmark, judge, self-heal and release contracts
+        run: node scripts/cognitive-final-six-contract-tests.mjs
+      - name: Round 5 adaptive inference, context, protocol, tool guardrail and trace contracts
+        run: node scripts/cognitive-round5-contract-tests.mjs
+      - name: Round 6 / 2046 horizon contracts
+        run: node scripts/cognitive-round6-2046-contract-tests.mjs
+      - name: Round 7 / 2526 civilization contracts
+        run: node scripts/cognitive-round7-2526-contract-tests.mjs
+      - name: Round 8 / Human Civilization Law contracts
+        run: node scripts/cognitive-round8-human-civilization-law-contract-tests.mjs
+      - name: Round 9 / full-platform constitutional, protocol, benchmark and red-team transfer contracts
+        run: node scripts/cognitive-round9-full-platform-transfer-contract-tests.mjs
+      - name: Existing App Builder zero-cost admission regression
+        run: node scripts/app-builder-zero-cost-admission-contract-tests.mjs
+      - name: Existing Image Studio regression
+        run: node scripts/image-studio-contract-tests.mjs
+      - name: Existing Video Generator regression
+        run: node scripts/video-generator-contract-tests.mjs
+      - name: Existing Malware runtime regression
+        run: node services/malware-defense/test/next-round-runtime-hardening.mjs
+      - name: Existing Project Memory regression
+        run: node scripts/project-memory-contract-tests.mjs
+      - name: Super Brain integration smoke
+        run: node --input-type=module -e "import {createSuperBrainJob} from './lib/soolen/super-brain.js'; const job=createSuperBrainJob({goal:'verify cognitive integration',simulationRequired:true}); if(job.cognitiveOSVersion!=='1.0.0'||job.cognitive.layers.length!==20) process.exit(1);"
