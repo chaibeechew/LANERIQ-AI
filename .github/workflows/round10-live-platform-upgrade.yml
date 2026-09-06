@@ -1,0 +1,64 @@
+name: LANERIQ Round 10 LIVE Platform Upgrade Gate
+
+on:
+  push:
+    branches:
+      - upgrade/live-evidence-closure-r10
+      - main
+    paths:
+      - 'lib/soolen/live-evidence-engine.js'
+      - 'lib/soolen/intelligence-per-dollar-router.js'
+      - 'lib/soolen/autonomous-execution-runtime.js'
+      - 'lib/soolen/long-term-project-intelligence.js'
+      - 'lib/soolen/cognitive-self-heal-v2.js'
+      - 'lib/soolen/cost-intelligence-engine.js'
+      - 'lib/soolen/intent-driven-liui-runtime.js'
+      - 'lib/ai/app-builder-success-runtime.js'
+      - 'scripts/round10-live-platform-upgrade-contract-tests.mjs'
+      - 'docs/production/LIVE_EVIDENCE_CLOSURE_R10.md'
+      - '.github/workflows/round10-live-platform-upgrade.yml'
+  pull_request:
+    branches:
+      - release/cognitive-production-integration
+      - main
+    paths:
+      - 'lib/soolen/live-evidence-engine.js'
+      - 'lib/soolen/intelligence-per-dollar-router.js'
+      - 'lib/soolen/autonomous-execution-runtime.js'
+      - 'lib/soolen/long-term-project-intelligence.js'
+      - 'lib/soolen/cognitive-self-heal-v2.js'
+      - 'lib/soolen/cost-intelligence-engine.js'
+      - 'lib/soolen/intent-driven-liui-runtime.js'
+      - 'lib/ai/app-builder-success-runtime.js'
+      - 'scripts/round10-live-platform-upgrade-contract-tests.mjs'
+      - 'docs/production/LIVE_EVIDENCE_CLOSURE_R10.md'
+      - '.github/workflows/round10-live-platform-upgrade.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: round10-live-platform-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  round10-live-platform:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Round 10 eight-part LIVE platform upgrade contracts
+        run: node scripts/round10-live-platform-upgrade-contract-tests.mjs
+      - name: Round 9 constitutional platform regression
+        run: node scripts/cognitive-round9-full-platform-transfer-contract-tests.mjs
+      - name: App Builder zero-cost admission regression
+        run: node scripts/app-builder-zero-cost-admission-contract-tests.mjs
+      - name: Project Memory regression
+        run: node scripts/project-memory-contract-tests.mjs
+      - name: Cognitive Self-Heal / Production gate regression
+        run: node scripts/cognitive-final-six-contract-tests.mjs
