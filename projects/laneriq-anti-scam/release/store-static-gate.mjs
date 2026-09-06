@@ -9,8 +9,11 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
   const checklist = JSON.parse(read('release/STORE_SUBMISSION_CHECKLIST.json'));
   const appGradle = read('android/app/build.gradle');
   const manifest = read('android/app/src/main/AndroidManifest.xml');
+  const debugManifest = read('android/app/src/debug/AndroidManifest.xml');
   const guardian = read('android/app/src/main/java/ai/laneriq/antiscam/GuardianService.java');
+  const antiScamApplication = read('android/app/src/main/java/ai/laneriq/antiscam/AntiScamApplication.java');
   const webShieldVpn = read('android/app/src/main/java/ai/laneriq/antiscam/WebShieldVpnService.java');
+  const webShieldDns = read('android/app/src/main/java/ai/laneriq/antiscam/WebShieldDnsDataPlane.java');
   const webShieldContract = read('android/app/src/main/java/ai/laneriq/antiscam/WebShieldDataPlaneContract.java');
   const signedReputation = read('android/app/src/main/java/ai/laneriq/antiscam/SignedThreatReputationEvidence.java');
   const reputationStore = read('android/app/src/main/java/ai/laneriq/antiscam/LocalThreatReputationStore.java');
@@ -18,7 +21,12 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
   const malwareBroker = read('cloud/lib/malware-defense-broker.mjs');
   const deepScan = read('cloud/lib/selected-file-scan-handler.mjs');
   const heartbeatHandler = read('cloud/lib/guardian-heartbeat-handler.mjs');
+  const admissionPolicy = read('cloud/lib/guardian-admission-policy.mjs');
+  const deadmanStore = read('cloud/lib/supabase-deadman-store.mjs');
   const deadmanSql = read('cloud/sql/001_guardian_deadman.sql');
+  const l1Harness = read('release/device-tests/android-webshield-l1.sh');
+  const l3Harness = read('release/device-tests/android-guardian-matrix.sh');
+  const l2Benchmark = read('release/l2-malware-benchmark.mjs');
   const prTruth = read('release/STORE_READINESS_2026.md');
   const signingContract = read('release/ANDROID_PRODUCTION_SIGNING.md');
 
@@ -44,11 +52,29 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
 
     l1VpnServicePlatformProtected: /android:name=['"]\.WebShieldVpnService['"]/.test(manifest)
       && /android:permission=['"]android\.permission\.BIND_VPN_SERVICE['"]/.test(manifest)
-      && /android:name=['"]android\.net\.VpnService['"]/.test(manifest),
+      && /android:name=['"]android\.net\.VpnService['"]/.test(manifest)
+      && /android\.permission\.ACCESS_NETWORK_STATE/.test(manifest),
     l1VpnConsentRequired: /VpnService\.prepare\(this\)/.test(webShieldVpn),
+    l1ProductionAlwaysOnDisabledUntilEvidence: /android\.net\.VpnService\.SUPPORTS_ALWAYS_ON/.test(manifest)
+      && /android:value=['"]false['"]/.test(manifest),
     l1FakeTunnelForbidden: /isProductionDataPlaneReady\(\)/.test(webShieldVpn)
       && /return false;/.test(webShieldContract)
-      && /markTunnel\(false, false, false/.test(webShieldVpn),
+      && /production-dataplane-release-gate-not-satisfied/.test(webShieldVpn),
+    l1InternalDnsDataPlanePresent: /BuildConfig\.DEBUG/.test(webShieldVpn)
+      && /WebShieldDnsDataPlane/.test(webShieldVpn)
+      && /network\.bindSocket\(socket\)/.test(webShieldDns)
+      && /service\.protect\(socket\)/.test(webShieldDns)
+      && /setUnderlyingNetworks/.test(webShieldDns)
+      && /verifiedStrongEvidence/.test(webShieldDns),
+    l1DebugTestSurfaceSeparated: /InternalWebShieldTestActivity/.test(debugManifest)
+      && /InternalWebShieldTestReceiver/.test(debugManifest)
+      && /android\.permission\.DUMP/.test(debugManifest)
+      && !/InternalWebShieldTestActivity|InternalWebShieldTestReceiver/.test(manifest),
+    l1ReleaseHasNoInternalThreatTrustRoot: /release\s*\{[\s\S]*INTERNAL_TEST_THREAT_KEY_X509_B64['"],\s*['"]\\"\\"['"]/.test(appGradle)
+      && /if \(!BuildConfig\.DEBUG\) return Collections\.emptyMap\(\)/.test(feedKeys),
+    l1RealDeviceHarnessPresent: exists('release/device-tests/android-webshield-l1.sh')
+      && /signedExactDomainBlock/.test(l1Harness)
+      && /stopRemovesTunRoute/.test(l1Harness),
 
     signedReputationCryptoPathPresent: /SHA256withECDSA/.test(signedReputation)
       && /productionVerifier\(\)/.test(signedReputation)
@@ -69,18 +95,44 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
       && /SCAN_CONSENT_STALE_OR_INVALID/.test(deepScan)
       && /SCAN_APP_ATTESTATION_REJECTED/.test(deepScan)
       && /SCAN_HASH_MISMATCH/.test(deepScan),
+    l2BenchmarkFactoryPresent: exists('release/l2-malware-benchmark.mjs')
+      && /minMaliciousSamples:\s*500/.test(l2Benchmark)
+      && /minBenignSamples:\s*2000/.test(l2Benchmark)
+      && /externallyAttested/.test(l2Benchmark)
+      && /benignFalseBlockRate/.test(l2Benchmark)
+      && /unsafeBenignOnMaliciousRate/.test(l2Benchmark),
 
+    l3ColdProcessLeaseInvalidation: /android:name=['"]\.AntiScamApplication['"]/.test(manifest)
+      && /cold-process-start-invalidated-inherited-lease/.test(antiScamApplication),
     l3RealDeviceHarnessPresent: exists('release/device-tests/android-guardian-matrix.sh')
-      && exists('release/l3-device-evidence.mjs'),
+      && exists('release/l3-device-evidence.mjs')
+      && /sigkillCreatesNewEpoch/.test(l3Harness)
+      && /forceStopBoundary/.test(l3Harness)
+      && /soak24hHeartbeatProgression/.test(l3Harness),
+    l3DebugControllerSeparated: /InternalGuardianTestActivity/.test(debugManifest)
+      && /android\.permission\.DUMP/.test(debugManifest)
+      && !/InternalGuardianTestActivity/.test(manifest),
 
     l4AttestationAndWitnessRequired: /APP_ATTESTATION_VERIFIER_NOT_CONFIGURED/.test(heartbeatHandler)
       && /APP_INTEGRITY_NOT_VERIFIED/.test(heartbeatHandler)
       && /INVALID_GUARDIAN_WITNESS_PROOF/.test(heartbeatHandler),
     l4PrivateHeartbeatFieldsRejected: /GUARDIAN_PAYLOAD_FORBIDDEN_FIELDS/.test(heartbeatHandler),
-    l4DeadmanRlsAndReplayProtection: /enable row level security/i.test(deadmanSql)
+    l4TrustedIngressAndRegionRequired: /TRUSTED_INGRESS_REQUIRED/.test(admissionPolicy)
+      && /DEPLOYMENT_REGION_NOT_ALLOWED/.test(admissionPolicy)
+      && /RESIDENCY_REGION_MISMATCH/.test(admissionPolicy)
+      && /GUARDIAN_REQUEST_SIZE_REJECTED/.test(admissionPolicy)
+      && /assertGuardianCloudAdmission/.test(heartbeatHandler),
+    l4DeadmanRlsReplayAndRateLimit: /enable row level security/i.test(deadmanSql)
       && /revoke all on table public\.anti_scam_guardian_leases from anon, authenticated/i.test(deadmanSql)
       && /p_lease_epoch < current_row\.lease_epoch/.test(deadmanSql)
-      && /p_heartbeat_sequence <= current_row\.heartbeat_sequence/.test(deadmanSql),
+      && /p_heartbeat_sequence <= current_row\.heartbeat_sequence/.test(deadmanSql)
+      && /p_received_at_ms - current_row\.received_at_ms < 15000/.test(deadmanSql),
+    l4RetentionAndDeletionPresent: /DEADMAN_RETENTION_MS = 30 \* 24 \* 60 \* 60 \* 1000/.test(deadmanStore)
+      && /deleteDeadManRecord/.test(deadmanStore)
+      && /purgeDeadManRecords/.test(deadmanStore)
+      && /delete_anti_scam_guardian_lease/.test(deadmanSql)
+      && /purge_anti_scam_guardian_leases/.test(deadmanSql)
+      && /to service_role/.test(deadmanSql),
 
     privacyPolicyDraftPresent: exists('release/PRIVACY_POLICY_DRAFT.md'),
     playDeclarationDraftPresent: exists('release/GOOGLE_PLAY_DECLARATIONS_DRAFT.md'),
