@@ -4,15 +4,18 @@ import { evaluateStaticStorePackage } from './store-static-gate.mjs';
 import { buildLaunchReport } from './launch-report.mjs';
 
 const State = Object.freeze({
-  CODE_IMPLEMENTED: 'CODE_IMPLEMENTED',
   DEPLOYMENT_READY: 'DEPLOYMENT_READY',
   EXTERNAL_EVIDENCE_REQUIRED: 'EXTERNAL_EVIDENCE_REQUIRED',
   PRODUCTION_READY: 'PRODUCTION_READY',
   BLOCKED: 'BLOCKED',
 });
 
-function file(root, relative) {
+function projectFile(root, relative) {
   return fs.existsSync(path.join(root, 'projects/laneriq-anti-scam', relative));
+}
+
+function repoFile(root, relative) {
+  return fs.existsSync(path.join(root, relative));
 }
 
 export function buildL1L5ExecutionStatus({ root = process.cwd(), evidence = {} } = {}) {
@@ -24,17 +27,17 @@ export function buildL1L5ExecutionStatus({ root = process.cwd(), evidence = {} }
     && staticGate.checks.l1FakeTunnelForbidden
     && staticGate.checks.signedReputationCryptoPathPresent;
   const l2Code = staticGate.checks.l2SharedMalwareBrokerHashBound
-    && file(root, 'cloud/lib/selected-file-scan-handler.mjs');
+    && projectFile(root, 'cloud/lib/selected-file-scan-handler.mjs');
   const l3Code = staticGate.checks.l3RealDeviceHarnessPresent
-    && file(root, 'fabric/app-builder-witness-consumer.mjs');
+    && projectFile(root, 'fabric/app-builder-witness-consumer.mjs');
   const l4Code = staticGate.checks.l4AttestationAndWitnessRequired
     && staticGate.checks.l4PrivateHeartbeatFieldsRejected
     && staticGate.checks.l4DeadmanRlsAndReplayProtection
-    && file(root, 'cloud/lib/supabase-deadman-store.mjs')
-    && file(root, '../../.github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml');
-  const l5Code = file(root, '../../.github/workflows/laneriq-anti-scam-production-aab.yml')
-    && file(root, '../../.github/workflows/laneriq-anti-scam-final-store-release-gate.yml')
-    && file(root, 'release/PUBLIC_RELEASE_EVIDENCE.json');
+    && projectFile(root, 'cloud/lib/supabase-deadman-store.mjs')
+    && repoFile(root, '.github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml');
+  const l5Code = repoFile(root, '.github/workflows/laneriq-anti-scam-production-aab.yml')
+    && repoFile(root, '.github/workflows/laneriq-anti-scam-final-store-release-gate.yml')
+    && projectFile(root, 'release/PUBLIC_RELEASE_EVIDENCE.json');
 
   const code = [l1Code, l2Code, l3Code, l4Code, l5Code];
   const launchLayers = launch.layers || [];
