@@ -11,6 +11,7 @@ on:
       - 'projects/laneriq-anti-scam/release/**'
       - '.github/workflows/laneriq-anti-scam-p0-android.yml'
       - '.github/workflows/laneriq-anti-scam-production-aab.yml'
+      - '.github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml'
       - '.github/workflows/laneriq-anti-scam-final-store-release-gate.yml'
   pull_request:
     paths:
@@ -20,6 +21,7 @@ on:
       - 'projects/laneriq-anti-scam/release/**'
       - '.github/workflows/laneriq-anti-scam-p0-android.yml'
       - '.github/workflows/laneriq-anti-scam-production-aab.yml'
+      - '.github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml'
       - '.github/workflows/laneriq-anti-scam-final-store-release-gate.yml'
   workflow_dispatch:
 
@@ -96,16 +98,25 @@ jobs:
         run: node projects/laneriq-anti-scam/release/store-static-gate.mjs
       - name: Generate launch readiness report
         run: node projects/laneriq-anti-scam/release/launch-report.mjs | tee projects/laneriq-anti-scam/release/launch-report.json
+      - name: Generate L1-L5 code-vs-evidence status
+        run: node projects/laneriq-anti-scam/release/l1-l5-execution-status.mjs | tee projects/laneriq-anti-scam/release/l1-l5-execution-status.json
       - uses: actions/upload-artifact@v4
         with:
-          name: laneriq-anti-scam-launch-readiness-report
-          path: projects/laneriq-anti-scam/release/launch-report.json
+          name: laneriq-anti-scam-launch-readiness-reports
+          path: |
+            projects/laneriq-anti-scam/release/launch-report.json
+            projects/laneriq-anti-scam/release/l1-l5-execution-status.json
           if-no-files-found: error
       - name: Verify production signing workflow exists
         run: |
           test -f .github/workflows/laneriq-anti-scam-production-aab.yml
           grep -q "LANERIQ_ANDROID_UPLOAD_KEYSTORE_B64" .github/workflows/laneriq-anti-scam-production-aab.yml
           grep -q "verifyProductionSigningConfigured" .github/workflows/laneriq-anti-scam-production-aab.yml
+      - name: Verify approval-gated Cloud Dead-Man deploy workflow exists
+        run: |
+          test -f .github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml
+          grep -q "environment: anti-scam-production" .github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml
+          grep -q "LANERIQ_ANTI_SCAM_DATABASE_URL" .github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml
       - name: Verify final store release governance workflow exists
         run: |
           test -f .github/workflows/laneriq-anti-scam-final-store-release-gate.yml
