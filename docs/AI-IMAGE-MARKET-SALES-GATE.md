@@ -4,11 +4,17 @@
 This gate closes the gap between AI Image code readiness and truthful market-sale readiness. It never converts simulated, configured, CI-only, or provider-self-reported evidence into LIVE VERIFIED status.
 
 ## Layer 1 — Production runtime wiring
-Required:
+Code implementation now requires:
 - `/api/images/generate` uses the hardened creative-media execution path for provider-backed generation.
+- Provider HTTPS output is server-captured and byte-validated before observation.
+- Independent observer evidence must cover the same captured SHA-256 bytes.
+- Observer identity, request binding, observation digest and HMAC signature must verify.
 - Real-output quality failure is fail-closed for model claims.
 - Atomic credit charge/refund remains intact.
-- Provider output is durably captured in the owner's private Asset Library before release.
+- Accepted provider output is durably captured in the owner's private Asset Library before release.
+- Legacy provider results without the new hardened evidence are not re-released as verified model output.
+
+**Truth boundary:** Layer 1 can become CODE/CI verified after its contracts pass, but it is not LIVE VERIFIED merely because the wiring exists. Layer 2 still requires real provider outputs and real independent observations.
 
 ## Layer 2 — Real provider and output proof
 Required:
