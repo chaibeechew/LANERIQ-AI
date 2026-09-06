@@ -10,9 +10,11 @@ on:
       - 'lib/video/render-gateway.js'
       - 'services/malware-defense/lib/runtime-defense-pipeline.js'
       - 'lib/project-memory.js'
+      - 'supabase/migrations/*cognitive*'
       - 'scripts/cognitive-os-contract-tests.mjs'
       - 'scripts/cognitive-runtime-contract-tests.mjs'
       - 'scripts/cognitive-cross-feature-contract-tests.mjs'
+      - 'scripts/cognitive-final-six-contract-tests.mjs'
       - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
       - '.github/workflows/cognitive-os-gate.yml'
   pull_request:
@@ -24,9 +26,11 @@ on:
       - 'lib/video/render-gateway.js'
       - 'services/malware-defense/lib/runtime-defense-pipeline.js'
       - 'lib/project-memory.js'
+      - 'supabase/migrations/*cognitive*'
       - 'scripts/cognitive-os-contract-tests.mjs'
       - 'scripts/cognitive-runtime-contract-tests.mjs'
       - 'scripts/cognitive-cross-feature-contract-tests.mjs'
+      - 'scripts/cognitive-final-six-contract-tests.mjs'
       - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
       - '.github/workflows/cognitive-os-gate.yml'
 
@@ -54,6 +58,8 @@ jobs:
         run: node scripts/cognitive-runtime-contract-tests.mjs
       - name: Cross-feature Cognitive integration contracts
         run: node scripts/cognitive-cross-feature-contract-tests.mjs
+      - name: Final six durability, benchmark, judge, self-heal and release contracts
+        run: node scripts/cognitive-final-six-contract-tests.mjs
       - name: Existing App Builder zero-cost admission regression
         run: node scripts/app-builder-zero-cost-admission-contract-tests.mjs
       - name: Existing Image Studio regression
