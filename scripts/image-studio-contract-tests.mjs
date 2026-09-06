@@ -166,17 +166,19 @@ assert.match(replayMigration,/enable row level security/i);
 assert.match(replayMigration,/revoke all on table public\.image_generation_requests from public, anon, authenticated/i);
 assert.match(replayMigration,/grant select, insert, update, delete on table public\.image_generation_requests to service_role/i);
 
-// Safe production readiness exposes only state booleans, never provider credentials or endpoints.
+// Safe production readiness exposes only sanitized readiness/evidence state and never provider credentials, endpoints or signing secrets.
 assert.match(readiness,/externalProviderConnected:config\.connected/);
 assert.match(readiness,/externalProviderAllowed:config\.configured/);
 assert.match(readiness,/durableProviderCapture:true/);
 assert.match(readiness,/idempotentReplay:true/);
 assert.match(readiness,/hardenedExecutionWired:true/);
 assert.match(readiness,/independentObserverRequired:true/);
-assert.match(readiness,/marketSalesReady:false/);
-assert.match(readiness,/truth:"EVIDENCE_REQUIRED"/);
+assert.match(readiness,/signedMarketEvidenceRequired:true/);
+assert.match(readiness,/evidenceBundleVerified:market\.evidenceBundleVerified/);
+assert.match(readiness,/marketSalesReady:market\.marketReady/);
+assert.match(readiness,/truth:market\.truth/);
 assert.match(readiness,/Cache-Control":"private, no-store/);
-assert.doesNotMatch(readiness,/IMAGE_GENERATION_TOKEN|IMAGE_GENERATION_ENDPOINT|IMAGE_QUALITY_OBSERVER_TOKEN|IMAGE_QUALITY_OBSERVER_SIGNING_SECRET|CLOUDFLARE_AI_API_TOKEN|GEMINI_API_KEY|SUPABASE_SERVICE_ROLE_KEY/);
+assert.doesNotMatch(readiness,/IMAGE_GENERATION_TOKEN|IMAGE_GENERATION_ENDPOINT|IMAGE_QUALITY_OBSERVER_TOKEN|IMAGE_QUALITY_OBSERVER_SIGNING_SECRET|IMAGE_MARKET_EVIDENCE_SIGNING_SECRET|CLOUDFLARE_AI_API_TOKEN|GEMINI_API_KEY|SUPABASE_SERVICE_ROLE_KEY/);
 
 // Placement contract must explicitly cover every Image Studio output type with responsive crop guidance.
 for(const mode of ['wallpaper','background','hero','product','icon','image'])assert.match(placement,new RegExp(`${mode}:\\{usage:`));
@@ -197,4 +199,4 @@ assert.equal(gatewayModule.normalizeGeneratedImageValue('https://evil.example.te
 assert.ok(gatewayModule.normalizeGeneratedImageValue('data:image/png;base64,iVBORw0KGgo='));
 assert.equal(gatewayModule.normalizeGeneratedImageValue('data:image/svg+xml;base64,PHN2Zz48L3N2Zz4='),null);
 
-console.log('Image Studio contract passed: auth, replay-safe hardened provider execution, independent byte-hash-bound quality evidence, durable private provider capture, bounded output hosts, automatic credit refund, mobile request recovery and private Asset Library persistence are locked.');
+console.log('Image Studio contract passed: auth, replay-safe hardened provider execution, independent byte-hash-bound quality evidence, durable private provider capture, signed market readiness, bounded output hosts, automatic credit refund, mobile request recovery and private Asset Library persistence are locked.');
