@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  COMPUTE_MODES,
   DEVICE_COMPUTE_EVENT,
   DEVICE_COMPUTE_POLICY_VERSION,
   DEVICE_COMPUTE_STORAGE_KEY,
@@ -140,8 +139,11 @@ export default function DeviceComputeManager() {
     const api = Object.freeze({
       getSnapshot: () => snapshot,
       policyVersion: DEVICE_COMPUTE_POLICY_VERSION,
-      ownDevicesOnly: true,
-      crossUserComputeAllowed: false,
+      motherAiIdentity: "LANERIQ AI",
+      adaptiveComputeMaxShare: 0.05,
+      communityComputePreferenceEnabled: snapshot.settings.communityComputeEnabled === true,
+      communityComputeExecutionLive: false,
+      crossUserComputeExecutionAllowed: false,
     });
     window.__LANERIQ_DEVICE_COMPUTE__ = api;
     window.dispatchEvent(new CustomEvent(DEVICE_COMPUTE_EVENT, { detail: snapshot }));
@@ -156,9 +158,11 @@ export default function DeviceComputeManager() {
       policyVersion: DEVICE_COMPUTE_POLICY_VERSION,
       decision,
       localComputeEnabled: decision === "local",
-      mode: decision === "local" ? "gaming" : settings.mode,
+      mode: decision === "local" ? "balanced" : settings.mode,
       backgroundComputeEnabled: false,
       ownDesktopRemoteComputeEnabled: false,
+      communityComputeEnabled: false,
+      communityComputeConsentAt: null,
       crossUserComputeEnabled: false,
       thermalGuardianEnabled: true,
       consentAt: new Date().toISOString(),
@@ -178,18 +182,18 @@ export default function DeviceComputeManager() {
 
   return <div className="dcBackdrop" role="presentation">
     <section className="dcCard" role="dialog" aria-modal="true" aria-labelledby="laneriq-local-compute-title">
-      <div className="dcEyebrow">LANERIQ AI · LOCAL-FIRST</div>
-      <h2 id="laneriq-local-compute-title">Use your device to help LANERIQ work faster?</h2>
-      <p className="dcLead">LANERIQ can use part of <b>this device&apos;s CPU, GPU or NPU</b> for your own AI processing, coding, previews and builds. It keeps cloud usage lower and can make local work faster.</p>
+      <div className="dcEyebrow">LANERIQ AI · MOTHER AI DEVICE INTELLIGENCE</div>
+      <h2 id="laneriq-local-compute-title">Let Mother AI use a small amount of unused device compute?</h2>
+      <p className="dcLead"><b>Mother AI is LANERIQ AI&apos;s core intelligence.</b> With your permission, it can use a small adaptive share of this device&apos;s CPU, GPU or NPU for your own AI work, normally around 0–3% and never above the 5% scheduler ceiling.</p>
       <div className="dcGrid">
-        <div><b>🎮 Gaming Mode</b><span>Balanced local compute with short performance bursts instead of constant maximum load.</span></div>
-        <div><b>🌡 Thermal Guardian</b><span>Always on. LANERIQ reduces or redirects heavy work when the device reports heat pressure.</span></div>
-        <div><b>🔒 Your jobs only</b><span>Your device is never used to compute another customer&apos;s LANERIQ work.</span></div>
-        <div><b>☁ Cloud fallback</b><span>If local compute is unavailable, LANERIQ can fall back to your own linked Desktop or cloud services.</span></div>
+        <div><b>🧠 Intelligence before compute</b><span>Mother AI only uses extra local compute when it helps your experience. 0% is always a valid state.</span></div>
+        <div><b>🌡 Thermal Guardian</b><span>Always on. Heat pressure, low battery or foreground demand can reduce the budget to 0% immediately.</span></div>
+        <div><b>🔒 Personal Compute first</b><span>Your device first helps your own LANERIQ tasks. Community Compute remains OFF unless you enable it separately.</span></div>
+        <div><b>🛡 Privacy by design</b><span>Compute permission is not permission to read unrelated files, messages, passwords, contacts or browsing history.</span></div>
       </div>
-      <p className="dcFine">Background compute and remote Desktop compute stay OFF until you enable them separately. Browser builds do not invent thermal readings; native thermal telemetry is used only when the installed app provides it. You can change this anytime in Device &amp; Compute settings.</p>
+      <p className="dcFine">Background Compute, linked-Desktop compute and Community Compute all stay OFF until you enable them separately. LANERIQ does not invent browser temperature readings; richer thermal feedback is used only when an installed native runtime provides it. You can change this anytime in Device &amp; Compute settings.</p>
       <div className="dcActions">
-        <button className="dcPrimary" type="button" onClick={() => void saveDecision("local")}>Allow Local Compute — Recommended</button>
+        <button className="dcPrimary" type="button" onClick={() => void saveDecision("local")}>Allow Mother AI Device Intelligence — Recommended</button>
         <button className="dcSecondary" type="button" onClick={() => void saveDecision("cloud_only")}>Use Cloud Only</button>
       </div>
     </section>

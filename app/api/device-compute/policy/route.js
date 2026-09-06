@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { publicDeviceComputePolicy } from "../../../../lib/device-compute/policy.js";
+import { computeStoreCompliance, publicMotherAiComputeCompliancePolicy } from "../../../../lib/device-compute/store-compliance.js";
 import { publicBillionScaleFreeAiPolicy } from "../../../../lib/offline/billion-scale-free-ai.js";
 import { zeroCostPolicy } from "../../../../lib/soolen/cost-policy.js";
 
@@ -7,9 +8,17 @@ export async function GET() {
   const device = publicDeviceComputePolicy();
   const freeAi = publicBillionScaleFreeAiPolicy();
   const cost = zeroCostPolicy();
+  const compliancePolicy = publicMotherAiComputeCompliancePolicy();
+  const storeCompliance = {
+    appleAppStore: computeStoreCompliance({ nativePlatform: "ios", distributionChannel: "app_store", userInitiatedTask: true, visibility: "visible", thermalState: "nominal" }),
+    googlePlay: computeStoreCompliance({ nativePlatform: "android", distributionChannel: "google_play", userInitiatedTask: true, visibility: "visible", thermalState: "nominal" }),
+    desktop: computeStoreCompliance({ nativePlatform: "windows", distributionChannel: "desktop", userInitiatedTask: true, visibility: "visible", thermalState: "nominal" }),
+  };
   return NextResponse.json({
     success: true,
     device,
+    compliancePolicy,
+    storeCompliance,
     freeAi,
     cost: {
       mode: cost.mode,
