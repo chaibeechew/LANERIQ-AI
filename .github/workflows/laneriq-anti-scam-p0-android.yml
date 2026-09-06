@@ -6,6 +6,7 @@ on:
       - project/laneriq-anti-scam
     paths:
       - 'projects/laneriq-anti-scam/android/**'
+      - 'projects/laneriq-anti-scam/cloud/**'
       - 'projects/laneriq-anti-scam/fabric/**'
       - 'projects/laneriq-anti-scam/release/**'
       - '.github/workflows/laneriq-anti-scam-p0-android.yml'
@@ -14,6 +15,7 @@ on:
   pull_request:
     paths:
       - 'projects/laneriq-anti-scam/android/**'
+      - 'projects/laneriq-anti-scam/cloud/**'
       - 'projects/laneriq-anti-scam/fabric/**'
       - 'projects/laneriq-anti-scam/release/**'
       - '.github/workflows/laneriq-anti-scam-p0-android.yml'
@@ -80,6 +82,16 @@ jobs:
           node-version: '22'
       - name: Run P0-P6 Security Fabric and release contract tests
         run: node --test projects/laneriq-anti-scam/fabric/test/*.test.mjs projects/laneriq-anti-scam/release/test/*.test.mjs
+      - name: Validate L3 real-device harness syntax
+        run: bash -n projects/laneriq-anti-scam/release/device-tests/android-guardian-matrix.sh
+      - name: Validate L4 Cloud Dead-Man storage privacy and anti-replay contract
+        run: |
+          SQL=projects/laneriq-anti-scam/cloud/sql/001_guardian_deadman.sql
+          grep -q "enable row level security" "$SQL"
+          grep -q "revoke all on table public.anti_scam_guardian_leases from anon, authenticated" "$SQL"
+          grep -q "p_lease_epoch < current_row.lease_epoch" "$SQL"
+          grep -q "p_heartbeat_sequence <= current_row.heartbeat_sequence" "$SQL"
+          grep -q "grant execute.*service_role" "$SQL"
       - name: Run static store-submission gate
         run: node projects/laneriq-anti-scam/release/store-static-gate.mjs
       - name: Generate launch readiness report
