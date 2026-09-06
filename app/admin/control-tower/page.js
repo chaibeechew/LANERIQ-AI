@@ -1,4 +1,5 @@
 import Link from "next/link";
+import LiveReleasePanel from "./LiveReleasePanel.js";
 
 const MODULES = [
   ["Master Roadmap", "Vision → releases → capabilities → delivery."],
@@ -55,13 +56,15 @@ export default function ControlTowerPage() {
           </div>
         </section>
 
+        <LiveReleasePanel />
+
         <section className="section">
           <div className="sectionHead">
             <div>
               <div className="eyebrow">CONTROL SURFACES</div>
               <h3>Management modules</h3>
             </div>
-            <span className="muted">Foundation v1</span>
+            <span className="muted">Foundation v2 · live release truth</span>
           </div>
           <div className="grid">
             {MODULES.map(([title, description]) => (
