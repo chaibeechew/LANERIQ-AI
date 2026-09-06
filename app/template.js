@@ -1,5 +1,6 @@
 import "./laneriq-launch-splash.css";
 import "./auth/auth-living-intelligence.css";
+import "./living-intelligence-refresh.css";
 import LaneriqLaunchSplash from "./components/LaneriqLaunchSplash";
 
 export default function Template({ children }) {
