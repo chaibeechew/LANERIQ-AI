@@ -1,0 +1,61 @@
+name: LANERIQ AI Image Market Readiness Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/api/images/**"
+      - "lib/ai/image-generation-gateway.js"
+      - "lib/ai/creative-image-generation-gateway.js"
+      - "lib/ai/image-production-hardened-runtime.js"
+      - "lib/ai/image-output-persistence.js"
+      - "lib/ai/creative-media-*.js"
+      - "scripts/ai-image-market-readiness-contract-tests.mjs"
+      - "scripts/ai-image-production-wiring-contract-tests.mjs"
+      - "scripts/image-studio-contract-tests.mjs"
+      - "scripts/creative-media-six-layer-contract-tests.mjs"
+      - "docs/AI-IMAGE-MARKET-SALES-GATE.md"
+      - ".github/workflows/ai-image-market-readiness.yml"
+  push:
+    branches: [main]
+    paths:
+      - "app/api/images/**"
+      - "lib/ai/image-generation-gateway.js"
+      - "lib/ai/creative-image-generation-gateway.js"
+      - "lib/ai/image-production-hardened-runtime.js"
+      - "lib/ai/image-output-persistence.js"
+      - "lib/ai/creative-media-*.js"
+      - "scripts/ai-image-market-readiness-contract-tests.mjs"
+      - "scripts/ai-image-production-wiring-contract-tests.mjs"
+      - "scripts/image-studio-contract-tests.mjs"
+      - "scripts/creative-media-six-layer-contract-tests.mjs"
+      - "docs/AI-IMAGE-MARKET-SALES-GATE.md"
+      - ".github/workflows/ai-image-market-readiness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify four-layer commercial gate semantics
+        run: node scripts/ai-image-market-readiness-contract-tests.mjs
+      - name: Verify Production runtime hardened wiring
+        run: node scripts/ai-image-production-wiring-contract-tests.mjs
+      - name: Verify Creative Media Image 5-layer contracts
+        run: node scripts/creative-media-six-layer-contract-tests.mjs
+      - name: Verify Image Studio regression contract
+        run: node scripts/image-studio-contract-tests.mjs
+      - name: Truth boundary
+        run: |
+          echo "✓ CI proves code/runtime contracts only."
+          echo "✓ MARKET_SALES_READY remains false until real provider output, reliability, browser/mobile, monitoring and exact-SHA Production evidence close Layers 2-4."
+          echo "✓ Provider self-report or configured environment variables never count as LIVE verified evidence."
