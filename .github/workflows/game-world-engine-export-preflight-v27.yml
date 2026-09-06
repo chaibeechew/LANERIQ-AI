@@ -1,0 +1,27 @@
+name: Game World Engine Export Preflight V27 Gate
+on:
+  push:
+    branches: [batch188-game-world-engine-export-preflight-v27]
+  pull_request:
+    paths:
+      - 'lib/game/game-world-engine-export-preflight-v27.js'
+      - 'scripts/game-world-engine-export-preflight-v27-tests.mjs'
+      - '.github/workflows/game-world-engine-export-preflight-v27.yml'
+jobs:
+  engine-export-preflight-v27:
+    runs-on: ubuntu-24.04
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: test-publishable-key
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - run: npm ci --no-audit --no-fund
+      - name: V24 export regression
+        run: node scripts/game-world-engine-export-v24-tests.mjs
+      - name: V27 static preflight truth gate
+        run: node scripts/game-world-engine-export-preflight-v27-tests.mjs
+      - name: Next production build
+        run: npm run build
