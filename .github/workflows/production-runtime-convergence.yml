@@ -1,0 +1,91 @@
+name: 0.1 - LANERIQ Production Runtime Convergence Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "app/api/build-info/route.js"
+      - "scripts/production-runtime-convergence.mjs"
+      - "scripts/production-runtime-convergence-contract-tests.mjs"
+      - ".github/workflows/production-runtime-convergence.yml"
+  push:
+    branches: [main]
+
+concurrency:
+  group: laneriq-production-runtime-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      LANERIQ_CANDIDATE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact candidate SHA
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ env.LANERIQ_CANDIDATE_SHA }}
+      - name: Verify exact checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$LANERIQ_CANDIDATE_SHA"
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Validate runtime convergence contract
+        run: node scripts/production-runtime-convergence-contract-tests.mjs
+
+  live-convergence:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      LANERIQ_EXPECTED_PRODUCTION_SHA: ${{ github.sha }}
+      LANERIQ_PRODUCTION_URL: https://laneriq-ai.vercel.app
+      LANERIQ_RUNTIME_MAX_ATTEMPTS: "30"
+      LANERIQ_RUNTIME_RETRY_MS: "10000"
+    steps:
+      - name: Checkout exact main SHA
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Wait for exact Production runtime convergence
+        run: node scripts/production-runtime-convergence.mjs
+      - name: Upload runtime closure evidence package
+        id: upload-runtime-evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: laneriq-production-runtime-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            production-runtime-convergence-manifest.json
+            production-runtime-convergence-manifest.sha256
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 9
+          overwrite: false
+      - name: Record artifact receipt
+        shell: bash
+        run: |
+          {
+            echo "## Runtime closure evidence package"
+            echo "- Artifact ID: \`${{ steps.upload-runtime-evidence.outputs.artifact-id }}\`"
+            echo "- Artifact digest: \`${{ steps.upload-runtime-evidence.outputs.artifact-digest }}\`"
+            echo "- Retention: 30 days"
+            echo "- Scope: internal CI evidence package; not permanent external audit storage"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Truth boundary
+        run: |
+          echo "✓ This gate observes the public LANERIQ Production alias and verifies exact main SHA runtime convergence."
+          echo "✓ The uploaded package is a retained internal CI artifact with file-level and artifact-level digests; it is not presented as permanent immutable external audit storage."
+          echo "✓ It does not deploy, roll back, mutate Vercel/Supabase/DNS, prove provider-LIVE output, prove physical-device behavior, claim independent audit evidence, submit stores, or advance Email/WhatsApp/SMS."
