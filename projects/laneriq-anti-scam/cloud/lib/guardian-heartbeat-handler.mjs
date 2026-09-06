@@ -1,6 +1,7 @@
 import { verifyGuardianWitnessProof } from './device-witness-verifier.mjs';
 import { buildCloudDeadManRecord } from './cloud-deadman.mjs';
 import { upsertDeadManRecord } from './supabase-deadman-store.mjs';
+import { assertGuardianCloudAdmission } from './guardian-admission-policy.mjs';
 
 const PROOF_FIELDS = new Set(['payload', 'publicKeyBase64', 'keyIdSha256', 'signatureBase64']);
 const PAYLOAD_FIELDS = new Set([
@@ -14,14 +15,19 @@ function rejectUnknownFields(object, allowed, label) {
   if (unknown.length) throw new Error(`${label}_FORBIDDEN_FIELDS:${unknown.join(',')}`);
 }
 
+function requestBytes(proof, attestationToken) {
+  return Buffer.byteLength(JSON.stringify({ proof, attestationToken: String(attestationToken || '') }), 'utf8');
+}
+
 /**
- * Production heartbeat admission requires two independent properties:
- * 1) app/device attestation says this is the approved Anti Scam package/build;
- * 2) the per-install Android Keystore Witness signature verifies.
+ * Production heartbeat admission requires independent controls:
+ * 1) trusted ingress + request-size + regional residency admission;
+ * 2) app/device attestation for the approved Anti Scam package/build;
+ * 3) per-install Android Keystore Witness signature verification;
+ * 4) durable DB monotonic/replay/rate-limit enforcement at storage time.
  *
- * The endpoint rejects unknown fields instead of silently dropping them. That
- * makes accidental uploads of URLs, messages, filenames or screen content a
- * hard privacy failure rather than hidden telemetry expansion.
+ * Unknown payload fields are rejected instead of silently dropped so accidental
+ * private-content telemetry expansion is a hard failure.
  */
 export async function handleGuardianHeartbeat({
   proof,
@@ -30,9 +36,21 @@ export async function handleGuardianHeartbeat({
   attestationVerifier,
   store = upsertDeadManRecord,
   pseudonymKey = process.env.LANERIQ_ANTI_SCAM_PSEUDONYM_KEY,
+  requestContext = {},
+  deploymentRegion = process.env.LANERIQ_ANTI_SCAM_DEPLOYMENT_REGION,
+  allowedRegions = process.env.LANERIQ_ANTI_SCAM_ALLOWED_REGIONS,
 } = {}) {
   rejectUnknownFields(proof, PROOF_FIELDS, 'GUARDIAN_PROOF');
   rejectUnknownFields(proof.payload, PAYLOAD_FIELDS, 'GUARDIAN_PAYLOAD');
+
+  const admission = assertGuardianCloudAdmission({
+    requestContext: {
+      ...requestContext,
+      requestBytes: requestBytes(proof, attestationToken),
+    },
+    deploymentRegion,
+    allowedRegions,
+  });
 
   if (typeof attestationVerifier !== 'function') throw new Error('APP_ATTESTATION_VERIFIER_NOT_CONFIGURED');
   const attestation = await attestationVerifier(attestationToken, { nowMs });
@@ -56,6 +74,7 @@ export async function handleGuardianHeartbeat({
     accepted: true,
     nextHeartbeatAfterMs: 60_000,
     stateStored: true,
+    deploymentRegion: admission.deploymentRegion,
     privateContentAccepted: false,
   });
 }
