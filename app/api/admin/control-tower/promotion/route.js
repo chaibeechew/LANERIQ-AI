@@ -1,12 +1,12 @@
 import { requireControlTowerApi } from "../../../../../lib/control-tower-api.js";
-import { appendControlTowerAudit } from "../../../../../lib/control-tower-audit.js";
 import { controlTowerJson } from "../../../../../lib/control-tower-http.js";
 import { getControlTowerLiveStatus } from "../../../../../lib/control-tower-runtime.js";
 import { computeReleaseScorecard } from "../../../../../lib/control-tower-governance.js";
+import { getControlTowerPrivilegedClient } from "../../../../../lib/control-tower-privileged.js";
 import { buildControlTowerReleaseSnapshot } from "../../../../../lib/control-tower-snapshot.js";
 import { computeControlTowerTechnicalCeiling } from "../../../../../lib/control-tower-technical-ceiling.js";
 import { evaluatePromotionPolicy, normalizeControlTowerStage } from "../../../../../lib/control-tower-state-machine.js";
-import { isControlTowerStorageMissing } from "../../../../../lib/control-tower-validation.js";
+import { isControlTowerStorageMissing, isControlTowerUuid } from "../../../../../lib/control-tower-validation.js";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -70,17 +70,26 @@ function technicalCeilingSummary(technicalCeiling, sealedAt) {
   };
 }
 
+function privilegedRuntimeError(error) {
+  return error?.code === "CONTROL_TOWER_PRIVILEGED_RUNTIME_MISSING"
+    ? controlTowerJson({ error: "Privileged Control Tower runtime is not configured for atomic release transitions.", code: error.code }, 503)
+    : null;
+}
+
 export async function POST(request) {
   try {
     const auth = await requireControlTowerApi(request, { mutation: true });
     if (!auth.ok) return auth.response;
 
     const input = await request.json().catch(() => ({}));
-    const releaseId = typeof input.releaseId === "string" ? input.releaseId.trim() : "";
+    const releaseId = typeof input.releaseId === "string" ? input.releaseId.trim().toLowerCase() : "";
     const targetStage = normalizeControlTowerStage(input.targetStage);
     const expectedUpdatedAt = typeof input.expectedUpdatedAt === "string" ? input.expectedUpdatedAt.trim() : "";
-    if (!releaseId) return controlTowerJson({ error: "releaseId is required." }, 400);
+    if (!isControlTowerUuid(releaseId)) return controlTowerJson({ error: "A valid releaseId is required." }, 400);
     if (!targetStage) return controlTowerJson({ error: "A valid targetStage is required." }, 400);
+    if (expectedUpdatedAt && Number.isNaN(Date.parse(expectedUpdatedAt))) {
+      return controlTowerJson({ error: "expectedUpdatedAt must be a valid timestamp." }, 400);
+    }
     if (targetStage === "production" && !auth.capabilities.promoteProduction) {
       return controlTowerJson({ error: "Owner or Super Admin approval is required for Production promotion.", code: "PRODUCTION_APPROVAL_REQUIRED" }, 403);
     }
@@ -105,11 +114,7 @@ export async function POST(request) {
 
     const liveStatus = await getControlTowerLiveStatus();
     const scorecard = computeReleaseScorecard({ ...bundle, liveStatus });
-    const policy = evaluatePromotionPolicy({
-      currentStage: bundle.release.stage,
-      targetStage,
-      scorecard,
-    });
+    const policy = evaluatePromotionPolicy({ currentStage: bundle.release.stage, targetStage, scorecard });
     if (!policy.allowed) return controlTowerJson({ error: policy.reason, scorecard, policy }, 409);
 
     const verifiedAt = new Date().toISOString();
@@ -168,31 +173,37 @@ export async function POST(request) {
       }
       data = result.data;
     } else {
-      let update = auth.supabase.from("control_tower_releases").update({ stage: targetStage }).eq("id", releaseId);
-      if (expectedUpdatedAt) update = update.eq("updated_at", expectedUpdatedAt);
-      const result = await update.select(RELEASE_SELECT).maybeSingle();
-      if (result.error) {
-        if (isControlTowerStorageMissing(result.error)) return controlTowerJson({ error: "Control Tower release storage is not active in this environment." }, 503);
-        throw result.error;
+      let privileged;
+      try {
+        privileged = getControlTowerPrivilegedClient();
+      } catch (error) {
+        const response = privilegedRuntimeError(error);
+        if (response) return response;
+        throw error;
       }
-      if (!result.data) return controlTowerJson({ error: "Release changed during promotion. Refresh and retry.", code: "PROMOTION_RACE" }, 409);
-      data = result.data;
 
-      await appendControlTowerAudit(auth.supabase, {
-        action: "release_stage_promoted",
-        entityType: "release",
-        entityId: data.id,
-        beforeState: bundle.release,
-        afterState: data,
-        metadata: {
+      const result = await privileged.rpc("transition_control_tower_release_stage_server", {
+        p_release_id: releaseId,
+        p_target_stage: targetStage,
+        p_expected_updated_at: expectedUpdatedAt || null,
+        p_actor_user_id: auth.user.id,
+        p_actor_role: auth.role,
+        p_metadata: {
           scorecard_overall: scorecard.overall,
-          target_stage: targetStage,
-          actor_role: auth.role,
           production_eligible: scorecard.productionEligible,
           production_truth_recorded: false,
           release_snapshot_hash: releaseSnapshot.snapshotHash,
         },
       });
+
+      if (result.error) {
+        if (result.error.code === "42883") return controlTowerJson({ error: "Atomic stage-transition migration is not active in this environment." }, 503);
+        if (result.error.code === "40001") return controlTowerJson({ error: "Release changed during promotion. Refresh and retry.", code: "PROMOTION_RACE" }, 409);
+        if (result.error.code === "42501") return controlTowerJson({ error: "Server stage-transition authority denied." }, 503);
+        if (["23503", "23514"].includes(result.error.code)) return controlTowerJson({ error: result.error.message || "Release transition contract rejected." }, 409);
+        throw result.error;
+      }
+      data = result.data;
     }
 
     return controlTowerJson({
