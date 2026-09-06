@@ -21,6 +21,10 @@ android {
         resValue 'string', 'app_name', 'LANERIQ Anti Scam'
     }
 
+    buildFeatures {
+        buildConfig true
+    }
+
     signingConfigs {
         if (hasReleaseSigning) {
             productionUpload {
@@ -39,10 +43,12 @@ android {
             applicationIdSuffix '.test'
             versionNameSuffix '-test'
             resValue 'string', 'app_name', 'LANERIQ Anti Scam Test'
+            buildConfigField 'String', 'INTERNAL_TEST_THREAT_KEY_X509_B64', '"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE1pIYsm246yiWRvS0cKOYyZNCZ443q6A4wA2HL4xCxtwVd6G1fiYOHM3QPYTakiaKw4IB4ZG54rb9EsWm6kp47g=="'
         }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField 'String', 'INTERNAL_TEST_THREAT_KEY_X509_B64', '""'
             if (hasReleaseSigning) {
                 signingConfig signingConfigs.productionUpload
             }
