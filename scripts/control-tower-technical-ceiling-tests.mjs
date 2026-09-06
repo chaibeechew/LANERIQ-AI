@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,6 +36,7 @@ const now = "2026-09-07T00:00:00.000Z";
 const MAIN_SHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 const PREVIOUS_SHA = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 const OTHER_SHA = "cccccccccccccccccccccccccccccccccccccccc";
+const sealFingerprint = (label) => createHash("sha256").update(String(label)).digest("hex");
 const providers = {
   github_ci: "github-actions",
   security: "security-scanner",
@@ -49,14 +51,14 @@ const providers = {
 };
 const releaseBound = new Set(["github_ci", "security", "benchmark", "vercel_deployment", "supply_chain"]);
 
-const evidence = (kind, capturedAt, fingerprint, snapshot = {}, options = {}) => ({
+const evidence = (kind, capturedAt, fingerprintLabel, snapshot = {}, options = {}) => ({
   item_type: "evidence",
   stage: "verification",
   priority: "p2",
   metadata: {
     kind,
     captured_at: capturedAt,
-    fingerprint,
+    fingerprint: fingerprintLabel === null ? null : sealFingerprint(fingerprintLabel),
     snapshot,
     trust_level: options.trustLevel || "system",
     source_provider: options.sourceProvider || providers[kind] || "control-tower",
@@ -239,6 +241,20 @@ assert.equal(missingRecoveryMetrics.backup.rpoMinutes, null);
 assert.equal(missingRecoveryMetrics.backup.rtoMet, false);
 assert.equal(missingRecoveryMetrics.backup.rpoMet, false);
 
+const negativeRecoveryMetrics = evaluateControlTowerDisasterRecovery({
+  items: items.map((item) => item.metadata.kind === "backup_restore"
+    ? evidence("backup_restore", "2026-09-05T12:00:00.000Z", "backup-negative", {
+      restore_succeeded: true,
+      restore_minutes: -1,
+      rpo_minutes: -1,
+    })
+    : item),
+  now,
+});
+assert.equal(negativeRecoveryMetrics.ready, false);
+assert.equal(negativeRecoveryMetrics.backup.rtoMet, false);
+assert.equal(negativeRecoveryMetrics.backup.rpoMet, false);
+
 const missingSupplyMetrics = evaluateControlTowerSupplyChain({
   items: items.map((item) => item.metadata.kind === "supply_chain"
     ? evidence("supply_chain", "2026-09-06T23:00:00.000Z", "supply-missing", {
@@ -252,6 +268,20 @@ const missingSupplyMetrics = evaluateControlTowerSupplyChain({
 assert.equal(missingSupplyMetrics.ready, false);
 assert.equal(missingSupplyMetrics.criticalVulnerabilities, null);
 assert.equal(missingSupplyMetrics.highVulnerabilities, null);
+
+const negativeSupplyMetrics = evaluateControlTowerSupplyChain({
+  items: items.map((item) => item.metadata.kind === "supply_chain"
+    ? evidence("supply_chain", "2026-09-06T23:00:00.000Z", "supply-negative", {
+      sbom_verified: true,
+      provenance_verified: true,
+      dependency_lock_verified: true,
+      critical_vulnerabilities: -1,
+      high_vulnerabilities: -1,
+    })
+    : item),
+  now,
+});
+assert.equal(negativeSupplyMetrics.ready, false);
 
 const staleObservability = evaluateControlTowerObservability({
   items: items.map((item) => item.metadata.kind === "observability"
