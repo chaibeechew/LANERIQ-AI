@@ -6,7 +6,8 @@ on:
       - "app/admin/control-tower/**"
       - "app/api/admin/control-tower/**"
       - "lib/admin-access.js"
-      - "lib/control-tower-runtime.js"
+      - "lib/control-tower-*.js"
+      - "supabase/migrations/*control_tower*.sql"
       - "scripts/control-tower-contract-tests.mjs"
       - ".github/workflows/control-tower-contract.yml"
   push:
@@ -15,12 +16,17 @@ on:
       - "app/admin/control-tower/**"
       - "app/api/admin/control-tower/**"
       - "lib/admin-access.js"
-      - "lib/control-tower-runtime.js"
+      - "lib/control-tower-*.js"
+      - "supabase/migrations/*control_tower*.sql"
       - "scripts/control-tower-contract-tests.mjs"
       - ".github/workflows/control-tower-contract.yml"
 
 permissions:
   contents: read
+
+concurrency:
+  group: control-tower-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   control-tower-contract:
@@ -31,5 +37,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 24
-      - name: Verify Control Tower authorization and release truth
+      - name: Verify Control Tower governance contracts
         run: node scripts/control-tower-contract-tests.mjs
