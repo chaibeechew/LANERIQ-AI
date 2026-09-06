@@ -25,6 +25,7 @@ const SURFACES = [
   [/^\/brand-kit\/?$/, "brand"],
   [/^\/asset-library\/?$/, "assets"],
   [/^\/account\/device-compute\/?$/, "account"],
+  [/^\/community-chat\/?$/, "community"],
   [/^\/editor\//, "editor"],
   [/^\/database\//, "database"],
   [/^\/operations\//, "quality"],
@@ -89,7 +90,8 @@ function selectedLabel(pathname){
     pathname === "/studio" || pathname === "/studio/" || pathname === "/soolen-ai" || pathname === "/soolen-ai/" ||
     pathname === "/image-studio" || pathname === "/image-studio/" || pathname === "/video-studio" || pathname === "/video-studio/" ||
     pathname === "/avatar-studio" || pathname === "/avatar-studio/" || pathname === "/brand-kit" || pathname === "/brand-kit/" ||
-    pathname === "/asset-library" || pathname === "/asset-library/" || pathname === "/account/device-compute" || pathname === "/account/device-compute/"
+    pathname === "/asset-library" || pathname === "/asset-library/" || pathname === "/account/device-compute" || pathname === "/account/device-compute/" ||
+    pathname === "/community-chat" || pathname === "/community-chat/"
   ) return "More";
   if(
     pathname === "/my-apps" || pathname === "/my-apps/" ||
