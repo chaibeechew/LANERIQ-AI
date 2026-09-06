@@ -2,7 +2,6 @@ package ai.laneriq.antiscam;
 
 import android.content.Intent;
 import android.net.VpnService;
-import android.os.IBinder;
 
 /**
  * Android Web Shield control-plane.
@@ -68,9 +67,5 @@ public final class WebShieldVpnService extends VpnService {
             state.markStopped("service-destroyed");
         }
         super.onDestroy();
-    }
-
-    @Override public IBinder onBind(Intent intent) {
-        return super.onBind(intent);
     }
 }
