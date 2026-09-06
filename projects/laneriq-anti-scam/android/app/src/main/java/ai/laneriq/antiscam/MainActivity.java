@@ -81,7 +81,7 @@ public class MainActivity extends Activity {
         scroll.addView(root);
 
         root.addView(text("LANERIQ Anti Scam", 30, true));
-        TextView subtitle = text("Privacy-First Guardian + Anti-Scam Protection • 0.3.0-protection.4", 15, false);
+        TextView subtitle = text("Privacy-First Guardian + Anti-Scam Protection • " + BuildConfig.VERSION_NAME, 15, false);
         subtitle.setTextColor(Color.DKGRAY);
         root.addView(subtitle);
 
