@@ -1,10 +1,6 @@
-import { NextResponse } from "next/server";
-import { createClient } from "../../../../../lib/supabase/server.js";
-import {
-  canAccessControlTower,
-  canWaiveControlTowerGate,
-  normalizeInternalRole,
-} from "../../../../../lib/admin-access.js";
+import { requireControlTowerApi } from "../../../../../lib/control-tower-api.js";
+import { appendControlTowerAudit } from "../../../../../lib/control-tower-audit.js";
+import { controlTowerJson } from "../../../../../lib/control-tower-http.js";
 import {
   controlTowerGatePhase,
   isControlTowerGateWaivable,
@@ -18,33 +14,14 @@ import {
 export const dynamic = "force-dynamic";
 
 const GATE_SELECT = "id,release_id,gate_key,label,state,required,detail,evidence,checked_by,checked_at,created_at,updated_at";
-
-function json(payload, status = 200) {
-  return NextResponse.json(payload, {
-    status,
-    headers: {
-      "Cache-Control": "private, no-store, max-age=0",
-      Pragma: "no-cache",
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
-}
-
-async function requireControlTowerAdmin() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return { error: json({ error: "Authentication required." }, 401) };
-  const role = normalizeInternalRole(user.app_metadata?.role);
-  if (!canAccessControlTower(role)) return { error: json({ error: "Control Tower access required." }, 403) };
-  return { supabase, user, role };
-}
+const IMMUTABLE_RELEASE_STAGES = new Set(["production", "observed", "closed"]);
 
 export async function GET(request) {
   try {
-    const auth = await requireControlTowerAdmin();
-    if (auth.error) return auth.error;
+    const auth = await requireControlTowerApi(request);
+    if (!auth.ok) return auth.response;
 
-    const releaseId = new URL(request.url).searchParams.get("releaseId")?.trim();
+    const releaseId = request.nextUrl.searchParams.get("releaseId")?.trim();
     let query = auth.supabase
       .from("control_tower_release_gates")
       .select(GATE_SELECT)
@@ -54,26 +31,26 @@ export async function GET(request) {
 
     const { data, error } = await query;
     if (error) {
-      if (isControlTowerStorageMissing(error)) return json({ storageReady: false, gates: [] });
+      if (isControlTowerStorageMissing(error)) return controlTowerJson({ storageReady: false, gates: [] });
       throw error;
     }
-    return json({ storageReady: true, gates: data || [] });
+    return controlTowerJson({ storageReady: true, gates: data || [], capabilities: auth.capabilities });
   } catch {
-    return json({ error: "Unable to load Control Tower release gates." }, 500);
+    return controlTowerJson({ error: "Unable to load Control Tower release gates." }, 500);
   }
 }
 
 export async function POST(request) {
   try {
-    const auth = await requireControlTowerAdmin();
-    if (auth.error) return auth.error;
+    const auth = await requireControlTowerApi(request, { mutation: true });
+    if (!auth.ok) return auth.response;
 
     const input = await request.json().catch(() => ({}));
     const validation = validateControlTowerGateInput(input);
-    if (!validation.ok) return json({ error: validation.error }, 400);
+    if (!validation.ok) return controlTowerJson({ error: validation.error }, 400);
 
     if (controlTowerGatePhase(validation.value.gate_key) === "production") {
-      return json({
+      return controlTowerJson({
         error: "Production identity gates are system-managed from live release truth and cannot be manually overridden.",
         code: "SYSTEM_MANAGED_GATE",
       }, 409);
@@ -81,11 +58,28 @@ export async function POST(request) {
 
     if (validation.value.state === "waived") {
       if (!isControlTowerGateWaivable(validation.value.gate_key)) {
-        return json({ error: "This release gate cannot be waived.", code: "NON_WAIVABLE_GATE" }, 409);
+        return controlTowerJson({ error: "This release gate cannot be waived.", code: "NON_WAIVABLE_GATE" }, 409);
       }
-      if (!canWaiveControlTowerGate(auth.role)) {
-        return json({ error: "Owner or Super Admin approval is required to waive a release gate.", code: "WAIVER_APPROVAL_REQUIRED" }, 403);
+      if (!auth.capabilities.waiveGate) {
+        return controlTowerJson({ error: "Owner or Super Admin approval is required to waive a release gate.", code: "WAIVER_APPROVAL_REQUIRED" }, 403);
       }
+    }
+
+    const { data: release, error: releaseError } = await auth.supabase
+      .from("control_tower_releases")
+      .select("id,stage,release_version")
+      .eq("id", validation.value.release_id)
+      .maybeSingle();
+    if (releaseError) {
+      if (isControlTowerStorageMissing(releaseError)) return controlTowerJson({ error: "Control Tower storage migration is not active in this environment." }, 503);
+      throw releaseError;
+    }
+    if (!release) return controlTowerJson({ error: "Referenced release does not exist." }, 404);
+    if (IMMUTABLE_RELEASE_STAGES.has(release.stage)) {
+      return controlTowerJson({
+        error: `Release gate history is immutable after ${release.stage}. Create a new release or governed rollback instead.`,
+        code: "RELEASE_GATE_FROZEN",
+      }, 409);
     }
 
     const { data: before, error: beforeError } = await auth.supabase
@@ -110,26 +104,27 @@ export async function POST(request) {
       .single();
 
     if (error) {
-      if (isControlTowerStorageMissing(error)) return json({ error: "Control Tower storage migration is not active in this environment." }, 503);
-      if (error.code === "23503") return json({ error: "Referenced release does not exist." }, 409);
+      if (isControlTowerStorageMissing(error)) return controlTowerJson({ error: "Control Tower storage migration is not active in this environment." }, 503);
+      if (error.code === "23503") return controlTowerJson({ error: "Referenced release does not exist." }, 409);
       throw error;
     }
 
-    await auth.supabase.from("control_tower_audit_log").insert({
-      actor_user_id: auth.user.id,
+    await appendControlTowerAudit(auth.supabase, {
       action: before ? "release_gate_updated" : "release_gate_created",
-      entity_type: "release_gate",
-      entity_id: data.id,
-      before_state: before || null,
-      after_state: data,
+      entityType: "release_gate",
+      entityId: data.id,
+      beforeState: before || null,
+      afterState: data,
       metadata: {
         actor_role: auth.role,
         waiver: data.state === "waived",
+        release_id: release.id,
+        release_version: release.release_version,
       },
     });
 
-    return json({ gate: data }, before ? 200 : 201);
+    return controlTowerJson({ gate: data }, before ? 200 : 201);
   } catch {
-    return json({ error: "Unable to save Control Tower release gate." }, 500);
+    return controlTowerJson({ error: "Unable to save Control Tower release gate." }, 500);
   }
 }
