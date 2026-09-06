@@ -35,6 +35,8 @@ public final class ProtectionStatusProvider extends ContentProvider {
             "freeze_sensitive_laneriq_actions",
             "self_integrity_state",
             "self_integrity_continuity_acceptable",
+            "alert_delivery_state",
+            "alert_delivery_available",
             "last_stop_reason"
     };
 
@@ -59,6 +61,7 @@ public final class ProtectionStatusProvider extends ContentProvider {
         EmergencyModeStore.State emergency = new EmergencyModeStore(getContext()).read();
         GuardianIntegrityPolicy.Decision integrity = GuardianIntegrityPolicy.evaluate(lease);
         AppSelfIntegrityStore.Result selfIntegrity = new AppSelfIntegrityStore(getContext()).probe();
+        AlertDeliveryIntegrity.Decision alertDelivery = AlertDeliveryIntegrity.capture(getContext());
         NetworkProtectionCapability.State network = NetworkProtectionCapability.evaluate(
                 new NetworkProtectionCapability.Evidence(
                         false,
@@ -77,7 +80,7 @@ public final class ProtectionStatusProvider extends ContentProvider {
 
         MatrixCursor cursor = new MatrixCursor(COLUMNS, 1);
         cursor.addRow(new Object[] {
-                5,
+                6,
                 lease.state.name(),
                 claimable ? 1 : 0,
                 lease.sameBootSession ? 1 : 0,
@@ -95,6 +98,8 @@ public final class ProtectionStatusProvider extends ContentProvider {
                 freezeSensitive ? 1 : 0,
                 selfIntegrity.state.name(),
                 selfIntegrity.continuityAcceptable ? 1 : 0,
+                alertDelivery.state.name(),
+                alertDelivery.mayClaimUserAlertsAvailable ? 1 : 0,
                 lease.lastStopReason == null ? "" : lease.lastStopReason
         });
         return cursor;
