@@ -5,6 +5,7 @@ import { runMultiProviderBenchmark } from "../lib/soolen/multi-provider-benchmar
 import { evaluateFeatureJudge, FEATURE_JUDGE_PROFILES } from "../lib/soolen/feature-judge.js";
 import { executeCognitiveSelfHeal, planCognitiveSelfHeal } from "../lib/soolen/cognitive-self-heal.js";
 import { evaluateProductionCognitiveGate } from "../lib/soolen/production-cognitive-gate.js";
+import { getHumanCivilizationLaw } from "../lib/soolen/human-civilization-law.js";
 import { createSupabaseCognitiveLedgerAdapter, createSupabaseBenchmarkEvidenceAdapter } from "../lib/soolen/supabase-cognitive-store.js";
 import { configureCognitiveTelemetryPersistence, recordCognitiveTelemetry, flushCognitiveTelemetryPersistence, getCognitiveTelemetrySnapshot } from "../lib/soolen/cognitive-integration.js";
 
@@ -71,10 +72,14 @@ assert.equal(telemetry.durable,true);assert.ok(telemetry.durableWrites>=1);asser
 configureCognitiveTelemetryPersistence(null);
 
 const sha="a".repeat(40);
-const baseGate={githubMainSha:sha,vercelProductionSha:sha,runtimeVerifiedSha:sha,cognitiveOsGate:true,coreReleaseGate:true,ai100Gate:true,benchmarkFactoryGate:true,appBuilderGate:true,malwareDefenseGate:true,creativeMediaGate:true,failureMemoryMigrationApplied:true,failureMemoryRlsVerified:true,cognitiveLedgerMigrationApplied:true,cognitiveLedgerRlsVerified:true,durableLedgerWriteVerified:true,realMultiProviderBenchmarkVerified:true,distinctExternalProviders:2,benchmarkExternalAttestationVerified:true,featureJudgesVerified:true,cognitiveSelfHealVerified:true,supabaseVerified:true,apiVerified:true,browserVerified:true,malwareVerified:true,appBuilderVerified:true,uiVerified:true,humanReleaseApproval:true};
-const gatePass=evaluateProductionCognitiveGate(baseGate);assert.equal(gatePass.mayClaimProductionCognitiveClosed,true);assert.equal(gatePass.evidenceClass,EVIDENCE_CLASSES.PRODUCTION);assert.match(gatePass.manifestDigest,/^[a-f0-9]{64}$/);
+const law=getHumanCivilizationLaw();
+const baseGate={githubMainSha:sha,vercelProductionSha:sha,runtimeVerifiedSha:sha,cognitiveOsGate:true,coreReleaseGate:true,ai100Gate:true,benchmarkFactoryGate:true,appBuilderGate:true,malwareDefenseGate:true,creativeMediaGate:true,failureMemoryMigrationApplied:true,failureMemoryRlsVerified:true,cognitiveLedgerMigrationApplied:true,cognitiveLedgerRlsVerified:true,durableLedgerWriteVerified:true,realMultiProviderBenchmarkVerified:true,distinctExternalProviders:2,benchmarkExternalAttestationVerified:true,featureJudgesVerified:true,cognitiveSelfHealVerified:true,supabaseVerified:true,apiVerified:true,browserVerified:true,malwareVerified:true,appBuilderVerified:true,uiVerified:true,humanCivilizationLawVerified:true,humanCivilizationLawDigest:law.lawDigest,constitutionalAlignmentVerified:true,humanSovereigntyVerified:true,humanCriticalVetoVerified:true,noDominationVerified:true,futureGenerationsReviewVerified:true,humanReleaseApproval:true};
+const gatePass=evaluateProductionCognitiveGate(baseGate);assert.equal(gatePass.mayClaimProductionCognitiveClosed,true);assert.equal(gatePass.evidenceClass,EVIDENCE_CLASSES.PRODUCTION);assert.match(gatePass.manifestDigest,/^[a-f0-9]{64}$/);assert.equal(gatePass.humanCivilizationLaw.digest,law.lawDigest);
 const shaBlock=evaluateProductionCognitiveGate({...baseGate,runtimeVerifiedSha:"b".repeat(40)});assert.equal(shaBlock.mayClaimProductionCognitiveClosed,false);assert.ok(shaBlock.failed.includes("exactShaConvergence"));
 const providerBlock=evaluateProductionCognitiveGate({...baseGate,distinctExternalProviders:1});assert.equal(providerBlock.mayClaimProductionCognitiveClosed,false);assert.ok(providerBlock.failed.includes("atLeastTwoExternalProviders"));
+const lawBlock=evaluateProductionCognitiveGate({...baseGate,humanCivilizationLawVerified:false});assert.equal(lawBlock.mayClaimProductionCognitiveClosed,false);assert.ok(lawBlock.failed.includes("humanCivilizationLawVerified"));
+const lawDigestBlock=evaluateProductionCognitiveGate({...baseGate,humanCivilizationLawDigest:"0".repeat(64)});assert.equal(lawDigestBlock.mayClaimProductionCognitiveClosed,false);assert.ok(lawDigestBlock.failed.includes("humanCivilizationLawDigestCurrent"));
+const sovereigntyBlock=evaluateProductionCognitiveGate({...baseGate,humanSovereigntyVerified:false});assert.equal(sovereigntyBlock.mayClaimProductionCognitiveClosed,false);assert.ok(sovereigntyBlock.failed.includes("humanSovereigntyVerified"));
 const humanBlock=evaluateProductionCognitiveGate({...baseGate,humanReleaseApproval:false});assert.equal(humanBlock.mayClaimProductionCognitiveClosed,false);assert.ok(humanBlock.failed.includes("humanReleaseApproval"));
 
 console.log("LANERIQ Cognitive OS final six contract tests: PASS");
