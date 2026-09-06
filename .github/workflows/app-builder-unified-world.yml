@@ -8,6 +8,7 @@ on:
       - 'app/api/modify/route.js'
       - 'lib/generator/quality-gate-rescue.js'
       - 'lib/generator/quality-recovery-intelligence.js'
+      - 'lib/generator/failure-pattern-intelligence.js'
       - 'lib/project-memory.js'
       - 'lib/cloud/builder-projects.js'
       - 'lib/cloud-adapters/builder-project-world-data.js'
@@ -18,6 +19,7 @@ on:
       - 'scripts/unified-intelligence-core-contract-tests.mjs'
       - 'scripts/ai-modify-contract-tests.mjs'
       - 'scripts/generate-quality-gate-error-boundary-tests.mjs'
+      - 'scripts/failure-pattern-intelligence-contract-tests.mjs'
       - 'scripts/self-heal-contract-tests.mjs'
       - '.github/workflows/app-builder-unified-world.yml'
   workflow_dispatch:
@@ -47,6 +49,8 @@ jobs:
         run: node scripts/ai-modify-contract-tests.mjs
       - name: Generate quality-boundary regression
         run: node scripts/generate-quality-gate-error-boundary-tests.mjs
+      - name: Failure-pattern recovery ranking regression
+        run: node scripts/failure-pattern-intelligence-contract-tests.mjs
       - name: App Builder self-heal regression
         run: node scripts/self-heal-contract-tests.mjs
       - name: Syntax checks
@@ -55,6 +59,7 @@ jobs:
           node --check lib/intelligence/unified-intelligence-contract.js
           node --check lib/generator/quality-gate-rescue.js
           node --check lib/generator/quality-recovery-intelligence.js
+          node --check lib/generator/failure-pattern-intelligence.js
           node --check lib/project-memory.js
           node --check lib/cloud-adapters/builder-project-world-data.js
           node --check lib/cloud/builder-projects.js

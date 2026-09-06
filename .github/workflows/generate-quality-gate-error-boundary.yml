@@ -5,19 +5,26 @@ on:
     branches:
       - 'batch170-*'
       - 'batch176-*'
+      - 'batch177-*'
     paths:
       - 'app/api/generate/route.js'
       - 'lib/generator/quality-gate-rescue.js'
       - 'lib/generator/quality-recovery-intelligence.js'
+      - 'lib/generator/failure-pattern-intelligence.js'
       - 'scripts/generate-quality-gate-error-boundary-tests.mjs'
+      - 'scripts/failure-pattern-intelligence-contract-tests.mjs'
       - '.github/workflows/generate-quality-gate-error-boundary.yml'
   pull_request:
-    branches: [main]
+    branches:
+      - main
+      - 'batch176-*'
     paths:
       - 'app/api/generate/route.js'
       - 'lib/generator/quality-gate-rescue.js'
       - 'lib/generator/quality-recovery-intelligence.js'
+      - 'lib/generator/failure-pattern-intelligence.js'
       - 'scripts/generate-quality-gate-error-boundary-tests.mjs'
+      - 'scripts/failure-pattern-intelligence-contract-tests.mjs'
       - '.github/workflows/generate-quality-gate-error-boundary.yml'
 
 permissions:
@@ -38,7 +45,13 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Verify recoverable generation quality gate boundary
         run: node scripts/generate-quality-gate-error-boundary-tests.mjs
+      - name: Failure-pattern recovery strategy ranking
+        run: node scripts/failure-pattern-intelligence-contract-tests.mjs
+      - name: Syntax checks
+        run: |
+          node --check lib/generator/failure-pattern-intelligence.js
+          node --check lib/generator/quality-gate-rescue.js
       - name: App and Website combined E2E regression
         run: npm run test:combined-e2e-code
       - name: Truth boundary
-        run: echo 'Preventive preflight is deterministic guidance, not a failure probability. A controlled quality-gate rejection is not a successful generation. Targeted rescue must pass the same deterministic checks before persistence; unknown server faults must remain 500 errors.'
+        run: echo 'Preventive preflight and failure-pattern strategy ranking are deterministic guidance, not failure or recovery probabilities. Targeted rescue must pass the same deterministic checks before persistence; unknown server faults must remain 500 errors.'
