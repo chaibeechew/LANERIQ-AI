@@ -29,6 +29,14 @@ test('P0.5 in-app Pause button routes through GuardianPausePolicy flow', () => {
   assert.match(mainActivity, /stopGuardianConfirmed/);
 });
 
+test('P0.5 elevated-risk Pause requires Android device credential step-up', () => {
+  assert.match(mainActivity, /KeyguardManager/);
+  assert.match(mainActivity, /REQUEST_CONFIRM_PAUSE_CREDENTIAL/);
+  assert.match(mainActivity, /createConfirmDeviceCredentialIntent/);
+  assert.match(mainActivity, /requestDeviceCredentialForPause/);
+  assert.match(mainActivity, /manager\.isDeviceSecure\(\)/);
+});
+
 test('P0.5 direct stop remains an internal service action, not an exported notification control', () => {
   assert.match(guardian, /ACTION_STOP/);
   assert.equal(guardian.includes('PendingIntent.getService(\n                this, 2, stop'), false);
