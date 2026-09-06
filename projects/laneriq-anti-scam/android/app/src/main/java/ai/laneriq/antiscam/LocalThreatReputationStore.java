@@ -55,35 +55,27 @@ public final class LocalThreatReputationStore {
     }
 
     /**
-     * Strong/verified admission accepts only the opaque token emitted after
-     * cryptographic verification by SignedThreatReputationEvidence.Verifier.
+     * Production signed-evidence ingestion. The strong token is created only after
+     * verification against the currently pinned Android threat-feed trust roots.
      */
-    public void putVerifiedEvidence(SignedThreatReputationEvidence.VerifiedEvidence evidence) {
-        if (evidence == null) throw new SecurityException("verified threat evidence required");
-        if (!ThreatIndicator.looksLikeSha256(evidence.indicatorHash)) {
-            throw new SecurityException("verified indicator hash invalid");
-        }
-        if (evidence.verdict == null || evidence.verdict == Verdict.UNKNOWN) {
-            throw new SecurityException("verified threat verdict invalid");
-        }
+    public SignedThreatReputationEvidence.VerifiedEvidence ingestSignedEvidence(
+            SignedThreatReputationEvidence.Payload payload,
+            String signatureBase64) {
+        long now = System.currentTimeMillis();
+        SignedThreatReputationEvidence.VerifiedEvidence evidence =
+                SignedThreatReputationEvidence.productionVerifier().verify(payload, signatureBase64, now);
+        if (evidence == null) return null;
+        persistVerifiedEvidence(evidence);
+        return evidence;
+    }
 
+    private void persistVerifiedEvidence(SignedThreatReputationEvidence.VerifiedEvidence evidence) {
         long now = System.currentTimeMillis();
         if (evidence.expiresAtMs <= now || evidence.expiresAtMs - now > MAX_TTL_MS) {
             throw new SecurityException("verified threat evidence expired or exceeds local TTL bound");
         }
 
-        String prefix;
-        switch (evidence.indicatorType) {
-            case DOMAIN_SHA256:
-                prefix = "domain:";
-                break;
-            case FILE_SHA256:
-                prefix = "file:";
-                break;
-            default:
-                throw new SecurityException("unsupported verified indicator type");
-        }
-
+        String prefix = prefixFor(evidence.indicatorType);
         String key = prefix + evidence.indicatorHash;
         prefs.edit()
                 .putString(key + ":verdict", evidence.verdict.name())
@@ -91,6 +83,13 @@ public final class LocalThreatReputationStore {
                 .putString(key + ":evidence_id", evidence.evidenceId)
                 .putBoolean(key + ":verified_strong", true)
                 .putLong(key + ":expires", evidence.expiresAtMs)
+                .putInt(key + ":signed_schema", evidence.schema)
+                .putString(key + ":signed_source_id", evidence.sourceId)
+                .putString(key + ":signed_source_version", evidence.sourceVersion)
+                .putString(key + ":signed_indicator_type", evidence.indicatorType.name())
+                .putString(key + ":signed_indicator_hash", evidence.indicatorHash)
+                .putLong(key + ":signed_issued_at", evidence.issuedAtMs)
+                .putString(key + ":signed_signature", evidence.signatureBase64)
                 .apply();
     }
 
@@ -101,6 +100,7 @@ public final class LocalThreatReputationStore {
         }
         long boundedTtl = Math.min(MAX_TTL_MS, Math.max(60_000L, ttlMs));
         long expires = System.currentTimeMillis() + boundedTtl;
+        clearSignedEnvelope(key);
         prefs.edit()
                 .putString(key + ":verdict", verdict.name())
                 .putString(key + ":source", sourceVersion == null ? "unverified-local" : sourceVersion)
@@ -118,14 +118,25 @@ public final class LocalThreatReputationStore {
             return unknown("none");
         }
 
-        Verdict stored;
-        try {
-            stored = Verdict.valueOf(prefs.getString(key + ":verdict", Verdict.UNKNOWN.name()));
-        } catch (Exception ignored) {
-            stored = Verdict.UNKNOWN;
+        Verdict stored = readVerdict(key);
+        boolean markedVerifiedStrong = prefs.getBoolean(key + ":verified_strong", false);
+
+        if (markedVerifiedStrong) {
+            SignedThreatReputationEvidence.VerifiedEvidence reverified = reverifySignedEnvelope(key, now);
+            if (reverified == null || !key.equals(prefixFor(reverified.indicatorType) + reverified.indicatorHash)) {
+                clearKey(key);
+                return unknown("signed-cache-reverification-failed");
+            }
+            return new Entry(
+                    reverified.verdict,
+                    reverified.sourceId + ":" + reverified.sourceVersion,
+                    reverified.expiresAtMs,
+                    true,
+                    true,
+                    reverified.evidenceId);
         }
-        boolean verifiedStrong = prefs.getBoolean(key + ":verified_strong", false);
-        Verdict verdict = LocalReputationAdmissionPolicy.sanitizeStoredVerdict(stored, verifiedStrong);
+
+        Verdict verdict = LocalReputationAdmissionPolicy.sanitizeStoredVerdict(stored, false);
         if (stored == Verdict.KNOWN_MALICIOUS && verdict != stored) {
             clearKey(key);
             return unknown("legacy-unverified-strong-record-removed");
@@ -136,15 +147,73 @@ public final class LocalThreatReputationStore {
                 prefs.getString(key + ":source", "unknown"),
                 expires,
                 verdict != Verdict.UNKNOWN,
-                verifiedStrong,
-                prefs.getString(key + ":evidence_id", ""));
+                false,
+                "");
+    }
+
+    private SignedThreatReputationEvidence.VerifiedEvidence reverifySignedEnvelope(String key, long now) {
+        try {
+            int schema = prefs.getInt(key + ":signed_schema", 0);
+            String evidenceId = prefs.getString(key + ":evidence_id", "");
+            String sourceId = prefs.getString(key + ":signed_source_id", "");
+            String sourceVersion = prefs.getString(key + ":signed_source_version", "");
+            SignedThreatReputationEvidence.IndicatorType indicatorType =
+                    SignedThreatReputationEvidence.IndicatorType.valueOf(
+                            prefs.getString(key + ":signed_indicator_type", ""));
+            String indicatorHash = prefs.getString(key + ":signed_indicator_hash", "");
+            Verdict verdict = readVerdict(key);
+            long issuedAt = prefs.getLong(key + ":signed_issued_at", 0L);
+            long expiresAt = prefs.getLong(key + ":expires", 0L);
+            String signature = prefs.getString(key + ":signed_signature", "");
+
+            SignedThreatReputationEvidence.Payload payload = new SignedThreatReputationEvidence.Payload(
+                    schema,
+                    evidenceId,
+                    sourceId,
+                    sourceVersion,
+                    indicatorType,
+                    indicatorHash,
+                    verdict,
+                    issuedAt,
+                    expiresAt);
+            return SignedThreatReputationEvidence.productionVerifier().verify(payload, signature, now);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private Verdict readVerdict(String key) {
+        try {
+            return Verdict.valueOf(prefs.getString(key + ":verdict", Verdict.UNKNOWN.name()));
+        } catch (Exception ignored) {
+            return Verdict.UNKNOWN;
+        }
+    }
+
+    private String prefixFor(SignedThreatReputationEvidence.IndicatorType indicatorType) {
+        if (indicatorType == SignedThreatReputationEvidence.IndicatorType.DOMAIN_SHA256) return "domain:";
+        if (indicatorType == SignedThreatReputationEvidence.IndicatorType.FILE_SHA256) return "file:";
+        throw new SecurityException("unsupported verified indicator type");
     }
 
     private Entry unknown(String source) {
         return new Entry(Verdict.UNKNOWN, source, 0L, false, false, "");
     }
 
+    private void clearSignedEnvelope(String key) {
+        prefs.edit()
+                .remove(key + ":signed_schema")
+                .remove(key + ":signed_source_id")
+                .remove(key + ":signed_source_version")
+                .remove(key + ":signed_indicator_type")
+                .remove(key + ":signed_indicator_hash")
+                .remove(key + ":signed_issued_at")
+                .remove(key + ":signed_signature")
+                .apply();
+    }
+
     private void clearKey(String key) {
+        clearSignedEnvelope(key);
         prefs.edit()
                 .remove(key + ":verdict")
                 .remove(key + ":source")
