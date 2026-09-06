@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {aggregateRuntimeEvidence,verifyRuntimeEvidenceReceipt,VIDEO_GA_RUNTIME_RECEIPT_KINDS} from '../lib/video/commercial-ga-runtime-evidence.js';
+import {validateBenchmarkCampaign,VIDEO_GA_BENCHMARK_CATEGORIES} from '../lib/video/commercial-ga-benchmark-campaign.js';
+const SHA='a'.repeat(64),HASH='b'.repeat(64),FP='c'.repeat(64),releaseId='video-ga-r1';
+const issuer={id:'independent-verifier',keyId:'key-1',fingerprint:FP};
+const trustedIssuers=[{...issuer,productionEligible:true,revoked:false}];
+const receipt=(kind,i)=>({kind,releaseId,gitSha:SHA,artifactHash:HASH,nonce:`nonce-${i}-abcdefghijklmnop`,observedAt:new Date().toISOString(),signatureVerified:true,selfReported:false,issuer});
+const receipts=VIDEO_GA_RUNTIME_RECEIPT_KINDS.map((kind,i)=>receipt(kind,i));
+const aggregated=aggregateRuntimeEvidence({receipts,releaseId,gitSha:SHA,trustedIssuers});
+assert.equal(aggregated.ok,true);assert.equal(aggregated.verifiedCount,5);assert.equal(aggregated.truth,'RUNTIME_EVIDENCE_VERIFIED');
+const used=new Set();const replay=receipt('provider-execution',99);assert.equal(verifyRuntimeEvidenceReceipt(replay,{releaseId,gitSha:SHA,trustedIssuers,usedNonces:used}).ok,true);assert.equal(verifyRuntimeEvidenceReceipt(replay,{releaseId,gitSha:SHA,trustedIssuers,usedNonces:used}).ok,false);
+assert.equal(verifyRuntimeEvidenceReceipt({...receipt('provider-execution',100),selfReported:true},{releaseId,gitSha:SHA,trustedIssuers}).ok,false);
+assert.equal(verifyRuntimeEvidenceReceipt({...receipt('provider-execution',101),issuer:{...issuer,fingerprint:'d'.repeat(64)}},{releaseId,gitSha:SHA,trustedIssuers}).ok,false);
+const samples=Array.from({length:120},(_,i)=>({sampleId:`sample-${i}`,category:VIDEO_GA_BENCHMARK_CATEGORIES[i%8],independentlyObserved:true,accepted:i<114,safetyPassed:true,artifactHash:HASH,provenanceId:`prov-${i}`,qualityScore:90+(i%5)}));
+const campaign=validateBenchmarkCampaign({campaignId:'campaign-1',releaseId,gitSha:SHA,samples});
+assert.equal(campaign.ok,true);assert.equal(campaign.sampleCount,120);assert.equal(campaign.categoryCount,8);assert.equal(campaign.truth,'REAL_VIDEO_BENCHMARK_VERIFIED');
+assert.equal(validateBenchmarkCampaign({campaignId:'bad',releaseId,gitSha:SHA,samples:samples.slice(0,50)}).ok,false);
+console.log('AI Video runtime evidence + benchmark campaign contract: PASS');
