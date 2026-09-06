@@ -1,5 +1,5 @@
 {
-  "policyVersion": 1,
+  "policyVersion": 2,
   "product": "LANERIQ AI",
   "repository": "chaibeechew/LANERIQ-AI",
   "productionUrl": "https://laneriq-ai.vercel.app",
@@ -37,9 +37,9 @@
       "name": "Independent Generation Service Contract"
     },
     {
-      "id": "ui-product-surface",
-      "workflowFile": "18-page-product-surface-gate.yml",
-      "name": "LANERIQ 18-Page Product Surface Gate"
+      "id": "ui-regression",
+      "workflowFile": "ui-regression-gate.yml",
+      "name": "LANERIQ Canonical UI Regression Gate"
     },
     {
       "id": "production-browser",
@@ -52,11 +52,6 @@
       "id": "app-builder",
       "workflowFile": "app-builder-production-closure-e2e.yml",
       "name": "LANERIQ App Builder Production Closure Gate"
-    },
-    {
-      "id": "ui-interaction",
-      "workflowFile": "18-page-interaction-integrity.yml",
-      "name": "LANERIQ 18-Page Interaction Integrity"
     },
     {
       "id": "production-evidence-attestation",
