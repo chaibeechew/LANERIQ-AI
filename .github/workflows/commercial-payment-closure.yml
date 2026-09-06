@@ -4,10 +4,11 @@ on:
   pull_request:
     paths:
       - "app/api/commerce/**"
+      - "app/api/admin/commerce/**"
       - "app/billing/**"
       - "config/commercial-offers.js"
       - "lib/commerce/**"
-      - "supabase/migrations/*platform_commerce_payment_closure.sql"
+      - "supabase/migrations/*platform_commerce*.sql"
       - "scripts/commercial-payment-closure-contract-tests.mjs"
       - ".github/workflows/commercial-payment-closure.yml"
   push:
