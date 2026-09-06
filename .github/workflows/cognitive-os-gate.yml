@@ -16,6 +16,7 @@ on:
       - 'scripts/cognitive-cross-feature-contract-tests.mjs'
       - 'scripts/cognitive-final-six-contract-tests.mjs'
       - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
+      - 'docs/LANERIQ_COGNITIVE_OS_FINAL_SIX.md'
       - '.github/workflows/cognitive-os-gate.yml'
   pull_request:
     branches: [main]
@@ -32,6 +33,7 @@ on:
       - 'scripts/cognitive-cross-feature-contract-tests.mjs'
       - 'scripts/cognitive-final-six-contract-tests.mjs'
       - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
+      - 'docs/LANERIQ_COGNITIVE_OS_FINAL_SIX.md'
       - '.github/workflows/cognitive-os-gate.yml'
 
 permissions:
