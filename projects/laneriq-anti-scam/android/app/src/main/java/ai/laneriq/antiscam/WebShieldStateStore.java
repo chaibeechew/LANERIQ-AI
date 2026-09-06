@@ -49,10 +49,13 @@ public final class WebShieldStateStore {
     }
 
     public void setUserOptedIn(boolean enabled) {
+        boolean consent = prefs.getBoolean("vpn_consent", false);
+        boolean tunnel = enabled && prefs.getBoolean("tunnel_established", false);
+        boolean healthy = enabled && prefs.getBoolean("engine_healthy", false);
         edit(enabled,
-                prefs.getBoolean("vpn_consent", false),
-                prefs.getBoolean("tunnel_established", false),
-                prefs.getBoolean("engine_healthy", false),
+                consent,
+                tunnel,
+                healthy,
                 prefs.getBoolean("policy_fresh", false),
                 enabled ? "user-opt-in" : "user-opt-out");
     }
@@ -67,10 +70,13 @@ public final class WebShieldStateStore {
     }
 
     public void markTunnel(boolean established, boolean engineHealthy, boolean policyFresh, String reason) {
-        edit(prefs.getBoolean("user_opted_in", false),
-                prefs.getBoolean("vpn_consent", false),
-                established,
-                engineHealthy,
+        boolean optedIn = prefs.getBoolean("user_opted_in", false);
+        boolean consent = prefs.getBoolean("vpn_consent", false);
+        boolean claimableTunnel = optedIn && consent && established;
+        edit(optedIn,
+                consent,
+                claimableTunnel,
+                claimableTunnel && engineHealthy,
                 policyFresh,
                 reason);
     }
@@ -85,11 +91,15 @@ public final class WebShieldStateStore {
     }
 
     public State read() {
+        boolean optedIn = prefs.getBoolean("user_opted_in", false);
+        boolean consent = prefs.getBoolean("vpn_consent", false);
+        boolean tunnel = optedIn && consent && prefs.getBoolean("tunnel_established", false);
+        boolean healthy = tunnel && prefs.getBoolean("engine_healthy", false);
         return new State(
-                prefs.getBoolean("user_opted_in", false),
-                prefs.getBoolean("vpn_consent", false),
-                prefs.getBoolean("tunnel_established", false),
-                prefs.getBoolean("engine_healthy", false),
+                optedIn,
+                consent,
+                tunnel,
+                healthy,
                 prefs.getBoolean("policy_fresh", false),
                 prefs.getLong("changed_at", 0L),
                 prefs.getString("reason", "never-started"));
