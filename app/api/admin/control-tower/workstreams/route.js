@@ -1,6 +1,6 @@
-import { NextResponse } from "next/server";
-import { createClient } from "../../../../../lib/supabase/server.js";
-import { canAccessControlTower } from "../../../../../lib/admin-access.js";
+import { requireControlTowerApi } from "../../../../../lib/control-tower-api.js";
+import { appendControlTowerAudit } from "../../../../../lib/control-tower-audit.js";
+import { controlTowerJson } from "../../../../../lib/control-tower-http.js";
 import {
   canTransitionControlTowerStage,
   isControlTowerReleaseFrozen,
@@ -14,27 +14,6 @@ import {
 export const dynamic = "force-dynamic";
 
 const WORKSTREAM_SELECT = "id,release_id,workstream_key,name,description,stage,dependencies,created_at,updated_at";
-
-function json(payload, status = 200) {
-  return NextResponse.json(payload, {
-    status,
-    headers: {
-      "Cache-Control": "private, no-store, max-age=0",
-      Pragma: "no-cache",
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
-}
-
-async function requireControlTowerAdmin() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return { error: json({ error: "Authentication required." }, 401) };
-  if (!canAccessControlTower(user.app_metadata?.role)) {
-    return { error: json({ error: "Control Tower access required." }, 403) };
-  }
-  return { supabase, user };
-}
 
 async function validateDependencies(supabase, releaseId, workstreamKey, dependencies) {
   if (!Array.isArray(dependencies)) return null;
@@ -53,8 +32,8 @@ async function validateDependencies(supabase, releaseId, workstreamKey, dependen
 
 export async function GET(request) {
   try {
-    const auth = await requireControlTowerAdmin();
-    if (auth.error) return auth.error;
+    const auth = await requireControlTowerApi(request);
+    if (!auth.ok) return auth.response;
 
     const releaseId = request.nextUrl.searchParams.get("releaseId")?.trim();
     let query = auth.supabase
@@ -66,22 +45,22 @@ export async function GET(request) {
     const { data, error } = await query;
 
     if (error) {
-      if (isControlTowerStorageMissing(error)) return json({ storageReady: false, workstreams: [] });
+      if (isControlTowerStorageMissing(error)) return controlTowerJson({ storageReady: false, workstreams: [] });
       throw error;
     }
-    return json({ storageReady: true, workstreams: data || [] });
+    return controlTowerJson({ storageReady: true, workstreams: data || [] });
   } catch {
-    return json({ error: "Unable to load Control Tower workstreams." }, 500);
+    return controlTowerJson({ error: "Unable to load Control Tower workstreams." }, 500);
   }
 }
 
 export async function POST(request) {
   try {
-    const auth = await requireControlTowerAdmin();
-    if (auth.error) return auth.error;
+    const auth = await requireControlTowerApi(request, { mutation: true });
+    if (!auth.ok) return auth.response;
     const input = await request.json().catch(() => ({}));
     const validation = validateControlTowerWorkstreamInput(input);
-    if (!validation.ok) return json({ error: validation.error }, 400);
+    if (!validation.ok) return controlTowerJson({ error: validation.error }, 400);
 
     const { data: release, error: releaseError } = await auth.supabase
       .from("control_tower_releases")
@@ -89,21 +68,16 @@ export async function POST(request) {
       .eq("id", validation.value.release_id)
       .maybeSingle();
     if (releaseError) {
-      if (isControlTowerStorageMissing(releaseError)) return json({ error: "Control Tower storage migration is not active in this environment." }, 503);
+      if (isControlTowerStorageMissing(releaseError)) return controlTowerJson({ error: "Control Tower storage migration is not active in this environment." }, 503);
       throw releaseError;
     }
-    if (!release) return json({ error: "Release does not exist." }, 400);
+    if (!release) return controlTowerJson({ error: "Release does not exist." }, 400);
     if (isControlTowerReleaseFrozen(release.stage)) {
-      return json({ error: `Release is frozen at ${release.stage}. Move it back through the governed state machine before adding workstreams.`, code: "RELEASE_FROZEN" }, 409);
+      return controlTowerJson({ error: `Release is frozen at ${release.stage}. Move it back through the governed state machine before adding workstreams.`, code: "RELEASE_FROZEN" }, 409);
     }
 
-    const dependencyError = await validateDependencies(
-      auth.supabase,
-      validation.value.release_id,
-      validation.value.workstream_key,
-      validation.value.dependencies,
-    );
-    if (dependencyError) return json({ error: dependencyError, code: "INVALID_DEPENDENCY" }, 409);
+    const dependencyError = await validateDependencies(auth.supabase, validation.value.release_id, validation.value.workstream_key, validation.value.dependencies);
+    if (dependencyError) return controlTowerJson({ error: dependencyError, code: "INVALID_DEPENDENCY" }, 409);
 
     const { data, error } = await auth.supabase
       .from("control_tower_workstreams")
@@ -112,32 +86,32 @@ export async function POST(request) {
       .single();
 
     if (error) {
-      if (isControlTowerStorageMissing(error)) return json({ error: "Control Tower storage migration is not active in this environment." }, 503);
-      if (error.code === "23505") return json({ error: "Workstream key already exists for this release." }, 409);
-      if (error.code === "23503") return json({ error: "Release does not exist." }, 400);
+      if (isControlTowerStorageMissing(error)) return controlTowerJson({ error: "Control Tower storage migration is not active in this environment." }, 503);
+      if (error.code === "23505") return controlTowerJson({ error: "Workstream key already exists for this release." }, 409);
+      if (error.code === "23503") return controlTowerJson({ error: "Release does not exist." }, 400);
       throw error;
     }
 
-    await auth.supabase.from("control_tower_audit_log").insert({
-      actor_user_id: auth.user.id,
+    await appendControlTowerAudit(auth.supabase, {
       action: "workstream_created",
-      entity_type: "workstream",
-      entity_id: data.id,
-      after_state: data,
+      entityType: "workstream",
+      entityId: data.id,
+      afterState: data,
+      metadata: { actor_role: auth.role },
     });
-    return json({ workstream: data }, 201);
+    return controlTowerJson({ workstream: data }, 201);
   } catch {
-    return json({ error: "Unable to create Control Tower workstream." }, 500);
+    return controlTowerJson({ error: "Unable to create Control Tower workstream." }, 500);
   }
 }
 
 export async function PATCH(request) {
   try {
-    const auth = await requireControlTowerAdmin();
-    if (auth.error) return auth.error;
+    const auth = await requireControlTowerApi(request, { mutation: true });
+    if (!auth.ok) return auth.response;
     const input = await request.json().catch(() => ({}));
     const validation = validateControlTowerWorkstreamPatchInput(input);
-    if (!validation.ok) return json({ error: validation.error }, 400);
+    if (!validation.ok) return controlTowerJson({ error: validation.error }, 400);
 
     const { data: before, error: beforeError } = await auth.supabase
       .from("control_tower_workstreams")
@@ -145,12 +119,12 @@ export async function PATCH(request) {
       .eq("id", validation.id)
       .maybeSingle();
     if (beforeError) {
-      if (isControlTowerStorageMissing(beforeError)) return json({ error: "Control Tower storage migration is not active in this environment." }, 503);
+      if (isControlTowerStorageMissing(beforeError)) return controlTowerJson({ error: "Control Tower storage migration is not active in this environment." }, 503);
       throw beforeError;
     }
-    if (!before) return json({ error: "Workstream not found." }, 404);
+    if (!before) return controlTowerJson({ error: "Workstream not found." }, 404);
     if (validation.expectedUpdatedAt && before.updated_at !== validation.expectedUpdatedAt) {
-      return json({ error: "Workstream changed since it was loaded. Refresh before saving.", code: "STALE_WORKSTREAM" }, 409);
+      return controlTowerJson({ error: "Workstream changed since it was loaded. Refresh before saving.", code: "STALE_WORKSTREAM" }, 409);
     }
 
     const { data: release, error: releaseError } = await auth.supabase
@@ -159,35 +133,33 @@ export async function PATCH(request) {
       .eq("id", before.release_id)
       .maybeSingle();
     if (releaseError) throw releaseError;
-    if (!release) return json({ error: "Parent release not found." }, 409);
-    if (isControlTowerReleaseFrozen(release.stage)) {
-      return json({ error: `Release is frozen at ${release.stage}.`, code: "RELEASE_FROZEN" }, 409);
-    }
+    if (!release) return controlTowerJson({ error: "Parent release not found." }, 409);
+    if (isControlTowerReleaseFrozen(release.stage)) return controlTowerJson({ error: `Release is frozen at ${release.stage}.`, code: "RELEASE_FROZEN" }, 409);
 
     if (validation.patch.stage && !canTransitionControlTowerStage(before.stage, validation.patch.stage)) {
-      return json({ error: `Invalid workstream transition ${before.stage} → ${validation.patch.stage}.`, code: "INVALID_STAGE_TRANSITION" }, 409);
+      return controlTowerJson({ error: `Invalid workstream transition ${before.stage} → ${validation.patch.stage}.`, code: "INVALID_STAGE_TRANSITION" }, 409);
     }
     if (validation.patch.dependencies) {
       const dependencyError = await validateDependencies(auth.supabase, before.release_id, before.workstream_key, validation.patch.dependencies);
-      if (dependencyError) return json({ error: dependencyError, code: "INVALID_DEPENDENCY" }, 409);
+      if (dependencyError) return controlTowerJson({ error: dependencyError, code: "INVALID_DEPENDENCY" }, 409);
     }
 
     let query = auth.supabase.from("control_tower_workstreams").update(validation.patch).eq("id", validation.id);
     if (validation.expectedUpdatedAt) query = query.eq("updated_at", validation.expectedUpdatedAt);
     const { data, error } = await query.select(WORKSTREAM_SELECT).maybeSingle();
     if (error) throw error;
-    if (!data) return json({ error: "Workstream changed while saving. Refresh and retry.", code: "UPDATE_RACE" }, 409);
+    if (!data) return controlTowerJson({ error: "Workstream changed while saving. Refresh and retry.", code: "UPDATE_RACE" }, 409);
 
-    await auth.supabase.from("control_tower_audit_log").insert({
-      actor_user_id: auth.user.id,
+    await appendControlTowerAudit(auth.supabase, {
       action: "workstream_updated",
-      entity_type: "workstream",
-      entity_id: data.id,
-      before_state: before,
-      after_state: data,
+      entityType: "workstream",
+      entityId: data.id,
+      beforeState: before,
+      afterState: data,
+      metadata: { actor_role: auth.role },
     });
-    return json({ workstream: data });
+    return controlTowerJson({ workstream: data });
   } catch {
-    return json({ error: "Unable to update Control Tower workstream." }, 500);
+    return controlTowerJson({ error: "Unable to update Control Tower workstream." }, 500);
   }
 }
