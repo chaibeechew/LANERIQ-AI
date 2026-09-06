@@ -1,5 +1,5 @@
 {
-  "policyVersion": 1,
+  "policyVersion": 2,
   "product": "LANERIQ AI",
   "productionProjectRef": "uyizbmajxcvtkgzuoykg",
   "principles": {
@@ -8,6 +8,11 @@
     "authenticatedSecurityDefiner": "deny-by-default-with-reviewed-self-service-allowlist",
     "authorizationMetadata": "raw_app_meta_data",
     "legalDraftSigning": "fail-closed"
+  },
+  "defaultPrivilegeEnforcement": {
+    "postgresPublicFunctions": "migration-enforced",
+    "supabaseAdminPublicFunctions": "elevated-role-required",
+    "supabaseAdminCurrentPublicOwnedFunctionCount": 0
   },
   "privilegedAdminLegacyV1": [
     "admin_issue_buyout_license",
@@ -58,6 +63,12 @@
       "requiredForGlobalProduction": true,
       "verified": false,
       "reason": "Supabase LIVE advisor reports leaked password protection disabled; current connected Supabase actions do not expose Auth configuration mutation."
+    },
+    {
+      "id": "supabase-admin-default-function-execute",
+      "requiredForGlobalProduction": false,
+      "verified": false,
+      "reason": "LIVE preflight shows the standard migration runner executes as postgres and is neither superuser nor a member of supabase_admin. No current public functions are owned by supabase_admin, but that owner's future function default EXECUTE ACL requires separate elevated-role hardening and LIVE verification."
     }
   ]
 }

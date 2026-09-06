@@ -64,14 +64,27 @@ assert.doesNotMatch(migration,/revoke all on function public\.admin_set_creator_
 assert.doesNotMatch(migration,/revoke all on function public\.admin_issue_buyout_license\(uuid,text,text\) from [^;]*authenticated/i);
 assert.match(migration,/legacy v1 retained temporarily for rollback/i);
 
-// Future public-schema functions fail closed for both roles that can create functions in this Supabase project.
-for(const owner of ["postgres","supabase_admin"]){
-  for(const role of ["public","anon","authenticated","service_role"]){
-    assert.match(defaultsMigration,new RegExp(`alter default privileges for role ${owner} in schema public\\s+revoke execute on functions from ${role}`));
-  }
+// Standard migrations execute as postgres. Harden that owner's future public functions directly.
+for(const role of ["public","anon","authenticated","service_role"]){
+  assert.match(defaultsMigration,new RegExp(`alter default privileges for role postgres in schema public\\s+revoke execute on functions from ${role}`));
 }
-assert.match(defaultsMigration,/postgres or supabase_admin roles in public/i);
 assert.match(defaultsMigration,/Every future Data API RPC must opt in with an explicit GRANT/i);
+
+// supabase_admin defaults need elevated role authority. Never make ordinary Production migration depend on unavailable privilege.
+assert.match(defaultsMigration,/current_user = 'supabase_admin'/);
+assert.match(defaultsMigration,/pg_has_role\(current_user,'supabase_admin','MEMBER'\)/);
+for(const role of ["public","anon","authenticated","service_role"]){
+  assert.match(defaultsMigration,new RegExp(`execute 'alter default privileges for role supabase_admin in schema public revoke execute on functions from ${role}'`));
+}
+assert.match(defaultsMigration,/supabase_admin default function privileges unchanged/i);
+assert.match(defaultsMigration,/elevated supabase_admin authority is required/i);
+assert.equal(definerPolicy.defaultPrivilegeEnforcement.postgresPublicFunctions,"migration-enforced");
+assert.equal(definerPolicy.defaultPrivilegeEnforcement.supabaseAdminPublicFunctions,"elevated-role-required");
+assert.equal(definerPolicy.defaultPrivilegeEnforcement.supabaseAdminCurrentPublicOwnedFunctionCount,0);
+const adminDefaultGap=definerPolicy.externalSecurityBlockers.find(item=>item.id==="supabase-admin-default-function-execute");
+assert.ok(adminDefaultGap,"supabase_admin owner-default gap must remain explicitly tracked");
+assert.equal(adminDefaultGap.requiredForGlobalProduction,false);
+assert.equal(adminDefaultGap.verified,false);
 
 const expectedSelfService=[
   "get_creator_support_status",
@@ -124,6 +137,7 @@ console.log("✓ Phase A2 Admin mutations use service-role v2 RPC transport afte
 console.log("✓ p_admin_id is bound to the verified session user and revalidated by each v2 database function");
 console.log("✓ No silent fallback to legacy authenticated Admin RPC v1 remains in server callers");
 console.log("✓ Phase B legacy grant revocation remains separate until A2 is Production-verified");
-console.log("✓ Future postgres- and supabase_admin-created public functions remain explicit-grant-only");
+console.log("✓ Future postgres-created public functions are explicit-grant-only");
+console.log("✓ supabase_admin owner-default hardening remains a guarded elevated-role follow-up, not a false closure claim");
 console.log("✓ Reviewed auth.uid()-bound self-service allowlist and legal signing denylist remain intact");
 console.log("✓ Leaked-password protection remains an unresolved Global Production security blocker");
