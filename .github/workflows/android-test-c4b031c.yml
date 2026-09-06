@@ -1,0 +1,39 @@
+name: LANERIQ Android Test Build c4b031c
+
+on:
+  push:
+    branches:
+      - build/android-test-c4b031c-20260906
+    paths:
+      - 'apps/laneriq-security-android/**'
+      - '.github/workflows/android-test-c4b031c.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+      - name: Build debug APK
+        working-directory: apps/laneriq-security-android
+        run: gradle :app:assembleDebug --no-daemon
+      - name: Upload debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: laneriq-android-test-c4b031c
+          path: apps/laneriq-security-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
