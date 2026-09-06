@@ -4,8 +4,9 @@ public final class LocalReputationAdmissionPolicy {
     private LocalReputationAdmissionPolicy() {}
 
     /**
-     * The current Android test build has no signed reputation ingestion path.
-     * Therefore ordinary cache writes may never manufacture KNOWN_MALICIOUS.
+     * Ordinary/local cache writes have no strong-verdict authority. A
+     * KNOWN_MALICIOUS record must come through SignedThreatReputationEvidence
+     * and is re-verified from its signed envelope when read from local cache.
      */
     public static boolean mayWriteUnverified(LocalThreatReputationStore.Verdict verdict) {
         return verdict == LocalThreatReputationStore.Verdict.HIGH_RISK
