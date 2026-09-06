@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { verifyPinnedReleaseEvidence } from './release-evidence-attestation.mjs';
 import { ReleaseGateId } from './release-readiness.mjs';
+import { computeReleaseSourceDigest } from './release-source-digest.mjs';
 
 const DEFAULT_BUNDLE_URL = new URL('./PUBLIC_RELEASE_EVIDENCE.json', import.meta.url);
 
@@ -46,10 +47,17 @@ const FIELD_BY_GATE = Object.freeze({
 export function loadVerifiedReleaseEvidenceBundle({
   url = DEFAULT_BUNDLE_URL,
   nowMs = Date.now(),
+  root = process.cwd(),
+  releaseSourceDigest = null,
 } = {}) {
   const raw = JSON.parse(readFileSync(url, 'utf8'));
   if (raw?.schema !== 1 || raw?.product !== 'LANERIQ Anti Scam' || !Array.isArray(raw?.tokens)) {
     throw new Error('invalid LANERIQ Anti Scam release evidence bundle');
+  }
+
+  const source = releaseSourceDigest || computeReleaseSourceDigest({ root });
+  if (!/^[0-9a-f]{64}$/i.test(String(source?.sha256 || ''))) {
+    throw new Error('invalid LANERIQ Anti Scam release source digest');
   }
 
   const evidence = {};
@@ -61,6 +69,7 @@ export function loadVerifiedReleaseEvidenceBundle({
       payload: entry?.payload,
       signatureBase64: entry?.signatureBase64,
       nowMs,
+      expectedReleaseSourceDigestSha256: source.sha256,
     });
     if (!token) {
       rejected.push(entry?.payload?.gateId || 'unknown');
@@ -83,6 +92,8 @@ export function loadVerifiedReleaseEvidenceBundle({
     verifiedGateIds: Object.freeze(verifiedGateIds.sort()),
     rejectedGateIds: Object.freeze(rejected.sort()),
     totalTokens: raw.tokens.length,
+    releaseSourceDigestSha256: source.sha256,
+    releaseSourceFileCount: Number(source.fileCount || 0),
   });
 }
 
