@@ -12,14 +12,21 @@ on:
       - 'lib/ai/app-builder-live-verification.js'
       - 'lib/ai/app-builder-creation-pipeline.js'
       - 'lib/ai/app-creation-intelligence-policy.js'
+      - 'lib/ai/app-builder-product-lifecycle.js'
+      - 'lib/ai/app-builder-platform-contract.js'
+      - 'lib/ai/app-builder-world-class-quality.js'
+      - 'lib/ai/app-builder-release-readiness.js'
+      - 'lib/ai/app-creation-intelligence.js'
       - 'lib/buildStandards.js'
       - 'lib/templateCatalog.js'
       - 'lib/design/**'
       - 'lib/generator/**'
       - 'scripts/app-creation-intelligence-r11-contract-tests.mjs'
+      - 'scripts/app-creation-round11-contract-tests.mjs'
       - 'scripts/template-contract-tests.mjs'
       - 'scripts/generated-experience-standard-tests.mjs'
       - 'scripts/generation-outcome-intelligence-contract-tests.mjs'
+      - 'docs/LANERIQ_APP_CREATION_INTELLIGENCE_R11.md'
       - '.github/workflows/app-creation-intelligence-r11.yml'
   workflow_dispatch:
 
@@ -29,7 +36,7 @@ permissions:
 jobs:
   app-creation-intelligence-r11:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -42,12 +49,20 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Round 11 creation intelligence contract
         run: node scripts/app-creation-intelligence-r11-contract-tests.mjs
+      - name: R11B world-class lifecycle and LIVE quality contract
+        run: node scripts/app-creation-round11-contract-tests.mjs
       - name: Canonical 3000-template regression
         run: node scripts/template-contract-tests.mjs
       - name: Generated Experience regression
         run: node scripts/generated-experience-standard-tests.mjs
       - name: Generation Outcome + Self-Heal regression
         run: node scripts/generation-outcome-intelligence-contract-tests.mjs
+      - name: App + Website generation regression
+        run: npm run test:combined-e2e-code
+      - name: Publishing readiness regression
+        run: npm run test:publishing-readiness
+      - name: Store readiness regressions
+        run: npm run test:apple-store && npm run test:google-play
       - name: Syntax checks
         run: |
           node --check lib/ai/app-builder-design-intent.js
@@ -59,6 +74,11 @@ jobs:
           node --check lib/ai/app-builder-live-verification.js
           node --check lib/ai/app-builder-creation-pipeline.js
           node --check lib/ai/app-creation-intelligence-policy.js
+          node --check lib/ai/app-builder-product-lifecycle.js
+          node --check lib/ai/app-builder-platform-contract.js
+          node --check lib/ai/app-builder-world-class-quality.js
+          node --check lib/ai/app-builder-release-readiness.js
+          node --check lib/ai/app-creation-intelligence.js
           node --check lib/buildStandards.js
       - name: LIVE truth boundary
         run: |
