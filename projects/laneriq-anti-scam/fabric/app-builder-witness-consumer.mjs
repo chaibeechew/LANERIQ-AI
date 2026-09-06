@@ -1,5 +1,7 @@
 import { evaluateVerifiedWitness } from './p0_5-verified-witness.mjs';
 
+const PRODUCTION_PACKAGE = 'ai.laneriq.antiscam';
+const TEST_PACKAGE = 'ai.laneriq.antiscam.test';
 const ALLOWED_PROVIDER_FIELDS = new Set([
   'schema_version', 'state', 'claimable_active', 'same_boot_session', 'user_opted_in',
   'lease_epoch', 'lease_expires_at_ms', 'heartbeat_sequence', 'local_risk_level', 'active_engine_set', 'policy_version',
@@ -17,12 +19,23 @@ function rejectUnexpectedFields(row = {}) {
   if (unknown.length) throw new Error(`ANTI_SCAM_PROVIDER_PRIVATE_OR_UNKNOWN_FIELDS:${unknown.join(',')}`);
 }
 
-export function normalizeAntiScamProviderRow(row = {}) {
+function validatedExpectedPackage(expectedPackageName, { allowTestPackage = false } = {}) {
+  const expected = String(expectedPackageName || PRODUCTION_PACKAGE).trim();
+  if (expected === PRODUCTION_PACKAGE) return expected;
+  if (allowTestPackage === true && expected === TEST_PACKAGE) return expected;
+  throw new Error('ANTI_SCAM_EXPECTED_PACKAGE_NOT_ALLOWED');
+}
+
+export function normalizeAntiScamProviderRow(row = {}, {
+  expectedPackageName = PRODUCTION_PACKAGE,
+  allowTestPackage = false,
+} = {}) {
   rejectUnexpectedFields(row);
   const schemaVersion = Number(row.schema_version || 0);
   if (!Number.isInteger(schemaVersion) || schemaVersion < 10) {
     throw new Error('ANTI_SCAM_PROVIDER_SCHEMA_TOO_OLD');
   }
+  const trustedPackage = validatedExpectedPackage(expectedPackageName, { allowTestPackage });
 
   return Object.freeze({
     schemaVersion,
@@ -37,7 +50,7 @@ export function normalizeAntiScamProviderRow(row = {}) {
     observedAtMs: Number(row.witness_observed_at_ms || 0),
     providerFreezeSensitive: String(row.freeze_sensitive_laneriq_actions || '0') === '1',
     cryptoProof: Object.freeze({
-      packageName: 'ai.laneriq.antiscam',
+      packageName: trustedPackage,
       schemaVersion: Number(row.witness_proof_schema || 0),
       observedAtMs: Number(row.witness_observed_at_ms || 0),
       keyIdSha256: String(row.witness_key_id_sha256 || ''),
@@ -52,6 +65,10 @@ export function normalizeAntiScamProviderRow(row = {}) {
  * AI App Builder/future LANERIQ app integration surface.
  * It consumes Anti Scam security truth only. It never starts a second Guardian,
  * VPN, scanner daemon or private-content monitor.
+ *
+ * Production defaults to ai.laneriq.antiscam. A debug coexistence test must
+ * explicitly request ai.laneriq.antiscam.test AND set allowTestPackage=true;
+ * arbitrary package names are never accepted.
  */
 export function evaluateAppBuilderProtection({
   providerReachable,
@@ -60,6 +77,8 @@ export function evaluateAppBuilderProtection({
   packageSignatureTrustVerified,
   keyContinuity,
   replayGuard,
+  expectedPackageName = PRODUCTION_PACKAGE,
+  allowTestPackage = false,
   nowMs = Date.now(),
 } = {}) {
   if (!providerReachable || !providerRow) {
@@ -74,7 +93,10 @@ export function evaluateAppBuilderProtection({
     });
   }
 
-  const normalized = normalizeAntiScamProviderRow(providerRow);
+  const normalized = normalizeAntiScamProviderRow(providerRow, {
+    expectedPackageName,
+    allowTestPackage,
+  });
   if (!normalized.cryptoProof.available || normalized.cryptoProof.schemaVersion !== 1) {
     return Object.freeze({
       verificationState: 'CRYPTO_PROOF_INVALID',
