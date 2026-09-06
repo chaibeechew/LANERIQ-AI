@@ -1,0 +1,26 @@
+name: Canonical UI Source of Truth
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+      - "scripts/canonical-ui-source-of-truth-tests.mjs"
+      - ".github/workflows/canonical-ui-source-of-truth.yml"
+  push:
+    branches:
+      - "ui/canonical-cleanup-round1"
+    paths:
+      - "app/**"
+      - "scripts/canonical-ui-source-of-truth-tests.mjs"
+      - ".github/workflows/canonical-ui-source-of-truth.yml"
+
+jobs:
+  canonical-ui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify canonical UI ownership and core journey
+        run: node scripts/canonical-ui-source-of-truth-tests.mjs
