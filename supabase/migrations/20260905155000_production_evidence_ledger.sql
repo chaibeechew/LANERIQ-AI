@@ -22,6 +22,10 @@ comment on table public.production_evidence_ledger is
   'LANERIQ internal append-only Production attestation receipts. Tamper-evident hash continuity only; not an external audit or signature claim.';
 
 alter table public.production_evidence_ledger enable row level security;
+
+-- No browser role receives direct table access. Server replay is provider-opaque and
+-- uses a separately credentialed adapter. The service role can only SELECT directly;
+-- appends must go through the constrained RPC below.
 revoke all on table public.production_evidence_ledger from anon, authenticated, service_role;
 grant select on table public.production_evidence_ledger to service_role;
 
@@ -84,6 +88,8 @@ begin
     raise exception using errcode = '22023', message = 'PRODUCTION_EVIDENCE_HASH_INVALID';
   end if;
 
+  -- Serialize only this project's evidence chain so simultaneous attestations cannot
+  -- fork the previous-hash pointer.
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('laneriq-production-evidence-ledger-v1:' || p_project_id::text, 0)
   );
