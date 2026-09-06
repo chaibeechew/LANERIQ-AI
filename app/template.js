@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import "./laneriq-lotus-brand.css";
 import "./laneriq-launch-splash.css";
 import "./auth/auth-living-intelligence.css";
@@ -13,7 +14,7 @@ import CanonicalCoreUIOwner from "./components/CanonicalCoreUIOwner";
 export default function Template({ children }) {
   return <>
     <LaneriqLaunchSplash />
-    <CanonicalCoreUIOwner />
+    <Suspense fallback={null}><CanonicalCoreUIOwner /></Suspense>
     {children}
   </>;
 }
