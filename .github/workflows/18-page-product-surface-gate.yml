@@ -1,34 +1,16 @@
-name: LANERIQ 18-Page Product Surface Gate
+name: RETIRED - Legacy 18-Page Product Surface Gate
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  product-surface-gate:
+  retired:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    permissions:
-      contents: read
-    env:
-      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
-      SOOLEN_COST_MODE: zero
     steps:
-      - name: Checkout exact commit
-        uses: actions/checkout@v7
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
-      - name: Validate 18-page master product contract
-        run: node scripts/batch39-18-page-product-surface-tests.mjs
-      - name: Build runtime integration
-        run: npm run build
-      - name: Evidence boundary
-        run: echo "This gate proves CODE/CI 18-page product-surface structure, route contracts and governance only. Production exact SHA, browser, provider LIVE, physical-device and store evidence remain independent."
+      - name: Legacy gate retired
+        run: |
+          echo "The fixed 18-page product-surface gate is retired and is no longer a Canonical UI or Production release authority."
+          echo "Use LANERIQ Canonical UI Regression Gate instead."
