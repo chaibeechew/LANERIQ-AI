@@ -136,6 +136,13 @@ function restoreLegacyPrimaryNavs(touched){
   }
 }
 
+function PortalBrandAnchor({surface}){
+  if(!["creations","templates","template-detail"].includes(surface))return null;
+  return <Link href="/" className={`liuiPortalBrandAnchor liuiPortalBrandAnchor-${surface}`} aria-label="LANERIQ AI home">
+    <LaneriqLotusBrand compact />
+  </Link>;
+}
+
 function ReferenceChrome({pageId,surface}){
   const projectSurface=Boolean(surface && surface!=="creation" && surface!=="creations" && surface!=="templates" && surface!=="template-detail");
   const showCreationTrack=pageId>=4&&pageId<=6;
@@ -190,6 +197,7 @@ export default function LIUIRealProductSurface(){
   if(!surface) return null;
 
   return <>
+    <PortalBrandAnchor surface={surface}/>
     <ReferenceChrome pageId={pageId} surface={surface}/>
     <nav className="liuiRealBottomNav" aria-label="LANERIQ AI primary navigation" data-liui-nav="canonical">
       {NAV.map(item=><Link key={item.label} href={item.href} className={active===item.label?"active":""} aria-current={active===item.label?"page":undefined}>
