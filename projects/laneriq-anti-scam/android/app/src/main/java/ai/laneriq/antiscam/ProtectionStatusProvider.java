@@ -18,7 +18,7 @@ public final class ProtectionStatusProvider extends ContentProvider {
 
     private static final String[] COLUMNS = new String[] {
             "schema_version", "state", "claimable_active", "same_boot_session", "user_opted_in",
-            "lease_expires_at_ms", "heartbeat_sequence", "local_risk_level", "active_engine_set", "policy_version",
+            "lease_epoch", "lease_expires_at_ms", "heartbeat_sequence", "local_risk_level", "active_engine_set", "policy_version",
             "emergency_level", "emergency_expires_at_ms", "system_web_shield_state", "integrity_state",
             "unexpected_protection_loss", "freeze_sensitive_laneriq_actions", "self_integrity_state",
             "self_integrity_continuity_acceptable", "install_source_integrity_state", "install_source_continuity_acceptable",
@@ -43,8 +43,8 @@ public final class ProtectionStatusProvider extends ContentProvider {
         InstallSourceIntegrityStore.Result installSource = new InstallSourceIntegrityStore(getContext()).probe();
         AlertDeliveryIntegrity.Decision alertDelivery = AlertDeliveryIntegrity.capture(getContext());
         PlatformProtectionIntegrityProbe.Snapshot platform = PlatformProtectionIntegrityProbe.capture(getContext());
-        NetworkProtectionCapability.State network = NetworkProtectionCapability.evaluate(
-                new NetworkProtectionCapability.Evidence(false, lease.userOptedIn, false, false, false, true));
+        WebShieldStateStore.State webShield = new WebShieldStateStore(getContext()).read();
+        NetworkProtectionCapability.State network = NetworkProtectionCapability.evaluate(webShield.asCapabilityEvidence());
 
         boolean claimable = lease.mayClaimGuardianActive() && integrity.mayClaimProtected && selfIntegrity.continuityAcceptable;
         boolean freezeSensitive = integrity.freezeSensitiveLaneriqActions
@@ -76,15 +76,13 @@ public final class ProtectionStatusProvider extends ContentProvider {
                     && !witnessPublicKey.isEmpty()
                     && !witnessSignature.isEmpty();
         } catch (Exception ignored) {
-            // Local protection truth remains available, but a companion must not
-            // claim cryptographic Witness origin when Keystore proof is unavailable.
             witnessProofAvailable = false;
         }
 
         MatrixCursor cursor = new MatrixCursor(COLUMNS, 1);
         cursor.addRow(new Object[] {
-                9, lease.state.name(), claimable ? 1 : 0, lease.sameBootSession ? 1 : 0, lease.userOptedIn ? 1 : 0,
-                lease.expiresAtMs, lease.heartbeatSequence, lease.localRiskLevel, lease.activeEngineSet, lease.policyVersion,
+                10, lease.state.name(), claimable ? 1 : 0, lease.sameBootSession ? 1 : 0, lease.userOptedIn ? 1 : 0,
+                lease.epoch, lease.expiresAtMs, lease.heartbeatSequence, lease.localRiskLevel, lease.activeEngineSet, lease.policyVersion,
                 emergency.level.name(), emergency.active ? emergency.expiresAtMs : 0L, network.name(), integrity.state.name(),
                 integrity.unexpectedProtectionLoss ? 1 : 0, freezeSensitive ? 1 : 0, selfIntegrity.state.name(),
                 selfIntegrity.continuityAcceptable ? 1 : 0, installSource.state.name(), installSource.continuityAcceptable ? 1 : 0,
