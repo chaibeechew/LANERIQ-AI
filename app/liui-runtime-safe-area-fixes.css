@@ -14,6 +14,15 @@ body[data-liui-surface]:not([data-liui-surface="creation"]) .accountNav{
   z-index:9870!important;
 }
 
+/* Long customer/project/template text must never force a horizontal page overflow. */
+body[data-liui-surface] :where(.projectCard,.projectBody,.projectTitle,.templateCard,.featuredCard,.settingCard,.qualityGrid article,.managementGrid>a,.managementGrid>article) :where(h1,h2,h3,b,small,p,span){
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+body[data-liui-surface] :where(.projectCard,.templateCard,.featuredCard,.settingCard,.qualityGrid article,.managementGrid>a,.managementGrid>article){
+  min-width:0;
+}
+
 @media(max-width:1000px){
   /* Dynamic Island / status-bar aware workspace header. */
   .liuiReferenceHeader{
@@ -28,9 +37,43 @@ body[data-liui-surface]:not([data-liui-surface="creation"]) .accountNav{
     right:max(12px,env(safe-area-inset-right))!important;
   }
 
+  /* Create is an immersive mobile workspace. Avoid a second floating account control
+     over its local header/form; account access remains available through More. */
+  body[data-liui-surface="creation"] .accountNav{
+    display:none!important;
+  }
+  body[data-liui-surface="creation"] .createReference{
+    padding-top:max(18px,calc(env(safe-area-inset-top) + 8px))!important;
+    padding-left:max(10px,env(safe-area-inset-left))!important;
+    padding-right:max(10px,env(safe-area-inset-right))!important;
+    padding-bottom:max(120px,calc(env(safe-area-inset-bottom) + 104px))!important;
+  }
+  body[data-liui-surface="creation"] .createReference :where(input,textarea,select){
+    font-size:16px!important;
+  }
+  body[data-liui-surface="creation"] .createReference :where(button,a,select,input){
+    min-height:44px!important;
+    touch-action:manipulation;
+  }
+  body[data-liui-surface="creation"] .createReference :where(.nameRow,.toolRow,.optionGrid,.progressActions)>*{
+    min-width:0;
+  }
+
   /* Workspace content starts below the safe-area-aware header. */
   body[data-liui-surface]:not([data-liui-surface="creation"]):not([data-liui-surface="creations"]):not([data-liui-surface="templates"]):not([data-liui-surface="template-detail"]) :where(.page,.combinedPreview,.releasePage,.publishPage,.soolenCenter,.studioShell){
     padding-top:max(84px,calc(env(safe-area-inset-top) + 76px))!important;
+  }
+
+  /* More has its own page wrapper rather than .page/.studioShell. */
+  body[data-liui-surface="more"] .settingsReference{
+    padding-top:max(112px,calc(env(safe-area-inset-top) + 76px))!important;
+    padding-left:max(16px,env(safe-area-inset-left))!important;
+    padding-right:max(16px,env(safe-area-inset-right))!important;
+    padding-bottom:max(155px,calc(env(safe-area-inset-bottom) + 126px))!important;
+  }
+  body[data-liui-surface="more"] .settingsReference :where(a,button){
+    min-height:44px!important;
+    touch-action:manipulation;
   }
 
   /* Portal pages use a logo anchor rather than the workspace rail/header. */
@@ -44,10 +87,27 @@ body[data-liui-surface]:not([data-liui-surface="creation"]) .accountNav{
     padding-top:max(92px,calc(env(safe-area-inset-top) + 68px))!important;
   }
 
+  /* Project/template actions meet the mobile 44px target instead of legacy 36–40px. */
+  body[data-liui-surface="creations"] :where(.projectToolbar a,.projectActions a,.empty a),
+  body[data-liui-surface="templates"] :where(.templateControls button,.templateControls input,.templateControls select,.cardActions a,.cardActions button,.templateHero>a),
+  body[data-liui-surface="template-detail"] :where(.heroActions button,.aiActions>*,.truth button){
+    min-height:44px!important;
+    touch-action:manipulation;
+  }
+  body[data-liui-surface="templates"] :where(.templateControls input,.templateControls select){
+    font-size:16px!important;
+  }
+
   /* Community has its own page wrapper, so reserve the same top chrome space explicitly. */
   body[data-liui-surface="community"] .chatPage{
     padding-top:max(118px,calc(env(safe-area-inset-top) + 82px))!important;
+    padding-left:max(12px,env(safe-area-inset-left))!important;
+    padding-right:max(12px,env(safe-area-inset-right))!important;
     padding-bottom:max(126px,calc(env(safe-area-inset-bottom) + 108px))!important;
+  }
+  body[data-liui-surface="community"] :where(.primaryButton,.ghostButton,.composer button){
+    min-height:44px!important;
+    touch-action:manipulation;
   }
 
   /* Landscape notches and Home Indicator must not clip the canonical navigation. */
@@ -55,6 +115,10 @@ body[data-liui-surface]:not([data-liui-surface="creation"]) .accountNav{
     left:max(12px,env(safe-area-inset-left))!important;
     right:max(12px,env(safe-area-inset-right))!important;
     bottom:max(10px,env(safe-area-inset-bottom))!important;
+  }
+  .liuiRealBottomNav a{
+    min-height:58px!important;
+    touch-action:manipulation;
   }
 
   /* Keep pages 15–18 step strip above the raised Home-Indicator-aware bottom nav. */
@@ -75,6 +139,17 @@ body[data-liui-surface]:not([data-liui-surface="creation"]) .accountNav{
   /* On narrow phones keep one compact account trigger; Sign out remains in its menu. */
   body[data-liui-surface]:not([data-liui-surface="creation"]) .accountNav .visibleLogout{
     display:none!important;
+  }
+
+  /* Protect dense portal cards from 320–375px width squeeze. */
+  body[data-liui-surface="creations"] .projectActions{
+    grid-template-columns:1fr 1fr!important;
+  }
+  body[data-liui-surface="creations"] .projectActions .primaryAction{
+    grid-column:1/-1;
+  }
+  body[data-liui-surface="templates"] :where(.templateControls,.cardActions){
+    min-width:0;
   }
 }
 
