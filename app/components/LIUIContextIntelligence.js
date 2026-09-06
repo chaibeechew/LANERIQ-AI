@@ -162,25 +162,6 @@ export default function LIUIContextIntelligence() {
           )}
         </div>
       </details>
-      <style jsx global>{`
-        .liuiContextIntelligence{position:fixed;z-index:70;top:max(10px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:min(780px,calc(100% - 24px));pointer-events:none;font-family:Inter,system-ui,-apple-system,sans-serif}
-        .liuiContextDetails{pointer-events:auto}
-        .liuiContextDetails>summary{list-style:none;display:flex;align-items:center;gap:8px;min-height:42px;padding:8px 11px;border:1px solid rgba(126,190,236,.24);border-radius:15px;background:linear-gradient(145deg,rgba(4,19,37,.86),rgba(8,14,31,.82));box-shadow:0 12px 34px rgba(0,0,0,.28);backdrop-filter:blur(20px) saturate(140%);-webkit-backdrop-filter:blur(20px) saturate(140%);color:#eef7ff;cursor:pointer}
-        .liuiContextDetails>summary::-webkit-details-marker{display:none}
-        .liuiContextMark{display:grid;place-items:center;width:26px;height:26px;border-radius:9px;background:linear-gradient(145deg,#ffe58b,#c98b1f);color:#101925;font-weight:950;flex:0 0 auto}
-        .liuiContextDetails>summary strong{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-        .liuiContextGroup{margin-left:auto;color:#a9bac8;font-size:10px;white-space:nowrap}
-        .liuiContextRisk{color:#8ce0b8;font-size:10px;white-space:nowrap}
-        .liuiContextDetails[open]>summary{border-color:rgba(242,200,98,.42);border-radius:15px 15px 10px 10px}
-        .liuiContextPanel{margin-top:7px;max-height:min(72vh,650px);overflow:auto;padding:13px;border:1px solid rgba(126,190,236,.25);border-radius:18px;background:linear-gradient(155deg,rgba(4,19,37,.96),rgba(10,14,31,.96));box-shadow:0 28px 70px rgba(0,0,0,.45);color:#eef7ff}
-        .liuiContextBento{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-        .liuiContextBento section,.liuiContextNext,.liuiContextJourney{padding:12px;border:1px solid rgba(255,255,255,.08);border-radius:14px;background:rgba(7,24,45,.68)}
-        .liuiContextBento small,.liuiContextNext>small,.liuiContextJourney>small{display:block;color:#829aae;font-size:8px;letter-spacing:.11em;text-transform:uppercase;font-weight:900}
-        .liuiContextBento b{display:block;margin-top:5px;font-size:11px;line-height:1.35}
-        .liuiContextNext{margin-top:9px}.liuiContextNext h3{margin:5px 0 3px;font-size:16px}.liuiContextNext p{margin:0;color:#9db0bf;font-size:10px;line-height:1.45}
-        .liuiContextJourney{margin-top:9px}.liuiContextJourney ol{list-style:none;padding:0;margin:9px 0 0;display:grid;grid-template-columns:repeat(6,1fr);gap:6px}.liuiContextJourney li{display:grid;grid-template-columns:24px 1fr;align-items:center;gap:5px;min-width:0;padding:7px;border:1px solid rgba(255,255,255,.06);border-radius:10px;color:#758da0}.liuiContextJourney li span{width:22px;height:22px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.1);border-radius:50%;font-size:9px}.liuiContextJourney li b{font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.liuiContextJourney li[data-state="done"]{color:#8fd9b8}.liuiContextJourney li[data-state="current"]{color:#f2d171;border-color:rgba(242,200,98,.35);background:rgba(242,200,98,.06)}
-        @media(max-width:720px){.liuiContextIntelligence{top:max(8px,env(safe-area-inset-top));width:calc(100% - 16px)}.liuiContextRisk{display:none}.liuiContextPanel{max-height:68vh}.liuiContextBento{grid-template-columns:1fr}.liuiContextJourney ol{display:flex;overflow:auto;scrollbar-width:none}.liuiContextJourney li{min-width:110px}}
-      `}</style>
     </aside>
   );
 }
