@@ -1,10 +1,6 @@
-import { NextResponse } from "next/server";
-import { createClient } from "../../../../../lib/supabase/server.js";
-import {
-  canAccessControlTower,
-  controlTowerCapabilities,
-  normalizeInternalRole,
-} from "../../../../../lib/admin-access.js";
+import { requireControlTowerApi } from "../../../../../lib/control-tower-api.js";
+import { appendControlTowerAudit } from "../../../../../lib/control-tower-audit.js";
+import { controlTowerJson } from "../../../../../lib/control-tower-http.js";
 import { getControlTowerLiveStatus } from "../../../../../lib/control-tower-runtime.js";
 import {
   CONTROL_TOWER_STANDARD_GATES,
@@ -14,34 +10,13 @@ import { isControlTowerStorageMissing } from "../../../../../lib/control-tower-v
 
 export const dynamic = "force-dynamic";
 
-function json(payload, status = 200) {
-  return NextResponse.json(payload, {
-    status,
-    headers: {
-      "Cache-Control": "private, no-store, max-age=0",
-      Pragma: "no-cache",
-      "X-Content-Type-Options": "nosniff",
-    },
-  });
-}
-
-async function requireControlTowerAdmin() {
-  const supabase = await createClient();
-  const { data: { user }, error } = await supabase.auth.getUser();
-  if (error || !user) return { error: json({ error: "Authentication required." }, 401) };
-  const role = normalizeInternalRole(user.app_metadata?.role);
-  if (!canAccessControlTower(role)) return { error: json({ error: "Control Tower access required." }, 403) };
-  return { supabase, user, role, capabilities: controlTowerCapabilities(role) };
-}
-
 async function loadReleaseBundle(supabase, releaseId) {
   const [releaseResult, workstreamResult, itemResult, gateResult] = await Promise.all([
-    supabase.from("control_tower_releases").select("id,product_version,release_version,release_status,stage,target_platforms,target_date,updated_at").eq("id", releaseId).maybeSingle(),
+    supabase.from("control_tower_releases").select("id,product_version,release_version,release_status,stage,target_platforms,target_date,production_verified_at,production_truth,updated_at").eq("id", releaseId).maybeSingle(),
     supabase.from("control_tower_workstreams").select("id,release_id,workstream_key,name,stage,dependencies,updated_at").eq("release_id", releaseId).order("created_at", { ascending: true }),
     supabase.from("control_tower_items").select("id,release_id,workstream_id,item_type,title,stage,priority,external_ref,metadata,updated_at").eq("release_id", releaseId).order("created_at", { ascending: false }),
     supabase.from("control_tower_release_gates").select("id,release_id,gate_key,label,state,required,detail,evidence,checked_at,updated_at").eq("release_id", releaseId).order("created_at", { ascending: true }),
   ]);
-
   for (const result of [releaseResult, workstreamResult, itemResult, gateResult]) {
     if (result.error) throw result.error;
   }
@@ -55,35 +30,59 @@ async function loadReleaseBundle(supabase, releaseId) {
 
 export async function GET(request) {
   try {
-    const auth = await requireControlTowerAdmin();
-    if (auth.error) return auth.error;
-    const releaseId = new URL(request.url).searchParams.get("releaseId")?.trim();
-    if (!releaseId) return json({ error: "releaseId is required." }, 400);
+    const auth = await requireControlTowerApi(request);
+    if (!auth.ok) return auth.response;
+    const releaseId = request.nextUrl.searchParams.get("releaseId")?.trim();
+    if (!releaseId) return controlTowerJson({ error: "releaseId is required." }, 400);
 
     let bundle;
     try {
       bundle = await loadReleaseBundle(auth.supabase, releaseId);
     } catch (error) {
-      if (isControlTowerStorageMissing(error)) return json({ storageReady: false, scorecard: null, capabilities: auth.capabilities });
+      if (isControlTowerStorageMissing(error)) return controlTowerJson({ storageReady: false, scorecard: null, capabilities: auth.capabilities });
       throw error;
     }
-    if (!bundle.release) return json({ error: "Release not found." }, 404);
+    if (!bundle.release) return controlTowerJson({ error: "Release not found." }, 404);
 
     const liveStatus = await getControlTowerLiveStatus();
     const scorecard = computeReleaseScorecard({ ...bundle, liveStatus });
-    return json({ storageReady: true, ...bundle, liveStatus, scorecard, capabilities: auth.capabilities });
+    return controlTowerJson({
+      storageReady: true,
+      ...bundle,
+      liveStatus,
+      scorecard,
+      capabilities: auth.capabilities,
+    });
   } catch {
-    return json({ error: "Unable to evaluate release readiness." }, 500);
+    return controlTowerJson({ error: "Unable to evaluate release readiness." }, 500);
   }
 }
 
 export async function POST(request) {
   try {
-    const auth = await requireControlTowerAdmin();
-    if (auth.error) return auth.error;
+    const auth = await requireControlTowerApi(request, { mutation: true });
+    if (!auth.ok) return auth.response;
+    if (!auth.capabilities.initializeGates) {
+      return controlTowerJson({ error: "Gate initialization is not permitted for this role." }, 403);
+    }
+
     const input = await request.json().catch(() => ({}));
     const releaseId = typeof input.releaseId === "string" ? input.releaseId.trim() : "";
-    if (!releaseId) return json({ error: "releaseId is required." }, 400);
+    if (!releaseId) return controlTowerJson({ error: "releaseId is required." }, 400);
+
+    const { data: release, error: releaseError } = await auth.supabase
+      .from("control_tower_releases")
+      .select("id,release_version,stage")
+      .eq("id", releaseId)
+      .maybeSingle();
+    if (releaseError) {
+      if (isControlTowerStorageMissing(releaseError)) return controlTowerJson({ error: "Control Tower storage migration is not active in this environment." }, 503);
+      throw releaseError;
+    }
+    if (!release) return controlTowerJson({ error: "Release does not exist." }, 404);
+    if (["production", "observed", "closed"].includes(release.stage)) {
+      return controlTowerJson({ error: `Standard gates cannot be initialized after ${release.stage}.`, code: "RELEASE_GATE_FROZEN" }, 409);
+    }
 
     const payload = CONTROL_TOWER_STANDARD_GATES.map((gate) => ({
       release_id: releaseId,
@@ -92,7 +91,7 @@ export async function POST(request) {
       required: gate.required,
       state: "pending",
       detail: "Awaiting verified evidence.",
-      evidence: { phase: gate.phase },
+      evidence: { phase: gate.phase, initialized_by: "control_tower" },
     }));
 
     const { data, error } = await auth.supabase
@@ -101,21 +100,25 @@ export async function POST(request) {
       .select("id,release_id,gate_key,label,state,required,detail,evidence,checked_at,updated_at");
 
     if (error) {
-      if (isControlTowerStorageMissing(error)) return json({ error: "Control Tower storage migration is not active in this environment." }, 503);
-      if (error.code === "23503") return json({ error: "Release does not exist." }, 409);
+      if (isControlTowerStorageMissing(error)) return controlTowerJson({ error: "Control Tower storage migration is not active in this environment." }, 503);
+      if (error.code === "23503") return controlTowerJson({ error: "Release does not exist." }, 409);
       throw error;
     }
 
-    await auth.supabase.from("control_tower_audit_log").insert({
-      actor_user_id: auth.user.id,
+    await appendControlTowerAudit(auth.supabase, {
       action: "standard_release_gates_initialized",
-      entity_type: "release",
-      entity_id: releaseId,
-      metadata: { gate_count: CONTROL_TOWER_STANDARD_GATES.length },
+      entityType: "release",
+      entityId: releaseId,
+      metadata: {
+        actor_role: auth.role,
+        gate_count: CONTROL_TOWER_STANDARD_GATES.length,
+        release_version: release.release_version,
+        release_stage: release.stage,
+      },
     });
 
-    return json({ initialized: true, gates: data || [] }, 201);
+    return controlTowerJson({ initialized: true, gates: data || [] }, 201);
   } catch {
-    return json({ error: "Unable to initialize standard release gates." }, 500);
+    return controlTowerJson({ error: "Unable to initialize standard release gates." }, 500);
   }
 }
