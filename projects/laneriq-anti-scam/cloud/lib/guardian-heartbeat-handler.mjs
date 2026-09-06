@@ -8,11 +8,15 @@ const PAYLOAD_FIELDS = new Set([
   'packageName', 'leaseEpoch', 'heartbeatSequence', 'leaseExpiresAtMs',
   'integrityState', 'emergencyLevel', 'alertDeliveryState', 'policyVersion', 'observedAtMs',
 ]);
+const GUARDIAN_PAYLOAD_FORBIDDEN_FIELDS = 'GUARDIAN_PAYLOAD_FORBIDDEN_FIELDS';
 
 function rejectUnknownFields(object, allowed, label) {
   if (!object || typeof object !== 'object' || Array.isArray(object)) throw new Error(`${label}_OBJECT_REQUIRED`);
   const unknown = Object.keys(object).filter(key => !allowed.has(key));
-  if (unknown.length) throw new Error(`${label}_FORBIDDEN_FIELDS:${unknown.join(',')}`);
+  if (unknown.length) {
+    const code = label === 'GUARDIAN_PAYLOAD' ? GUARDIAN_PAYLOAD_FORBIDDEN_FIELDS : `${label}_FORBIDDEN_FIELDS`;
+    throw new Error(`${code}:${unknown.join(',')}`);
+  }
 }
 
 function requestBytes(proof, attestationToken) {

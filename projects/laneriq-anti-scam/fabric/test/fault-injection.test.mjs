@@ -13,6 +13,21 @@ import { signedPolicy } from './test-crypto.mjs';
 
 const TRUST = 'publisher-sha256:laneriq-test';
 
+function recordPassingCapacityStage(ledger, users, evidenceId) {
+  return ledger.recordEvaluated({
+    users,
+    evidenceId,
+    observedUsers: users,
+    peakRps: 100,
+    provisionedRps: 200,
+    p95Ms: 100,
+    errorRate: 0.001,
+    costPerMillionRequests: 1,
+    durationMinutes: 60,
+    regionCount: 2,
+  });
+}
+
 test('Fault: stale Guardian proof fails closed before Broker exposure', () => {
   const now = 1_000_000;
   const broker = new SecurityBroker({ trustedPublisherDigest: TRUST, now: () => now });
@@ -63,9 +78,9 @@ test('Fault: unhealthy canary evidence cannot advance a signed rollout', () => {
 
 test('Fault: out-of-order capacity evidence cannot skip an unverified stage', () => {
   const ledger = new CapacityEvidenceLedger();
-  ledger.record({ users: 1_000, passed: true, evidenceId: '1k' });
-  ledger.record({ users: 100_000, passed: true, evidenceId: '100k' });
-  ledger.record({ users: 1_000_000, passed: true, evidenceId: '1m' });
+  recordPassingCapacityStage(ledger, 1_000, '1k');
+  recordPassingCapacityStage(ledger, 100_000, '100k');
+  recordPassingCapacityStage(ledger, 1_000_000, '1m');
   assert.equal(ledger.highestVerifiedCapacity(), 1_000);
   assert.equal(ledger.nextRequiredStage(), 10_000);
   assert.equal(ledger.summary().billionScaleVerified, false);

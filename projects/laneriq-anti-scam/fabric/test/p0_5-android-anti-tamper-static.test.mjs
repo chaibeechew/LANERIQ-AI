@@ -62,10 +62,10 @@ test('P0.5 direct stop remains an internal service action, not an exported notif
   assert.equal(guardian.includes('PendingIntent.getService(\n                this, 2, stop'), false);
 });
 
-test('P0.5 visible test-build version matches Gradle versionName', () => {
+test('P0.5 visible test-build version derives from the Gradle-generated BuildConfig value', () => {
   const match = gradle.match(/versionName\s+'([^']+)'/);
   assert.ok(match, 'versionName missing from Gradle');
-  assert.ok(mainActivity.includes(match[1]), `MainActivity must surface current test-build version ${match[1]}`);
+  assert.match(mainActivity, /BuildConfig\.VERSION_NAME/);
 });
 
 test('P0.5 recovery center only opens user-controlled Android settings', () => {

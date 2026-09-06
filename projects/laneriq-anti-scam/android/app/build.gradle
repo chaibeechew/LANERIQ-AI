@@ -48,7 +48,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            buildConfigField 'String', 'INTERNAL_TEST_THREAT_KEY_X509_B64', '""'
+            buildConfigField 'String', 'INTERNAL_TEST_THREAT_KEY_X509_B64', '\"\"'
             if (hasReleaseSigning) {
                 signingConfig signingConfigs.productionUpload
             }

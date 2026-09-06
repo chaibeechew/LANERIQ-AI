@@ -26,7 +26,7 @@ test('P0.5 witness accepts only a fresh active same-boot lease as protected', ()
   assert.equal(result.hackerAttributionAllowed, false);
 });
 
-test('P0.5 active Guardian with disabled Anti Scam notifications asks companion witness to warn', () => {
+test('P0.5 active Guardian with degraded delivery asks companion witness to warn', () => {
   const now = 1_000_000;
   const result = evaluateGuardianWitness({
     userOptedIn: true,
@@ -42,7 +42,7 @@ test('P0.5 active Guardian with disabled Anti Scam notifications asks companion 
   assert.equal(result.protectedClaimAllowed, true);
   assert.equal(result.shouldNotifyUser, true);
   assert.equal(result.freezeSensitiveLaneriqActions, false);
-  assert.equal(result.reason, 'guardian_active_but_alert_delivery_degraded');
+  assert.equal(result.reason, 'guardian_active_but_platform_delivery_degraded');
 });
 
 test('P0.5 expired heartbeat becomes protection lost but never hacker attribution', () => {
@@ -141,6 +141,7 @@ test('P0.5 privacy-safe heartbeat contains only minimal protection facts', () =>
     integrityState: 'ACTIVE',
     emergencyLevel: 'NONE',
     alertDeliveryState: 'AVAILABLE',
+    platformIntegrityState: 'AVAILABLE',
     policyVersion: 'p0.5',
     observedAtMs: 12345,
   });
@@ -152,10 +153,11 @@ test('P0.5 privacy-safe heartbeat contains only minimal protection facts', () =>
     'integrityState',
     'leaseEpoch',
     'observedAtMs',
+    'platformIntegrityState',
     'policyVersion',
     'schemaVersion',
   ].sort());
-  assert.equal(heartbeat.schemaVersion, 2);
+  assert.equal(heartbeat.schemaVersion, 3);
   for (const forbidden of ['rawUrl', 'messageBody', 'fileName', 'eventLog', 'installationId', 'password', 'authToken']) {
     assert.equal(Object.hasOwn(heartbeat, forbidden), false);
   }
