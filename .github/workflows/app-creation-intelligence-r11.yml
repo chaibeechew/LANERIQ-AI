@@ -1,4 +1,4 @@
-name: LANERIQ App Creation Intelligence R11 Gate
+name: LANERIQ App Creation Intelligence R11-R12 Gate
 
 on:
   pull_request:
@@ -18,17 +18,31 @@ on:
       - 'lib/ai/app-builder-world-class-quality.js'
       - 'lib/ai/app-builder-release-readiness.js'
       - 'lib/ai/app-creation-intelligence.js'
+      - 'lib/ai/visual-edit-context.js'
+      - 'lib/ai/visual-region-resolver.js'
+      - 'lib/ai/visual-edit-intent.js'
+      - 'lib/ai/responsive-edit-reconciler.js'
+      - 'lib/ai/edit-simplicity-gate.js'
+      - 'lib/ai/visual-patch-planner.js'
+      - 'lib/ai/visual-edit-judge.js'
+      - 'lib/ai/visual-edit-history.js'
+      - 'lib/ai/preview-conversational-edit-pipeline.js'
+      - 'app/api/visual-edit/plan/route.js'
+      - 'app/api/modify/route.js'
       - 'lib/buildStandards.js'
       - 'lib/templateCatalog.js'
       - 'lib/design/**'
       - 'lib/generator/**'
       - 'scripts/app-creation-intelligence-r11-contract-tests.mjs'
       - 'scripts/app-creation-round11-contract-tests.mjs'
+      - 'scripts/visual-conversational-editing-r12-contract-tests.mjs'
+      - 'scripts/ai-modify-contract-tests.mjs'
       - 'scripts/template-contract-tests.mjs'
       - 'scripts/generated-experience-standard-tests.mjs'
       - 'scripts/generation-outcome-intelligence-contract-tests.mjs'
       - 'scripts/app-builder-zero-cost-admission-contract-tests.mjs'
       - 'docs/LANERIQ_APP_CREATION_INTELLIGENCE_R11.md'
+      - 'docs/LANERIQ_VISUAL_CONVERSATIONAL_EDITING_R12.md'
       - '.github/workflows/app-creation-intelligence-r11.yml'
   workflow_dispatch:
 
@@ -36,7 +50,7 @@ permissions:
   contents: read
 
 jobs:
-  app-creation-intelligence-r11:
+  app-creation-intelligence-r11-r12:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -53,6 +67,10 @@ jobs:
         run: node scripts/app-creation-intelligence-r11-contract-tests.mjs
       - name: R11B world-class lifecycle and LIVE quality contract
         run: node scripts/app-creation-round11-contract-tests.mjs
+      - name: R12 visual conversational editing contract
+        run: node scripts/visual-conversational-editing-r12-contract-tests.mjs
+      - name: Existing Modify security/version/quality regression
+        run: node scripts/ai-modify-contract-tests.mjs
       - name: Canonical 3000-template regression
         run: node scripts/template-contract-tests.mjs
       - name: Generated Experience regression
@@ -84,12 +102,25 @@ jobs:
           node --check lib/ai/app-builder-world-class-quality.js
           node --check lib/ai/app-builder-release-readiness.js
           node --check lib/ai/app-creation-intelligence.js
+          node --check lib/ai/visual-edit-context.js
+          node --check lib/ai/visual-region-resolver.js
+          node --check lib/ai/visual-edit-intent.js
+          node --check lib/ai/responsive-edit-reconciler.js
+          node --check lib/ai/edit-simplicity-gate.js
+          node --check lib/ai/visual-patch-planner.js
+          node --check lib/ai/visual-edit-judge.js
+          node --check lib/ai/visual-edit-history.js
+          node --check lib/ai/preview-conversational-edit-pipeline.js
+          node --check app/api/visual-edit/plan/route.js
           node --check lib/buildStandards.js
       - name: LIVE truth boundary
         run: |
           node --input-type=module - <<'NODE'
           import { evaluateAppBuilderLiveVerification } from './lib/ai/app-builder-live-verification.js';
+          import { createPreviewConversationalEditPlan } from './lib/ai/preview-conversational-edit-pipeline.js';
           const ci=evaluateAppBuilderLiveVerification({ci:{exactHead:true,success:true}});
           if(ci.state!=='CI_VERIFIED'||ci.productionClaimAllowed) throw new Error('Static CI must never become LIVE verification');
-          console.log('Round 11 LIVE truth boundary: PASS');
+          const visual=createPreviewConversationalEditPlan({instruction:'左边加图',visual:{screenshotDigest:'a'.repeat(64),pageRoute:'/'}});
+          if(visual.truthBoundary.codeOrCiIsLiveVerified!==false||visual.truthBoundary.screenshotIsAuthorization!==false) throw new Error('R12 visual truth boundary failed');
+          console.log('Round 11-R12 LIVE truth boundary: PASS');
           NODE
