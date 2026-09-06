@@ -1,13 +1,9 @@
-/* Batch 41 — complete 18-page Living Intelligence UI presentation layer.
-   Presentation only: no generation, persistence, workflow, quality or publish semantics live here. */
+/* LANERIQ AI canonical Living Intelligence product presentation layer.
+   Presentation only: generation, persistence, workflow, quality and publish semantics remain in their owning features. */
 
-body[data-liui-surface] :where(.page,.combinedPreview,.releasePage,.templatesPage,.soolenCenter,.studioShell){
-  color:var(--liui-text);
-}
-
+body[data-liui-surface] :where(.page,.combinedPreview,.releasePage,.templatesPage,.soolenCenter,.studioShell){color:var(--liui-text)}
 body[data-liui-surface] :where(.eyebrow,.back){color:var(--liui-gold)!important}
 
-/* Shared Living Intelligence glass across real product surfaces. */
 body[data-liui-surface="creation"] .page :where(.builder,.plan,.planBox,aside,.risk,.uploadInfo,.consent),
 body[data-liui-surface="preview"] .combinedPreview :where(.top,.deliveryStatus,.previewGrid,.phoneStage,.webStage,.next),
 body[data-liui-surface="launch"] .releasePage :where(.quality,.blockers,.evidence,.websiteCard,.choices),
@@ -27,109 +23,68 @@ body[data-liui-surface="database"] .page :where(.heroCard,.summary,.panel,.entit
   -webkit-backdrop-filter:blur(22px) saturate(145%);
 }
 
-/* Page 2 / operational Create: keep orchestrate + generate untouched; make intent entry readable. */
 body[data-liui-surface="creation"] .page{background:transparent!important;color:var(--liui-text)!important}
-body[data-liui-surface="creation"] .page :where(textarea,input[type="text"],input[type="search"],select){
-  background:linear-gradient(180deg,#fffdf7,#f2ecdf)!important;
-  color:#14202c!important;
-  border-color:rgba(255,255,255,.62)!important;
-  font-size:max(16px,1em)!important;
-}
-body[data-liui-surface="creation"] .page textarea::placeholder,
-body[data-liui-surface="creation"] .page input::placeholder{color:#69737f!important}
-body[data-liui-surface="creation"] .page :where(.build,button[type="submit"],.primary){
-  background:linear-gradient(135deg,#f6d57c,#c8912d)!important;color:#101925!important;
-}
+body[data-liui-surface="creation"] .page :where(textarea,input[type="text"],input[type="search"],select){background:linear-gradient(180deg,#fffdf7,#f2ecdf)!important;color:#14202c!important;border-color:rgba(255,255,255,.62)!important;font-size:max(16px,1em)!important}
+body[data-liui-surface="creation"] .page textarea::placeholder,body[data-liui-surface="creation"] .page input::placeholder{color:#69737f!important}
+body[data-liui-surface="creation"] .page :where(.build,button[type="submit"],.primary){background:linear-gradient(135deg,#f6d57c,#c8912d)!important;color:#101925!important}
 
-/* Page 4 Preview: device and web frames remain tied to the same saved version. */
 body[data-liui-surface="preview"] .combinedPreview{background:transparent!important}
-body[data-liui-surface="preview"] .combinedPreview :where(.topActions a,.next a){
-  border-color:rgba(242,200,103,.34)!important;color:var(--liui-gold)!important;
-}
-body[data-liui-surface="preview"] .combinedPreview :where(.phoneStage,.webStage){
-  background:rgba(5,18,35,.82)!important;
-}
+body[data-liui-surface="preview"] .combinedPreview :where(.topActions a,.next a){border-color:rgba(242,200,103,.34)!important;color:var(--liui-gold)!important}
+body[data-liui-surface="preview"] .combinedPreview :where(.phoneStage,.webStage){background:rgba(5,18,35,.82)!important}
 
-/* Page 5 Launch / Release: visual quality and Production evidence stay separate. */
 body[data-liui-surface="launch"] .releasePage{background:transparent!important;color:var(--liui-text)!important}
-body[data-liui-surface="launch"] .releasePage :where(.scores>*,.evidenceGrid>*,.websitePreview){
-  background:rgba(8,27,49,.7)!important;border-color:var(--liui-line)!important;
-}
+body[data-liui-surface="launch"] .releasePage :where(.scores>*,.evidenceGrid>*,.websitePreview){background:rgba(8,27,49,.7)!important;border-color:var(--liui-line)!important}
 body[data-liui-surface="launch"] .releasePage :where(button,.primary){min-height:44px}
 
-/* Page 6 Manage & Grow: only real owner-scoped project state is shown. */
 body[data-liui-surface="manage"] .page{background:transparent!important;color:var(--liui-text)!important}
-body[data-liui-surface="manage"] .page :where(.mainActions a,.readinessActions a,.modeSwitch button){
-  min-height:44px;border-color:rgba(242,200,103,.3)!important;
-}
+body[data-liui-surface="manage"] .page :where(.mainActions a,.readinessActions a,.modeSwitch button){min-height:44px;border-color:rgba(242,200,103,.3)!important}
 body[data-liui-surface="manage"] .page .readinessPanel{background:linear-gradient(145deg,rgba(8,26,49,.82),rgba(17,24,56,.7))!important}
 
-/* Page 7 Creations: preserve real owner-scoped project list; no fabricated counters. */
 body[data-liui-surface="creations"] .page{background:transparent!important;color:var(--liui-text)!important}
 body[data-liui-surface="creations"] .page .grid{gap:14px!important}
 body[data-liui-surface="creations"] .page .card{background:linear-gradient(145deg,rgba(8,25,46,.84),rgba(8,20,38,.7))!important}
 body[data-liui-surface="creations"] .page .actions a{min-height:44px;display:inline-flex;align-items:center}
 
-/* Page 8 Templates: 3000+ industry intelligence remains primary, trend patterns secondary. */
 body[data-liui-surface="templates"] .templatesPage{background:transparent!important;color:var(--liui-text)!important}
 body[data-liui-surface="templates"] .templatesPage .card{background:linear-gradient(150deg,rgba(8,25,47,.86),rgba(18,18,50,.72))!important}
-body[data-liui-surface="templates"] .templatesPage :where(input,select){
-  background:rgba(247,249,252,.96)!important;color:#15202b!important;font-size:max(16px,1em)!important;
-}
+body[data-liui-surface="templates"] .templatesPage :where(input,select){background:rgba(247,249,252,.96)!important;color:#15202b!important;font-size:max(16px,1em)!important}
 body[data-liui-surface="templates"] .templatesPage :where(button,.use){min-height:44px}
 
-/* Page 9 AI Assistant: intentional SoolenAI assistant identity; conversation input is high-legibility. */
 body[data-liui-surface="assistant"] .soolenCenter{background:transparent!important;color:var(--liui-text)!important}
 body[data-liui-surface="assistant"] .soolenCenter .chat{background:linear-gradient(150deg,rgba(8,24,47,.88),rgba(24,18,59,.7))!important}
-body[data-liui-surface="assistant"] .soolenCenter textarea{
-  background:linear-gradient(180deg,#fffdf7,#f1ebdf)!important;color:#14202c!important;
-  border-color:rgba(255,255,255,.6)!important;font-size:max(16px,1em)!important;
-}
+body[data-liui-surface="assistant"] .soolenCenter textarea{background:linear-gradient(180deg,#fffdf7,#f1ebdf)!important;color:#14202c!important;border-color:rgba(255,255,255,.6)!important;font-size:max(16px,1em)!important}
 body[data-liui-surface="assistant"] .soolenCenter textarea::placeholder{color:#69737f!important}
 body[data-liui-surface="assistant"] .soolenCenter button{min-height:44px}
 
-/* Pages 10 + 15 Workflow overview/editor: Safe Test and dry-run semantics remain untouched. */
 body[data-liui-surface="workflow"] .page{background:transparent!important;color:var(--liui-text)!important}
 body[data-liui-surface="workflow"] .page :where(input,textarea,select){font-size:max(16px,1em)!important}
-body[data-liui-surface="workflow"] .page textarea,
-body[data-liui-surface="workflow"] .page input[type="text"]{background:rgba(247,249,252,.96)!important;color:#14202c!important}
+body[data-liui-surface="workflow"] .page textarea,body[data-liui-surface="workflow"] .page input[type="text"]{background:rgba(247,249,252,.96)!important;color:#14202c!important}
 body[data-liui-surface="workflow"] .page :where(button,a){min-height:44px}
 body[data-liui-surface="workflow"] .page .safe{border-color:rgba(100,229,170,.36)!important}
 
-/* Page 11 Analytics: style only observed owner-scoped events; never synthesize revenue/users. */
 body[data-liui-surface="analytics"] .page{background:transparent!important;color:var(--liui-text)!important}
 body[data-liui-surface="analytics"] .page .stats>*{background:linear-gradient(145deg,rgba(9,27,50,.82),rgba(9,21,40,.7))!important}
 body[data-liui-surface="analytics"] .page .bars{background:rgba(5,18,35,.76)!important}
 
-/* Page 12 More / Studio: contextual navigation only; no creation lifecycle tracker here. */
 body[data-liui-surface="more"] .studioShell{background:transparent!important;color:var(--liui-text)!important}
 body[data-liui-surface="more"] .studioShell .studioBackdrop{opacity:.22!important}
 body[data-liui-surface="more"] .studioShell .moduleCard{background:linear-gradient(150deg,rgba(8,25,47,.86),rgba(18,18,50,.7))!important}
 body[data-liui-surface="more"] .studioShell a{min-height:44px}
 
-/* Page 14 Template detail: existing real template details become LIUI; no fake live demo state. */
 body[data-liui-surface="template-detail"] .page{background:transparent!important;color:var(--liui-text)!important}
 body[data-liui-surface="template-detail"] .page section{background:linear-gradient(145deg,rgba(8,25,47,.86),rgba(18,18,50,.7))!important}
 body[data-liui-surface="template-detail"] .page button{min-height:48px;background:linear-gradient(135deg,#f5d274,#c89331)!important;color:#101925!important}
 
-/* Page 16 Database: retain versioned schema generation and rollback/recoverability. */
 body[data-liui-surface="database"] .page{background:transparent!important;color:var(--liui-text)!important}
 body[data-liui-surface="database"] .page :where(button,a){min-height:44px}
 body[data-liui-surface="database"] .page :where(input,textarea,select){font-size:max(16px,1em)!important}
 body[data-liui-surface="database"] .page .history{border-color:rgba(87,184,255,.28)!important}
 
-/* Canonical nav remains the only visible primary mobile nav and meets touch-target contract. */
 @media(max-width:900px){
   .liuiRealBottomNav a,.liuiRealBottomNav button{min-height:56px!important;min-width:44px!important}
   body[data-liui-surface] :where(.page,.combinedPreview,.releasePage,.templatesPage,.soolenCenter,.studioShell){padding-bottom:max(104px,calc(92px + env(safe-area-inset-bottom)))!important}
 }
 
-@media(max-width:620px){
-  body[data-liui-surface] :where(.grid,.stats,.qualityGrid,.moduleGrid,.previewGrid,.evidenceGrid,.readinessGrid){grid-template-columns:1fr!important}
-}
+@media(max-width:620px){body[data-liui-surface] :where(.grid,.stats,.qualityGrid,.moduleGrid,.previewGrid,.evidenceGrid,.readinessGrid){grid-template-columns:1fr!important}}
 
-@media(prefers-reduced-motion:reduce){
-  body[data-liui-surface] *,body[data-liui-surface] *::before,body[data-liui-surface] *::after{
-    animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important;
-  }
-}
+@media(prefers-reduced-motion:reduce){body[data-liui-surface] *,body[data-liui-surface] *::before,body[data-liui-surface] *::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}

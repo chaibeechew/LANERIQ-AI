@@ -8,17 +8,17 @@ on:
       - "app/liui-context-intelligence.css"
       - "app/layout.js"
       - "lib/i18n/liui-context-translations.js"
-      - "lib/product/laneriq-18-page-master.js"
+      - "lib/product/canonical-ui-registry.js"
       - "scripts/batch95-liui-context-intelligence-tests.mjs"
       - ".github/workflows/liui-context-intelligence-gate.yml"
   push:
-    branches: [main]
+    branches: [main, 'ui/canonical-*']
     paths:
       - "app/components/LIUIContextIntelligence.js"
       - "app/liui-context-intelligence.css"
       - "app/layout.js"
       - "lib/i18n/liui-context-translations.js"
-      - "lib/product/laneriq-18-page-master.js"
+      - "lib/product/canonical-ui-registry.js"
       - "scripts/batch95-liui-context-intelligence-tests.mjs"
       - ".github/workflows/liui-context-intelligence-gate.yml"
 
@@ -30,12 +30,12 @@ jobs:
       contents: read
     steps:
       - name: Checkout exact commit
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
       - name: Setup Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Validate LIUI Context Intelligence contract
+      - name: Validate canonical LIUI Context Intelligence contract
         run: node scripts/batch95-liui-context-intelligence-tests.mjs
       - name: Evidence boundary
         run: echo "UI contract only — this gate does not substitute for Production exact-SHA, browser/runtime, provider, physical-device, Malware scanner, transport or store evidence."

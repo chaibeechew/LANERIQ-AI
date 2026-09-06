@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "../../lib/supabase/client";
 import { PRODUCT_BRAND } from "../../lib/product-brand.js";
+import { resolveCanonicalUiContext } from "../../lib/product/canonical-ui-registry.js";
 import LaneriqLotusBrand from "./LaneriqLotusBrand";
-import {
-  clearPrivateSessionStorage,
-  isPublicAccountPath,
-  protectedReturnPath,
-} from "../../lib/auth/session-safety.js";
+import { clearPrivateSessionStorage, isPublicAccountPath, protectedReturnPath } from "../../lib/auth/session-safety.js";
+
+const ACCOUNT_NAV_SURFACES = new Set(["creations", "templates", "template-detail"]);
 
 export default function AccountNav() {
+  const pathname = usePathname() || "/";
+  const context = resolveCanonicalUiContext(pathname, null);
+  const canonicalChromeOwnsAccount = Boolean(context && !ACCOUNT_NAV_SURFACES.has(context.surface));
   const router = useRouter();
   const rootRef = useRef(null);
   const [user, setUser] = useState(null);
@@ -34,17 +36,26 @@ export default function AccountNav() {
 
     const refreshUser = async () => {
       try {
-        const response = await fetch("/api/auth/session", { method: "GET", cache: "no-store", credentials: "same-origin" });
+        const response = await fetch("/api/auth/session", {
+          method: "GET",
+          cache: "no-store",
+          credentials: "same-origin",
+        });
         const session = await response.json().catch(() => ({}));
         if (!mounted) return;
-        if (!response.ok || session?.authenticated !== true || session?.sessionAuthority !== "laneriq" || !session?.user?.id) {
+
+        const invalidSession =
+          !response.ok ||
+          session?.authenticated !== true ||
+          session?.sessionAuthority !== "laneriq" ||
+          !session?.user?.id;
+
+        if (invalidSession) {
           setUser(null);
           redirectSignedOutProtectedPage();
           return;
         }
 
-        // LANERIQ is the authentication truth. The old provider may temporarily enrich
-        // the display name while existing profile/data access is being migrated.
         let nextUser = { id: session.user.id };
         try {
           const { data, error } = await compatibilityClient.auth.getUser();
@@ -64,12 +75,13 @@ export default function AccountNav() {
       if (rootRef.current && !rootRef.current.contains(event.target)) setOpen(false);
     };
     const revalidate = () => { void refreshUser(); };
-    const onVisibility = () => { if (document.visibilityState === "visible") void refreshUser(); };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void refreshUser();
+    };
 
     document.addEventListener("pointerdown", close);
     window.addEventListener("pageshow", revalidate);
     document.addEventListener("visibilitychange", onVisibility);
-
     return () => {
       mounted = false;
       document.removeEventListener("pointerdown", close);
@@ -77,6 +89,10 @@ export default function AccountNav() {
       document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
+
+  useEffect(() => {
+    if (canonicalChromeOwnsAccount) setOpen(false);
+  }, [canonicalChromeOwnsAccount]);
 
   async function signOut() {
     if (signingOut) return;
@@ -92,7 +108,9 @@ export default function AccountNav() {
         body: JSON.stringify({ action: "logout" }),
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok || data?.success !== true || data?.sessionAuthority !== "laneriq") throw new Error("LANERIQ logout failed");
+      if (!response.ok || data?.success !== true || data?.sessionAuthority !== "laneriq") {
+        throw new Error("LANERIQ logout failed");
+      }
       try { clearPrivateSessionStorage(window.sessionStorage); } catch {}
       window.location.replace("/auth");
     } catch {
@@ -106,20 +124,20 @@ export default function AccountNav() {
     router.push(path);
   }
 
-  if (!user) return null;
+  if (!user || canonicalChromeOwnsAccount) return null;
+
   const displayName = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Account";
 
   return <div className="accountNav" ref={rootRef}>
     <div className="accountBar">
-      <button className="accountTrigger" type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="Open account menu">
+      <button className="accountTrigger" type="button" onClick={() => setOpen(value => !value)} aria-expanded={open} aria-label="Open account menu">
         <span className="avatar">{String(displayName).slice(0, 1).toUpperCase()}</span><b>{displayName}</b><i>⌄</i>
       </button>
       <button className="visibleLogout" type="button" onClick={signOut} disabled={signingOut} aria-label="Logout">{signingOut ? "Signing out…" : "Logout"}</button>
     </div>
     {signOutError && <div className="signOutError" role="alert">{signOutError}</div>}
     {open && <div className="accountMenu" role="menu" aria-label="Account menu">
-      <div className="accountBrand"><LaneriqLotusBrand compact /></div>
-      <small>{PRODUCT_BRAND.name} · {PRODUCT_BRAND.capabilities}</small>
+      <div className="accountBrand"><LaneriqLotusBrand compact /></div><small>{PRODUCT_BRAND.name} · {PRODUCT_BRAND.capabilities}</small>
       <button type="button" role="menuitem" onClick={() => go("/my-apps")}>▣ My Projects</button>
       <button type="button" role="menuitem" onClick={() => go("/account/device-compute")}>◎ Device &amp; Compute</button>
       <button type="button" role="menuitem" onClick={() => go("/account/cloud")}>◌ LANERIQ Cloud</button>

@@ -1,0 +1,369 @@
+/* LANERIQ AI Canonical Core UI.
+   Loaded last from app/template.js for the protected Home / Login / Auth / Create journey.
+   Workspace route/context presentation is owned separately by the canonical LIUI workspace shell. */
+
+:root{
+  --laneriq-canonical-gold:#f2c862;
+  --laneriq-canonical-gold-2:#d99b2c;
+  --laneriq-canonical-ink:#06111d;
+  --laneriq-canonical-glass:linear-gradient(145deg,rgba(7,27,48,.78),rgba(4,18,34,.88));
+  --laneriq-canonical-border:rgba(207,228,246,.28);
+  --laneriq-canonical-shadow:0 24px 70px rgba(0,15,38,.42);
+  --laneriq-canonical-cta:linear-gradient(110deg,#b97819,#f3cd68 48%,#a86b13);
+  --laneriq-core-header-height:72px;
+  --laneriq-core-bottom-height:78px;
+}
+
+/* Core routes never display workspace context/account chrome. */
+body[data-canonical-core-ui] .liuiContextIntelligence,
+body[data-canonical-core-ui] .accountNav{
+  display:none!important;
+}
+
+body[data-canonical-core-ui]{
+  overflow-x:hidden;
+}
+
+body[data-canonical-core-ui] .premiumHome,
+body[data-canonical-core-ui] .authPage,
+body[data-canonical-core-ui] .createReference,
+body[data-canonical-core-ui] .loginPage{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+  background:#04101b;
+}
+
+/* One canonical customer-facing background source for the protected core journey. */
+body[data-canonical-core-ui] .premiumHome .bg,
+body[data-canonical-core-ui] .createBg,
+.loginPage .canonicalBackdrop{
+  position:fixed;
+  inset:0;
+  background:
+    linear-gradient(180deg,rgba(2,10,22,.16),rgba(2,9,20,.52) 58%,rgba(2,8,18,.90)),
+    url('/laneriq-future-city-people.webp') center/cover no-repeat!important;
+}
+
+body[data-canonical-core-ui="auth"] .authPage{
+  background:
+    linear-gradient(90deg,rgba(4,22,42,.28),rgba(4,18,36,.54)),
+    url('/laneriq-future-city-people.webp') center/cover fixed no-repeat!important;
+  color:#f7fbff!important;
+}
+
+body[data-canonical-core-ui="auth"] .authPage::after{
+  background:linear-gradient(90deg,rgba(3,18,35,.16) 0 48%,rgba(4,22,43,.30) 48% 100%)!important;
+}
+
+/* Canonical shared header. */
+.canonicalCoreHeader{
+  position:fixed;
+  z-index:1200;
+  top:0;
+  left:0;
+  right:0;
+  min-height:calc(var(--laneriq-core-header-height) + env(safe-area-inset-top));
+  padding:max(10px,env(safe-area-inset-top)) max(14px,env(safe-area-inset-right)) 10px max(14px,env(safe-area-inset-left));
+  display:grid;
+  grid-template-columns:minmax(150px,1fr) auto minmax(150px,1fr);
+  align-items:center;
+  gap:12px;
+  background:linear-gradient(180deg,rgba(2,13,26,.90),rgba(2,13,26,.54),transparent);
+  pointer-events:none;
+}
+
+.canonicalCoreHeader>*{pointer-events:auto}
+.canonicalBrandLink{display:inline-flex;width:max-content;color:#f6d978;text-decoration:none}
+.canonicalBrandLink .laneriqLotusBrand{filter:drop-shadow(0 10px 24px rgba(0,0,0,.28))}
+.canonicalHeaderStage{justify-self:center;color:#c8d7e5;font-size:9px;font-weight:950;letter-spacing:.19em;text-align:center}
+.canonicalHeaderActions{justify-self:end;display:flex;align-items:center;gap:8px}
+.canonicalHeaderActions a{
+  min-height:44px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 16px;
+  border:1px solid rgba(242,200,98,.38);
+  border-radius:999px;
+  background:rgba(5,27,48,.70);
+  color:#f8dda0;
+  text-decoration:none;
+  font-size:12px;
+  font-weight:900;
+  box-shadow:0 12px 34px rgba(0,0,0,.24);
+  backdrop-filter:blur(18px) saturate(140%);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+  touch-action:manipulation;
+}
+.canonicalHeaderActions a::before,
+.canonicalHeaderActions a::after{
+  content:none!important;
+  display:none!important;
+}
+.canonicalHeaderActions a:focus-visible{
+  outline:2px solid #f7d675;
+  outline-offset:3px;
+}
+
+/* Canonical bottom navigation is owned only by the Home/Create core shell. */
+.canonicalBottomNav{
+  position:fixed;
+  z-index:1190;
+  left:50%;
+  transform:translateX(-50%);
+  bottom:max(8px,env(safe-area-inset-bottom));
+  width:min(860px,calc(100% - max(20px,env(safe-area-inset-left)) - max(20px,env(safe-area-inset-right))));
+  min-height:var(--laneriq-core-bottom-height);
+  padding:8px;
+  display:grid;
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  border:1px solid var(--laneriq-canonical-border);
+  border-radius:22px;
+  background:linear-gradient(145deg,rgba(4,24,43,.92),rgba(2,15,29,.94));
+  box-shadow:var(--laneriq-canonical-shadow);
+  backdrop-filter:blur(24px) saturate(145%);
+  -webkit-backdrop-filter:blur(24px) saturate(145%);
+}
+.canonicalBottomNav a{
+  min-width:0;
+  min-height:52px;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  align-content:center;
+  gap:3px;
+  color:#90a6b7;
+  text-decoration:none;
+  touch-action:manipulation;
+}
+.canonicalBottomNav a span{font-size:19px;line-height:1}
+.canonicalBottomNav a b{font-size:9px;white-space:nowrap}
+.canonicalBottomNav a[aria-current="page"]{color:#f1cd70;background:rgba(242,200,98,.08)}
+
+/* Hide only page-owned chrome that still exists on protected core routes. */
+body[data-canonical-core-ui="home"] .premiumHome .topbar,
+body[data-canonical-core-ui="home"] .premiumHome .bottomNav,
+body[data-canonical-core-ui="auth"] .brandBar{
+  display:none!important;
+}
+
+/* Home: safe-area and collision cleanup. */
+body[data-canonical-core-ui="home"] .premiumHome{
+  min-height:100svh!important;
+  padding-top:calc(var(--laneriq-core-header-height) + env(safe-area-inset-top) + 14px)!important;
+  padding-bottom:calc(var(--laneriq-core-bottom-height) + env(safe-area-inset-bottom) + 34px)!important;
+  overflow-x:hidden!important;
+  overflow-y:visible!important;
+}
+body[data-canonical-core-ui="home"] .premiumHome .frame{width:min(920px,calc(100% - 24px))!important}
+body[data-canonical-core-ui="home"] .premiumHome .heroCopy h1 span,
+body[data-canonical-core-ui="home"] .premiumHome .heroCopy h1 strong{overflow-wrap:anywhere}
+body[data-canonical-core-ui="home"] .premiumHome .buildCta,
+body[data-canonical-core-ui="create"] .generateButton,
+body[data-canonical-core-ui="auth"] .primary,
+.loginPrimary{
+  border:1px solid #f7d675!important;
+  background:var(--laneriq-canonical-cta)!important;
+  color:#17202a!important;
+  box-shadow:0 0 32px rgba(235,190,75,.30),0 18px 44px rgba(0,0,0,.32)!important;
+  min-height:56px;
+  touch-action:manipulation;
+}
+
+/* Auth: one visual path for Enter Email and Verification Code. */
+body[data-canonical-core-ui="auth"] .authShell{
+  min-height:100svh!important;
+  padding-top:calc(var(--laneriq-core-header-height) + env(safe-area-inset-top) + 34px)!important;
+  padding-bottom:max(34px,env(safe-area-inset-bottom))!important;
+  grid-template-columns:minmax(0,1fr) minmax(410px,.82fr)!important;
+  gap:clamp(32px,6vw,88px)!important;
+}
+body[data-canonical-core-ui="auth"] .heroCopy{
+  display:flex!important;
+  min-height:460px!important;
+  flex-direction:column;
+  justify-content:flex-end;
+  color:#fff!important;
+  text-shadow:0 2px 16px rgba(0,20,50,.32);
+}
+body[data-canonical-core-ui="auth"] .heroCopy h1,
+body[data-canonical-core-ui="auth"] .heroCopy p,
+body[data-canonical-core-ui="auth"] .capabilityRow{
+  display:block!important;
+}
+body[data-canonical-core-ui="auth"] .heroCopy h1{font-size:clamp(46px,5.8vw,82px)!important;color:#fff!important}
+body[data-canonical-core-ui="auth"] .heroCopy h1 em{color:#f1cd70!important}
+body[data-canonical-core-ui="auth"] .heroCopy p{color:#e2ebf2!important;max-width:520px!important}
+body[data-canonical-core-ui="auth"] .capabilityRow{display:flex!important}
+body[data-canonical-core-ui="auth"] .trustLine::before{content:none!important}
+body[data-canonical-core-ui="auth"] .trustLine{color:#d8e3ea!important;max-width:none!important}
+body[data-canonical-core-ui="auth"] .authCard{
+  width:100%!important;
+  max-width:540px!important;
+  justify-self:end!important;
+  border:1px solid rgba(220,235,248,.62)!important;
+  border-radius:28px!important;
+  padding:clamp(22px,3vw,34px)!important;
+  background:linear-gradient(155deg,rgba(239,248,255,.88),rgba(210,233,249,.78))!important;
+  color:#07326e!important;
+  box-shadow:0 30px 80px rgba(0,20,55,.28),inset 0 1px 0 rgba(255,255,255,.92)!important;
+  backdrop-filter:blur(24px) saturate(135%)!important;
+  -webkit-backdrop-filter:blur(24px) saturate(135%)!important;
+}
+body[data-canonical-core-ui="auth"] .authCard .cardTop{
+  position:relative!important;
+  z-index:2;
+  min-height:36px;
+  gap:12px;
+}
+body[data-canonical-core-ui="auth"] .authCard .cardTop>small{
+  min-width:0;
+  max-width:calc(100% - 50px);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+body[data-canonical-core-ui="auth"] .authEnvelope{
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  margin:12px auto 10px!important;
+}
+body[data-canonical-core-ui="auth"] .otpCells{
+  grid-template-columns:repeat(8,minmax(0,1fr))!important;
+  gap:6px!important;
+  width:100%!important;
+  max-width:100%!important;
+}
+body[data-canonical-core-ui="auth"] .otpCells>span{min-width:0!important}
+body[data-canonical-core-ui="auth"] .bottomBrand{display:none!important}
+
+/* Create uses the same core header/background/navigation system. */
+body[data-canonical-core-ui="create"] .createReference{
+  min-height:100svh!important;
+  padding-top:calc(var(--laneriq-core-header-height) + env(safe-area-inset-top) + 12px)!important;
+  padding-bottom:calc(var(--laneriq-core-bottom-height) + env(safe-area-inset-bottom) + 36px)!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+}
+body[data-canonical-core-ui="create"] .createWrap,
+body[data-canonical-core-ui="create"] .progressWrap{width:min(900px,100%);padding-inline:2px}
+body[data-canonical-core-ui="create"] .composerCard,
+body[data-canonical-core-ui="create"] .progressCard,
+body[data-canonical-core-ui="create"] .truthNote{
+  border-color:var(--laneriq-canonical-border)!important;
+  background:var(--laneriq-canonical-glass)!important;
+  box-shadow:var(--laneriq-canonical-shadow)!important;
+}
+
+/* Login stage inserted between Home and Enter Email. */
+.loginPage{
+  min-height:100svh;
+  position:relative;
+  isolation:isolate;
+  display:grid;
+  place-items:center;
+  padding:calc(var(--laneriq-core-header-height) + env(safe-area-inset-top) + 28px) max(16px,env(safe-area-inset-right)) max(28px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));
+  color:#f7fbff;
+  font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+}
+.loginPage .canonicalBackdrop{z-index:-2}
+.loginPage::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(90deg,rgba(2,14,27,.58),rgba(3,18,35,.28) 48%,rgba(2,14,27,.72))}
+.loginCard{
+  width:min(520px,100%);
+  padding:clamp(24px,5vw,40px);
+  border:1px solid rgba(216,234,248,.44);
+  border-radius:28px;
+  background:linear-gradient(150deg,rgba(7,31,54,.80),rgba(3,18,34,.90));
+  box-shadow:var(--laneriq-canonical-shadow);
+  backdrop-filter:blur(24px) saturate(140%);
+  -webkit-backdrop-filter:blur(24px) saturate(140%);
+}
+.loginEyebrow{color:#f0ca68;font-size:10px;font-weight:950;letter-spacing:.20em}
+.loginCard h1{margin:12px 0 10px;font-size:clamp(42px,8vw,62px);line-height:.98;letter-spacing:-.045em}
+.loginCard>p{margin:0;color:#c3d2dd;line-height:1.6}
+.loginPrimary{margin-top:24px;min-height:60px;border-radius:18px!important;padding:0 18px;display:flex;align-items:center;justify-content:space-between;text-decoration:none;font-weight:950}
+.loginPrimary span:last-child{font-size:24px}
+.loginSecondary{margin-top:10px;min-height:50px;border:1px solid rgba(216,234,248,.20);border-radius:16px;display:flex;align-items:center;justify-content:center;color:#e4edf4;text-decoration:none;background:rgba(5,27,48,.62)}
+.loginTrust{margin-top:18px!important;padding-top:16px;border-top:1px solid rgba(216,234,248,.12);font-size:11px;color:#90a7b8!important}
+
+@media(max-width:860px){
+  .canonicalCoreHeader{grid-template-columns:1fr auto}.canonicalHeaderStage{display:none}.canonicalHeaderActions{grid-column:2}
+  body[data-canonical-core-ui="auth"] .authShell{grid-template-columns:1fr!important;padding-left:12px!important;padding-right:12px!important}
+  body[data-canonical-core-ui="auth"] .heroCopy{display:none!important}
+  body[data-canonical-core-ui="auth"] .authCard{justify-self:center!important}
+}
+
+@media(max-width:520px){
+  :root{--laneriq-core-header-height:66px;--laneriq-core-bottom-height:72px}
+  .canonicalCoreHeader{padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}
+  .canonicalBrandLink .laneriqLotusWordmark small{display:none}
+  .canonicalHeaderActions a{min-height:42px;padding:0 13px;font-size:11px}
+  .canonicalBottomNav{width:calc(100% - 16px);padding:6px;border-radius:18px}
+  .canonicalBottomNav a{min-height:50px}.canonicalBottomNav a b{font-size:8px}
+  body[data-canonical-core-ui="home"] .premiumHome .frame{width:calc(100% - 18px)!important}
+  body[data-canonical-core-ui="home"] .premiumHome .heroCopy h1 span,
+  body[data-canonical-core-ui="home"] .premiumHome .heroCopy h1 strong{font-size:clamp(42px,14vw,58px)!important}
+  body[data-canonical-core-ui="home"] .premiumHome .featureCards{grid-template-columns:1fr!important}
+  body[data-canonical-core-ui="home"] .premiumHome .buildCta{font-size:17px!important;padding:16px 14px!important}
+  body[data-canonical-core-ui="auth"] .authPage{background-attachment:scroll!important}
+  body[data-canonical-core-ui="auth"] .authShell{
+    padding-top:calc(var(--laneriq-core-header-height) + env(safe-area-inset-top) + 12px)!important;
+    padding-bottom:max(24px,env(safe-area-inset-bottom))!important;
+    align-items:start!important;
+  }
+  body[data-canonical-core-ui="auth"] .authCard{
+    padding:18px 14px 16px!important;
+    border-radius:23px!important;
+  }
+  body[data-canonical-core-ui="auth"] .authCard .cardTop{min-height:32px}
+  body[data-canonical-core-ui="auth"] .authCard .cardTop>small{font-size:9px!important;letter-spacing:.16em!important}
+  body[data-canonical-core-ui="auth"] .authEnvelope{
+    width:64px!important;
+    height:54px!important;
+    margin:6px auto 8px!important;
+    border-radius:18px!important;
+    font-size:28px!important;
+  }
+  body[data-canonical-core-ui="auth"] .authWelcome{margin-bottom:6px!important;font-size:13px!important}
+  body[data-canonical-core-ui="auth"] .authWelcome b{font-size:22px!important}
+  body[data-canonical-core-ui="auth"] .authWelcome small{margin-top:4px!important;font-size:7px!important}
+  body[data-canonical-core-ui="auth"] .authCard h2{margin:6px 0 4px!important;font-size:30px!important;line-height:1.02!important}
+  body[data-canonical-core-ui="auth"] .authCard>p{margin-bottom:12px!important;font-size:12px!important;line-height:1.45!important}
+  body[data-canonical-core-ui="auth"] .authCard form{gap:10px!important}
+  body[data-canonical-core-ui="auth"] .inputWrap{height:54px!important}
+  body[data-canonical-core-ui="auth"] .authCard .notice,
+  body[data-canonical-core-ui="auth"] .authCard .sentTo{
+    margin:0!important;
+    padding:7px 8px!important;
+    border:0!important;
+    border-radius:10px!important;
+    background:rgba(255,255,255,.30)!important;
+    color:#557b9e!important;
+    font-size:10px!important;
+    line-height:1.35!important;
+    box-shadow:none!important;
+  }
+  body[data-canonical-core-ui="auth"] .primary{min-height:56px!important;margin-top:2px!important}
+  body[data-canonical-core-ui="auth"] .authCard footer{margin-top:13px!important;padding-top:10px!important}
+  body[data-canonical-core-ui="auth"] .otpCells{gap:4px!important}
+  body[data-canonical-core-ui="auth"] .otpCells>span{font-size:18px!important;border-radius:8px!important}
+  body[data-canonical-core-ui="create"] .createReference{padding-left:9px!important;padding-right:9px!important}
+  body[data-canonical-core-ui="create"] .toolRow,
+  body[data-canonical-core-ui="create"] .optionGrid{grid-template-columns:1fr 1fr!important}
+  .loginCard{padding:24px 18px;border-radius:23px}.loginCard h1{font-size:42px}
+}
+
+@media(max-width:360px){
+  .canonicalBrandLink .laneriqLotusWordmark{display:none}
+  .canonicalBottomNav a b{font-size:7px}
+  body[data-canonical-core-ui="auth"] .authCard{padding-inline:12px!important}
+  body[data-canonical-core-ui="auth"] .authCard h2{font-size:28px!important}
+  body[data-canonical-core-ui="auth"] .otpCells{gap:3px!important}
+  body[data-canonical-core-ui="auth"] .otpCells>span{font-size:16px!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  body[data-canonical-core-ui] *,body[data-canonical-core-ui] *::before,body[data-canonical-core-ui] *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
+}
