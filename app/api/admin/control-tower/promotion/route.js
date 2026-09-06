@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../../lib/supabase/server.js";
-import { canAccessControlTower } from "../../../../../lib/admin-access.js";
+import {
+  canAccessControlTower,
+  canPromoteControlTowerProduction,
+  normalizeInternalRole,
+} from "../../../../../lib/admin-access.js";
 import { getControlTowerLiveStatus } from "../../../../../lib/control-tower-runtime.js";
 import { computeReleaseScorecard } from "../../../../../lib/control-tower-governance.js";
 import { evaluatePromotionPolicy, normalizeControlTowerStage } from "../../../../../lib/control-tower-state-machine.js";
@@ -23,10 +27,9 @@ async function requireControlTowerAdmin() {
   const supabase = await createClient();
   const { data: { user }, error } = await supabase.auth.getUser();
   if (error || !user) return { error: json({ error: "Authentication required." }, 401) };
-  if (!canAccessControlTower(user.app_metadata?.role)) {
-    return { error: json({ error: "Control Tower access required." }, 403) };
-  }
-  return { supabase, user };
+  const role = normalizeInternalRole(user.app_metadata?.role);
+  if (!canAccessControlTower(role)) return { error: json({ error: "Control Tower access required." }, 403) };
+  return { supabase, user, role };
 }
 
 async function loadBundle(supabase, releaseId) {
@@ -58,17 +61,21 @@ export async function POST(request) {
     const expectedUpdatedAt = typeof input.expectedUpdatedAt === "string" ? input.expectedUpdatedAt.trim() : "";
     if (!releaseId) return json({ error: "releaseId is required." }, 400);
     if (!targetStage) return json({ error: "A valid targetStage is required." }, 400);
+    if (targetStage === "production" && !canPromoteControlTowerProduction(auth.role)) {
+      return json({ error: "Owner or Super Admin approval is required for Production promotion.", code: "PRODUCTION_APPROVAL_REQUIRED" }, 403);
+    }
 
     let bundle;
     try {
       bundle = await loadBundle(auth.supabase, releaseId);
     } catch (error) {
-      if (isControlTowerStorageMissing(error)) {
-        return json({ error: "Control Tower storage migration is not active in this environment." }, 503);
-      }
+      if (isControlTowerStorageMissing(error)) return json({ error: "Control Tower storage migration is not active in this environment." }, 503);
       throw error;
     }
     if (!bundle.release) return json({ error: "Release not found." }, 404);
+    if (targetStage === "production" && bundle.release.release_status !== "active") {
+      return json({ error: "Only the Current Release may be promoted to Production.", code: "NOT_CURRENT_RELEASE" }, 409);
+    }
     if (expectedUpdatedAt && bundle.release.updated_at !== expectedUpdatedAt) {
       return json({ error: "Release changed since it was loaded. Refresh before promoting.", code: "STALE_RELEASE" }, 409);
     }
@@ -80,14 +87,9 @@ export async function POST(request) {
       targetStage,
       scorecard,
     });
-    if (!policy.allowed) {
-      return json({ error: policy.reason, scorecard, policy }, 409);
-    }
+    if (!policy.allowed) return json({ error: policy.reason, scorecard, policy }, 409);
 
-    let update = auth.supabase
-      .from("control_tower_releases")
-      .update({ stage: targetStage })
-      .eq("id", releaseId);
+    let update = auth.supabase.from("control_tower_releases").update({ stage: targetStage }).eq("id", releaseId);
     if (expectedUpdatedAt) update = update.eq("updated_at", expectedUpdatedAt);
     const { data, error } = await update
       .select("id,product_version,release_version,release_status,stage,target_platforms,target_date,created_at,updated_at")
@@ -103,7 +105,12 @@ export async function POST(request) {
       entity_id: data.id,
       before_state: bundle.release,
       after_state: data,
-      metadata: { scorecard_overall: scorecard.overall, target_stage: targetStage },
+      metadata: {
+        scorecard_overall: scorecard.overall,
+        target_stage: targetStage,
+        actor_role: auth.role,
+        production_eligible: scorecard.productionEligible,
+      },
     });
 
     return json({ release: data, scorecard, policy }, 200);
