@@ -5,5 +5,14 @@
             android:exported="true"
             android:excludeFromRecents="true"
             android:label="LANERIQ Web Shield Internal Test" />
+
+        <receiver
+            android:name=".InternalWebShieldTestReceiver"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="ai.laneriq.antiscam.test.INTERNAL_WEB_SHIELD_CONTROL" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
