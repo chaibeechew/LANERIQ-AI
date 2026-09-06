@@ -4,6 +4,7 @@ import { controlTowerJson } from "../../../../../lib/control-tower-http.js";
 import { getControlTowerLiveStatus } from "../../../../../lib/control-tower-runtime.js";
 import { computeReleaseScorecard } from "../../../../../lib/control-tower-governance.js";
 import { buildControlTowerReleaseSnapshot } from "../../../../../lib/control-tower-snapshot.js";
+import { computeControlTowerTechnicalCeiling } from "../../../../../lib/control-tower-technical-ceiling.js";
 import { evaluatePromotionPolicy, normalizeControlTowerStage } from "../../../../../lib/control-tower-state-machine.js";
 import { isControlTowerStorageMissing } from "../../../../../lib/control-tower-validation.js";
 
@@ -16,7 +17,7 @@ async function loadBundle(supabase, releaseId) {
   const [releaseResult, workstreamsResult, itemsResult, gatesResult] = await Promise.all([
     supabase.from("control_tower_releases").select(RELEASE_SELECT).eq("id", releaseId).maybeSingle(),
     supabase.from("control_tower_workstreams").select("id,release_id,workstream_key,name,stage,dependencies,updated_at").eq("release_id", releaseId),
-    supabase.from("control_tower_items").select("id,release_id,workstream_id,item_type,title,stage,priority,external_ref,metadata,updated_at").eq("release_id", releaseId),
+    supabase.from("control_tower_items").select("id,release_id,workstream_id,item_type,title,stage,priority,external_ref,metadata,created_at,updated_at").eq("release_id", releaseId),
     supabase.from("control_tower_release_gates").select("id,release_id,gate_key,label,state,required,detail,evidence,checked_at,updated_at").eq("release_id", releaseId),
   ]);
   for (const result of [releaseResult, workstreamsResult, itemsResult, gatesResult]) {
@@ -30,9 +31,9 @@ async function loadBundle(supabase, releaseId) {
   };
 }
 
-function productionTruthSnapshot(liveStatus, releaseSnapshot, verifiedAt) {
+function productionTruthSnapshot(liveStatus, releaseSnapshot, verifiedAt, technicalCeiling = null) {
   return {
-    schema: "laneriq.control-tower.production-truth.v1",
+    schema: "laneriq.control-tower.production-truth.v2",
     verified_at: verifiedAt,
     repository: liveStatus.repository,
     github_main_sha: liveStatus.github?.mainSha || null,
@@ -50,6 +51,22 @@ function productionTruthSnapshot(liveStatus, releaseSnapshot, verifiedAt) {
     production_verified: Boolean(liveStatus.releaseTruth?.productionVerified),
     release_snapshot_hash: releaseSnapshot.snapshotHash,
     release_snapshot_algorithm: releaseSnapshot.hashAlgorithm,
+    technical_ceiling_overall: technicalCeiling?.overall ?? null,
+    technical_ceiling_digest: technicalCeiling?.dimensions?.operational?.attestation?.digest || null,
+  };
+}
+
+function technicalCeilingSummary(technicalCeiling, sealedAt) {
+  return {
+    overall: technicalCeiling.overall,
+    blockerCount: technicalCeiling.blockers.length,
+    operational: technicalCeiling.dimensions.operational.overall,
+    disasterRecovery: technicalCeiling.dimensions.disasterRecovery.score,
+    supplyChain: technicalCeiling.dimensions.supplyChain.score,
+    observability: technicalCeiling.dimensions.observability.score,
+    capacity: technicalCeiling.dimensions.capacity.score,
+    governance: technicalCeiling.dimensions.governance.score,
+    sealedAt,
   };
 }
 
@@ -99,6 +116,25 @@ export async function POST(request) {
     const projectedRelease = targetStage === "production"
       ? { ...bundle.release, stage: "production", production_verified_at: verifiedAt }
       : { ...bundle.release, stage: targetStage };
+
+    let technicalCeiling = null;
+    if (targetStage === "production") {
+      technicalCeiling = computeControlTowerTechnicalCeiling({
+        ...bundle,
+        release: projectedRelease,
+        liveStatus,
+        now: verifiedAt,
+      });
+      if (!technicalCeiling.technicalCeilingEligible) {
+        return controlTowerJson({
+          error: "Production promotion requires Technical Ceiling 100 with zero blockers.",
+          code: "TECHNICAL_CEILING_NOT_MET",
+          scorecard,
+          technicalCeiling,
+        }, 409);
+      }
+    }
+
     const releaseSnapshot = buildControlTowerReleaseSnapshot({
       ...bundle,
       release: projectedRelease,
@@ -106,44 +142,66 @@ export async function POST(request) {
       liveStatus,
     });
 
-    const updatePayload = { stage: targetStage };
+    let data;
     if (targetStage === "production") {
-      updatePayload.production_verified_at = verifiedAt;
-      updatePayload.production_verified_by = auth.user.id;
-      updatePayload.production_truth = productionTruthSnapshot(liveStatus, releaseSnapshot, verifiedAt);
+      const attestation = technicalCeiling.dimensions.operational.attestation;
+      const ceilingSummary = technicalCeilingSummary(technicalCeiling, verifiedAt);
+      const productionTruth = productionTruthSnapshot(liveStatus, releaseSnapshot, verifiedAt, technicalCeiling);
+      const result = await auth.supabase.rpc("promote_control_tower_production_with_attestation", {
+        p_release_id: releaseId,
+        p_expected_updated_at: expectedUpdatedAt || null,
+        p_verified_at: verifiedAt,
+        p_production_truth: productionTruth,
+        p_digest: attestation.digest,
+        p_manifest: attestation.manifest,
+        p_technical_ceiling: ceilingSummary,
+      });
+
+      if (result.error) {
+        if (isControlTowerStorageMissing(result.error) || result.error.code === "42883") {
+          return controlTowerJson({ error: "Atomic Production attestation migration is not active in this environment." }, 503);
+        }
+        if (result.error.code === "42501") return controlTowerJson({ error: "Production promotion authority denied." }, 403);
+        if (result.error.code === "40001") return controlTowerJson({ error: "Release changed during promotion. Refresh and retry.", code: "PROMOTION_RACE" }, 409);
+        if (["23503", "23514"].includes(result.error.code)) return controlTowerJson({ error: result.error.message || "Production promotion contract rejected." }, 409);
+        throw result.error;
+      }
+      data = result.data;
+    } else {
+      let update = auth.supabase.from("control_tower_releases").update({ stage: targetStage }).eq("id", releaseId);
+      if (expectedUpdatedAt) update = update.eq("updated_at", expectedUpdatedAt);
+      const result = await update.select(RELEASE_SELECT).maybeSingle();
+      if (result.error) {
+        if (isControlTowerStorageMissing(result.error)) return controlTowerJson({ error: "Control Tower release storage is not active in this environment." }, 503);
+        throw result.error;
+      }
+      if (!result.data) return controlTowerJson({ error: "Release changed during promotion. Refresh and retry.", code: "PROMOTION_RACE" }, 409);
+      data = result.data;
+
+      await appendControlTowerAudit(auth.supabase, {
+        action: "release_stage_promoted",
+        entityType: "release",
+        entityId: data.id,
+        beforeState: bundle.release,
+        afterState: data,
+        metadata: {
+          scorecard_overall: scorecard.overall,
+          target_stage: targetStage,
+          actor_role: auth.role,
+          production_eligible: scorecard.productionEligible,
+          production_truth_recorded: false,
+          release_snapshot_hash: releaseSnapshot.snapshotHash,
+        },
+      });
     }
-
-    let update = auth.supabase.from("control_tower_releases").update(updatePayload).eq("id", releaseId);
-    if (expectedUpdatedAt) update = update.eq("updated_at", expectedUpdatedAt);
-    const { data, error } = await update.select(RELEASE_SELECT).maybeSingle();
-
-    if (error) {
-      if (isControlTowerStorageMissing(error)) return controlTowerJson({ error: "Production truth storage is not active in this environment." }, 503);
-      throw error;
-    }
-    if (!data) return controlTowerJson({ error: "Release changed during promotion. Refresh and retry.", code: "PROMOTION_RACE" }, 409);
-
-    await appendControlTowerAudit(auth.supabase, {
-      action: targetStage === "production" ? "release_promoted_to_production" : "release_stage_promoted",
-      entityType: "release",
-      entityId: data.id,
-      beforeState: bundle.release,
-      afterState: data,
-      metadata: {
-        scorecard_overall: scorecard.overall,
-        target_stage: targetStage,
-        actor_role: auth.role,
-        production_eligible: scorecard.productionEligible,
-        production_truth_recorded: targetStage === "production",
-        release_snapshot_hash: releaseSnapshot.snapshotHash,
-      },
-    });
 
     return controlTowerJson({
       release: data,
       scorecard,
       policy,
+      technicalCeiling,
       snapshotHash: releaseSnapshot.snapshotHash,
+      attestationDigest: technicalCeiling?.dimensions?.operational?.attestation?.digest || null,
     });
   } catch {
     return controlTowerJson({ error: "Unable to promote Control Tower release." }, 500);
