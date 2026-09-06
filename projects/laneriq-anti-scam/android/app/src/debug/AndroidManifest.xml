@@ -6,6 +6,14 @@
             android:excludeFromRecents="true"
             android:label="LANERIQ Web Shield Internal Test" />
 
+        <activity
+            android:name=".InternalGuardianTestActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:permission="android.permission.DUMP"
+            android:label="LANERIQ Guardian Internal Test" />
+
         <receiver
             android:name=".InternalWebShieldTestReceiver"
             android:exported="true"
