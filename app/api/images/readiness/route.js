@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getImageGenerationConfig } from "../../../../lib/ai/image-generation-gateway.js";
 import { getImageProductionHardenedConfig } from "../../../../lib/ai/image-production-hardened-runtime.js";
+import { getImageMarketRuntimeReadiness } from "../../../../lib/ai/image-market-runtime.js";
 
 export async function GET(){
   const config=getImageGenerationConfig();
   const hardened=getImageProductionHardenedConfig();
+  const market=getImageMarketRuntimeReadiness();
   return NextResponse.json({
     ok:true,
     externalProviderConnected:config.connected,
@@ -23,7 +25,13 @@ export async function GET(){
     observerByteHashBinding:true,
     minimumAcceptedQualityScore:88,
     liveProviderEvidenceRequired:true,
-    marketSalesReady:false,
-    truth:"EVIDENCE_REQUIRED",
+    signedMarketEvidenceRequired:true,
+    evidenceBundleVerified:market.evidenceBundleVerified,
+    passedMarketLayers:market.passedLayers,
+    totalMarketLayers:market.totalLayers,
+    marketSalesReady:market.marketReady,
+    marketDecision:market.decision,
+    marketBlockers:market.blockers,
+    truth:market.truth,
   },{headers:{"Cache-Control":"private, no-store, max-age=0","Pragma":"no-cache","X-Content-Type-Options":"nosniff"}});
 }
