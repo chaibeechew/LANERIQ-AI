@@ -12,6 +12,8 @@ import {
   resolveCanonicalUiContext,
 } from "../../lib/product/canonical-ui-registry.js";
 
+const CORE_ROUTE_IDS=new Set(["home","login","auth","create","build-progress"]);
+
 function suppressLegacyPrimaryNavs(){
   const touched=[];
   for(const nav of document.querySelectorAll("nav.bottomNav")){
@@ -38,14 +40,12 @@ function restoreLegacyPrimaryNavs(touched){
 
 function PortalBrandAnchor({surface}){
   if(!["creations","templates","template-detail"].includes(surface))return null;
-  return <Link href="/" className={`liuiPortalBrandAnchor liuiPortalBrandAnchor-${surface}`} aria-label="LANERIQ AI home">
-    <LaneriqLotusBrand compact />
-  </Link>;
+  return <Link href="/" className={`liuiPortalBrandAnchor liuiPortalBrandAnchor-${surface}`} aria-label="LANERIQ AI home"><LaneriqLotusBrand compact /></Link>;
 }
 
 function ReferenceChrome({context}){
   const surface=context?.surface||"";
-  const projectSurface=Boolean(surface && !["creation","creations","templates","template-detail","auth"].includes(surface));
+  const projectSurface=Boolean(surface&&!['creation','creations','templates','template-detail','auth'].includes(surface));
   const creationIndex=canonicalCreationIndex(context?.stage);
   const showCreationTrack=creationIndex>=3;
   if(!projectSurface)return null;
@@ -59,51 +59,46 @@ function ReferenceChrome({context}){
       <Link href="/" className="liuiRailLogo" aria-label="LANERIQ AI home"><LaneriqLotusBrand iconOnly /></Link>
       {CANONICAL_PROJECT_RAIL.map(item=><Link key={item.id} href={item.href}><span aria-hidden="true">{item.icon}</span><small>{item.label}</small></Link>)}
     </aside>
-    {showCreationTrack&&<div className="liuiCreationStage" aria-label={`Creation stage ${context.stage}`}>
-      <span className="liuiPageBadge">{context.stage}</span>
-      <div>{CANONICAL_CREATION_JOURNEY.map((item,index)=><span key={item.id} className={index<=creationIndex?"done":""}><i>{index<creationIndex?"✓":index===creationIndex?"•":""}</i>{item.label}</span>)}</div>
-    </div>}
+    {showCreationTrack&&<div className="liuiCreationStage" aria-label={`Creation stage ${context.stage}`}><span className="liuiPageBadge">{context.stage}</span><div>{CANONICAL_CREATION_JOURNEY.map((item,index)=><span key={item.id} className={index<=creationIndex?"done":""}><i>{index<creationIndex?"✓":index===creationIndex?"•":""}</i>{item.label}</span>)}</div></div>}
     {creationIndex<0&&<div className="liuiWorkspaceStage" aria-label={`Current workspace ${context.name}`}><small>Current workspace</small><b>{context.name}</b></div>}
   </>;
 }
 
 export default function LIUIRealProductSurface(){
-  const pathname=usePathname() || "";
+  const pathname=usePathname()||"";
   const searchParams=useSearchParams();
   const context=useMemo(()=>resolveCanonicalUiContext(pathname,searchParams),[pathname,searchParams]);
   const surface=context?.surface||"";
   const active=context?.nav||"";
+  const isCore=Boolean(context?.id&&CORE_ROUTE_IDS.has(context.id));
 
   useEffect(()=>{
-    if(surface) document.body.dataset.liuiSurface=surface;
-    else delete document.body.dataset.liuiSurface;
-    if(context?.id)document.body.dataset.liuiRoute=context.id;else delete document.body.dataset.liuiRoute;
+    if(surface&&!isCore)document.body.dataset.liuiSurface=surface;else delete document.body.dataset.liuiSurface;
+    if(context?.id&&!isCore)document.body.dataset.liuiRoute=context.id;else delete document.body.dataset.liuiRoute;
     document.documentElement.dataset.liuiRealProduct="2026.4-canonical";
     return()=>{
-      if(document.body.dataset.liuiSurface===surface) delete document.body.dataset.liuiSurface;
-      if(document.body.dataset.liuiRoute===context?.id) delete document.body.dataset.liuiRoute;
+      if(document.body.dataset.liuiSurface===surface)delete document.body.dataset.liuiSurface;
+      if(document.body.dataset.liuiRoute===context?.id)delete document.body.dataset.liuiRoute;
     };
-  },[surface,context?.id]);
+  },[surface,context?.id,isCore]);
 
   useEffect(()=>{
-    if(!surface)return undefined;
+    if(!surface||isCore)return undefined;
     const touched=[];
     const suppress=()=>touched.push(...suppressLegacyPrimaryNavs());
     suppress();
     const observer=new MutationObserver(suppress);
     observer.observe(document.body,{childList:true,subtree:true});
     return()=>{observer.disconnect();restoreLegacyPrimaryNavs(touched);};
-  },[surface]);
+  },[surface,isCore]);
 
-  if(!context || ["home","login","auth","create","build-progress"].includes(context.id)) return null;
+  if(!context||isCore)return null;
 
   return <>
     <PortalBrandAnchor surface={surface}/>
     <ReferenceChrome context={context}/>
     <nav className="liuiRealBottomNav" aria-label="LANERIQ AI primary navigation" data-liui-nav="canonical">
-      {CANONICAL_PRIMARY_NAV.map(item=><Link key={item.id} href={item.href} className={active===item.label?"active":""} aria-current={active===item.label?"page":undefined}>
-        <span aria-hidden="true">{item.icon}</span><small>{item.label}</small>
-      </Link>)}
+      {CANONICAL_PRIMARY_NAV.map(item=><Link key={item.id} href={item.href} className={active===item.label?"active":""} aria-current={active===item.label?"page":undefined}><span aria-hidden="true">{item.icon}</span><small>{item.label}</small></Link>)}
     </nav>
   </>;
 }
