@@ -14,5 +14,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Verify World + Avatar + Forge + Fusion knowledge
+      - name: Verify World + Character + Scene Assets + Forge + Fusion knowledge
         run: node scripts/super-game-knowledge-transfer-tests.mjs
+      - name: Verify scene-asset bridge and expanded world knowledge
+        run: node scripts/super-game-asset-fusion-tests.mjs
