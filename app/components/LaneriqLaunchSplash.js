@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import LaneriqLotusBrand from "./LaneriqLotusBrand";
 
-const SPLASH_SESSION_KEY = "laneriq:living-intelligence-splash:v1";
+const SPLASH_SESSION_KEY = "laneriq:living-intelligence-splash:v2";
 const DISPLAY_MS = 1850;
 
 export default function LaneriqLaunchSplash() {
@@ -36,11 +37,7 @@ export default function LaneriqLaunchSplash() {
       <div className="laneriqLaunchHalo laneriqLaunchHaloA" aria-hidden="true" />
       <div className="laneriqLaunchHalo laneriqLaunchHaloB" aria-hidden="true" />
       <div className="laneriqLaunchContent">
-        <div className="laneriqLaunchEmblem" aria-hidden="true">
-          <span>✦</span>
-        </div>
-        <div className="laneriqLaunchBrand">LANERIQ AI</div>
-        <div className="laneriqLaunchTagline">LIVING INTELLIGENCE</div>
+        <LaneriqLotusBrand className="laneriqLaunchLotus" ariaLabel="LANERIQ AI — Living Intelligence" />
         <div className="laneriqLaunchRule" aria-hidden="true"><i /><b /><i /></div>
         <p>Ideas · People · Technology · A Brighter Tomorrow</p>
         <div className="laneriqLaunchProgress" aria-hidden="true"><span /></div>
