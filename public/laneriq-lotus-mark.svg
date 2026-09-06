@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 104" fill="none">
+  <defs>
+    <linearGradient id="laneriqLotusStroke" x1="18" y1="18" x2="102" y2="97" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F2CF75"/>
+      <stop offset="0.28" stop-color="#FFFFFF"/>
+      <stop offset="0.58" stop-color="#55B7FF"/>
+      <stop offset="1" stop-color="#E7C469"/>
+    </linearGradient>
+    <radialGradient id="laneriqLotusCore" cx="0" cy="0" r="1" gradientTransform="translate(60 58) rotate(90) scale(8)">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="0.45" stop-color="#8EDCFF"/>
+      <stop offset="1" stop-color="#4CB8FF" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="laneriqGlow" x="-30%" y="-30%" width="160%" height="160%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <g stroke="url(#laneriqLotusStroke)" stroke-width="2.35" stroke-linecap="round" stroke-linejoin="round" filter="url(#laneriqGlow)">
+    <path d="M60 89C50 75 46 58 60 34C74 58 70 75 60 89Z"/>
+    <path d="M60 88C42 77 35 61 40 40C55 48 62 64 60 88Z"/>
+    <path d="M60 88C78 77 85 61 80 40C65 48 58 64 60 88Z"/>
+    <path d="M50 84C32 79 21 67 18 49C34 50 47 61 50 84Z"/>
+    <path d="M70 84C88 79 99 67 102 49C86 50 73 61 70 84Z"/>
+    <path d="M44 87C30 90 17 86 8 75C24 70 39 74 50 86"/>
+    <path d="M76 87C90 90 103 86 112 75C96 70 81 74 70 86"/>
+    <path d="M25 78C36 92 47 97 60 97C73 97 84 92 95 78"/>
+    <path d="M60 34V18"/>
+    <path d="M60 18C55 24 52 28 52 34"/>
+    <path d="M60 18C65 24 68 28 68 34"/>
+  </g>
+  <circle cx="60" cy="58" r="8" fill="url(#laneriqLotusCore)"/>
+  <circle cx="60" cy="58" r="3.6" fill="#EAF9FF"/>
+</svg>

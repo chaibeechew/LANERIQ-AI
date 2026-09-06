@@ -1,0 +1,200 @@
+/* LANERIQ AI LIUI runtime safe-area + chrome collision fixes.
+   Presentation only. This file intentionally loads after the main LIUI layers. */
+
+/* The real AccountNav owns authenticated account/logout behavior.
+   Do not show a second static "LANERIQ User" profile affordance beside it. */
+.liuiReferenceProfile{
+  display:none!important;
+}
+
+/* Keep the real authenticated account control aligned with the LIUI top chrome. */
+body[data-liui-surface]:not([data-liui-surface="creation"]) .accountNav{
+  top:22px!important;
+  right:max(18px,env(safe-area-inset-right))!important;
+  z-index:9870!important;
+}
+
+/* Long customer/project/template text must never force a horizontal page overflow. */
+body[data-liui-surface] :where(.projectCard,.projectBody,.projectTitle,.templateCard,.featuredCard,.settingCard,.qualityGrid article,.managementGrid>a,.managementGrid>article) :where(h1,h2,h3,b,small,p,span){
+  min-width:0;
+  overflow-wrap:anywhere;
+}
+body[data-liui-surface] :where(.projectCard,.templateCard,.featuredCard,.settingCard,.qualityGrid article,.managementGrid>a,.managementGrid>article){
+  min-width:0;
+}
+
+/* Several real product routes use route-specific root classes rather than the historic
+   .page/.studioShell selectors. Keep only those page roots out from under the desktop rail/header. */
+@media(min-width:1001px){
+  body[data-liui-surface="media"] :where(main.studio,main.avatarPage),
+  body[data-liui-surface="community"] main.chatPage,
+  body[data-liui-surface="more"] main.settingsReference,
+  body[data-liui-surface="credits"] main.creditsPage,
+  body[data-liui-surface="domains"]>main,
+  body[data-liui-surface="account"] :where(main.securityPage,main.cloudPage,main.devicePage){
+    margin-left:112px!important;
+    padding-top:max(118px,var(--liui-page-top,118px))!important;
+    width:auto!important;
+    max-width:calc(100vw - 112px)!important;
+  }
+}
+
+@media(max-width:1000px){
+  /* Dynamic Island / status-bar aware workspace header. */
+  .liuiReferenceHeader{
+    top:max(10px,calc(env(safe-area-inset-top) + 4px))!important;
+    left:max(12px,env(safe-area-inset-left))!important;
+    right:max(12px,env(safe-area-inset-right))!important;
+  }
+
+  /* Real account control shares the same top row instead of dropping into content. */
+  body[data-liui-surface]:not([data-liui-surface="creation"]) .accountNav{
+    top:max(10px,calc(env(safe-area-inset-top) + 4px))!important;
+    right:max(12px,env(safe-area-inset-right))!important;
+  }
+
+  /* Create is an immersive mobile workspace. Avoid a second floating account control
+     over its local header/form; account access remains available through More. */
+  body[data-liui-surface="creation"] .accountNav{
+    display:none!important;
+  }
+  body[data-liui-surface="creation"] main.createReference{
+    padding-top:max(18px,calc(env(safe-area-inset-top) + 8px))!important;
+    padding-left:max(10px,env(safe-area-inset-left))!important;
+    padding-right:max(10px,env(safe-area-inset-right))!important;
+    padding-bottom:max(120px,calc(env(safe-area-inset-bottom) + 104px))!important;
+  }
+  body[data-liui-surface="creation"] main.createReference :where(input,textarea,select){
+    font-size:16px!important;
+  }
+  body[data-liui-surface="creation"] main.createReference :where(button,a,select,input){
+    min-height:44px!important;
+    touch-action:manipulation;
+  }
+  body[data-liui-surface="creation"] main.createReference :where(.nameRow,.toolRow,.optionGrid,.progressActions)>*{
+    min-width:0;
+  }
+
+  /* Workspace content starts below the safe-area-aware header. */
+  body[data-liui-surface]:not([data-liui-surface="creation"]):not([data-liui-surface="creations"]):not([data-liui-surface="templates"]):not([data-liui-surface="template-detail"]) :where(.page,.combinedPreview,.releasePage,.publishPage,.soolenCenter,.studioShell){
+    padding-top:max(84px,calc(env(safe-area-inset-top) + 76px))!important;
+  }
+
+  /* Route-specific roots use the same safe-area top/bottom contract as .page routes. */
+  body[data-liui-surface="media"] :where(main.studio,main.avatarPage),
+  body[data-liui-surface="community"] main.chatPage,
+  body[data-liui-surface="more"] main.settingsReference,
+  body[data-liui-surface="credits"] main.creditsPage,
+  body[data-liui-surface="domains"]>main,
+  body[data-liui-surface="account"] :where(main.securityPage,main.cloudPage,main.devicePage){
+    padding-top:max(118px,calc(env(safe-area-inset-top) + 82px))!important;
+    padding-left:max(12px,env(safe-area-inset-left))!important;
+    padding-right:max(12px,env(safe-area-inset-right))!important;
+    padding-bottom:max(126px,calc(env(safe-area-inset-bottom) + 108px))!important;
+    width:auto!important;
+    max-width:100%!important;
+  }
+
+  /* More has dense cards and benefits from a slightly wider top gap below chrome. */
+  body[data-liui-surface="more"] main.settingsReference{
+    padding-top:max(112px,calc(env(safe-area-inset-top) + 76px))!important;
+    padding-bottom:max(155px,calc(env(safe-area-inset-bottom) + 126px))!important;
+  }
+  body[data-liui-surface="more"] main.settingsReference :where(a,button){
+    min-height:44px!important;
+    touch-action:manipulation;
+  }
+
+  /* Portal pages use a logo anchor rather than the workspace rail/header. */
+  .liuiPortalBrandAnchor{
+    top:max(10px,calc(env(safe-area-inset-top) + 4px))!important;
+    left:max(12px,env(safe-area-inset-left))!important;
+  }
+  body[data-liui-surface="creations"] main.projectsReference,
+  body[data-liui-surface="templates"] main.referenceTemplates,
+  body[data-liui-surface="template-detail"] main.templateReference{
+    padding-top:max(92px,calc(env(safe-area-inset-top) + 68px))!important;
+  }
+
+  /* Project/template actions meet the mobile 44px target instead of legacy 36–40px. */
+  body[data-liui-surface="creations"] :where(.projectToolbar a,.projectActions a,.empty a),
+  body[data-liui-surface="templates"] :where(.templateControls button,.templateControls input,.templateControls select,.cardActions a,.cardActions button,.templateHero>a),
+  body[data-liui-surface="template-detail"] :where(.heroActions button,.aiActions>*,.truth button){
+    min-height:44px!important;
+    touch-action:manipulation;
+  }
+  body[data-liui-surface="templates"] :where(.templateControls input,.templateControls select){
+    font-size:16px!important;
+  }
+
+  /* Community remains explicit opt-in; only sizing and safe-area behavior change here. */
+  body[data-liui-surface="community"] :where(.primaryButton,.ghostButton,.composer button){
+    min-height:44px!important;
+    touch-action:manipulation;
+  }
+
+  /* Account / credits / domain actions keep native iOS text sizing and reliable tap size. */
+  body[data-liui-surface="account"] :where(main.securityPage,main.cloudPage,main.devicePage) :where(input,textarea,select),
+  body[data-liui-surface="credits"] main.creditsPage :where(input,textarea,select),
+  body[data-liui-surface="domains"]>main :where(input,textarea,select){
+    font-size:16px!important;
+  }
+  body[data-liui-surface="account"] :where(main.securityPage,main.cloudPage,main.devicePage) :where(button,a),
+  body[data-liui-surface="credits"] main.creditsPage :where(button,a),
+  body[data-liui-surface="domains"]>main :where(button,a){
+    min-height:44px!important;
+    touch-action:manipulation;
+  }
+
+  /* Landscape notches and Home Indicator must not clip the canonical navigation. */
+  .liuiRealBottomNav{
+    left:max(12px,env(safe-area-inset-left))!important;
+    right:max(12px,env(safe-area-inset-right))!important;
+    bottom:max(10px,env(safe-area-inset-bottom))!important;
+  }
+  .liuiRealBottomNav a{
+    min-height:58px!important;
+    touch-action:manipulation;
+  }
+
+  /* Keep pages 15–18 step strip above the raised Home-Indicator-aware bottom nav. */
+  .liuiEighteenStepStrip{
+    left:max(12px,env(safe-area-inset-left))!important;
+    right:max(12px,env(safe-area-inset-right))!important;
+    bottom:max(88px,calc(env(safe-area-inset-bottom) + 82px))!important;
+  }
+  body[data-liui-page="15"] :where(.page),
+  body[data-liui-page="16"] :where(.page),
+  body[data-liui-page="17"] :where(.page),
+  body[data-liui-page="18"] :where(.publishPage,.page){
+    padding-bottom:max(162px,calc(env(safe-area-inset-bottom) + 148px))!important;
+  }
+}
+
+@media(max-width:560px){
+  /* On narrow phones keep one compact account trigger; Sign out remains in its menu. */
+  body[data-liui-surface]:not([data-liui-surface="creation"]) .accountNav .visibleLogout{
+    display:none!important;
+  }
+
+  /* Protect dense portal cards from 320–375px width squeeze. */
+  body[data-liui-surface="creations"] .projectActions{
+    grid-template-columns:1fr 1fr!important;
+  }
+  body[data-liui-surface="creations"] .projectActions .primaryAction{
+    grid-column:1/-1;
+  }
+  body[data-liui-surface="templates"] :where(.templateControls,.cardActions){
+    min-width:0;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .liuiReferenceHeader,
+  .liuiPortalBrandAnchor,
+  .liuiRealBottomNav,
+  .liuiEighteenStepStrip,
+  body[data-liui-surface] .accountNav{
+    transition:none!important;
+  }
+}

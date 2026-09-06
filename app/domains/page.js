@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import LaneriqLotusBrand from "../components/LaneriqLotusBrand";
 import styles from "./domains.module.css";
 
 async function readJson(response) {
@@ -109,14 +110,21 @@ export default function DomainsPage() {
       <div className={styles.glowB} />
       <section className={styles.panel}>
         <header className={styles.header}>
-          <Link href="/" className={styles.back}>← LANERIQ AI</Link>
-          <span className={styles.badge}>ADMIN · DOMAIN REGISTRAR</span>
+          <Link href="/" className={styles.brandLink}><LaneriqLotusBrand compact /></Link>
+          <span className={styles.badge}>DOMAIN REGISTRAR · LIVE CHECK</span>
         </header>
 
         <div className={styles.hero}>
           <p className={styles.kicker}>OWN YOUR BRAND</p>
           <h1>Find and register your domain.</h1>
           <p>Live availability and pricing are checked again immediately before registration, so a changed price cannot be silently accepted.</p>
+        </div>
+
+        <div className={styles.trustStrip}>
+          <div><b>01</b><span>Live availability</span></div>
+          <div><b>02</b><span>Live pricing</span></div>
+          <div><b>03</b><span>Typed confirmation</span></div>
+          <div><b>04</b><span>Server re-check before billing</span></div>
         </div>
 
         <form className={styles.searchCard} onSubmit={checkDomain}>
@@ -171,6 +179,8 @@ export default function DomainsPage() {
             <button type="button" onClick={refreshStatus}>Refresh status</button>
           </section>
         )}
+
+        <div className={styles.truthNote}>LANERIQ AI does not invent availability or pricing on this screen. Registry and server responses remain authoritative.</div>
       </section>
     </main>
   );

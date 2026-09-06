@@ -4,10 +4,13 @@ on:
   pull_request:
     paths:
       - "app/production-closure-e2e/route.js"
+      - "public/production-closure-e2e-v3.js"
       - "app/api/orchestrate/route.js"
       - "app/api/generate/route.js"
       - "app/api/modify/route.js"
       - "app/api/production-e2e/zero-spend/route.js"
+      - "app/api/production-e2e/evidence-ledger/route.js"
+      - "app/api/production-e2e/evidence-status/route.js"
       - "app/api/templates/route.js"
       - "app/api/apps/[id]/route.js"
       - "app/api/apps/[id]/quality/route.js"
@@ -17,6 +20,9 @@ on:
       - "app/api/apps/[id]/workflows/route.js"
       - "app/api/apps/[id]/workflows/[workflowId]/run/route.js"
       - "app/api/apps/[id]/publish/route.js"
+      - "lib/production-e2e/**"
+      - "lib/cloud-adapters/production-e2e-evidence-data.js"
+      - "supabase/migrations/*production_e2e_evidence_ledger*.sql"
       - "app/page.js"
       - "app/create/page.js"
       - "app/preview/[id]/page.js"
@@ -40,10 +46,13 @@ on:
     branches: [main]
     paths:
       - "app/production-closure-e2e/route.js"
+      - "public/production-closure-e2e-v3.js"
       - "app/api/orchestrate/route.js"
       - "app/api/generate/route.js"
       - "app/api/modify/route.js"
       - "app/api/production-e2e/zero-spend/route.js"
+      - "app/api/production-e2e/evidence-ledger/route.js"
+      - "app/api/production-e2e/evidence-status/route.js"
       - "app/api/templates/route.js"
       - "app/api/apps/[id]/route.js"
       - "app/api/apps/[id]/quality/route.js"
@@ -53,6 +62,9 @@ on:
       - "app/api/apps/[id]/workflows/route.js"
       - "app/api/apps/[id]/workflows/[workflowId]/run/route.js"
       - "app/api/apps/[id]/publish/route.js"
+      - "lib/production-e2e/**"
+      - "lib/cloud-adapters/production-e2e-evidence-data.js"
+      - "supabase/migrations/*production_e2e_evidence_ledger*.sql"
       - "app/page.js"
       - "app/create/page.js"
       - "app/preview/[id]/page.js"
@@ -106,7 +118,8 @@ jobs:
 
       - name: Evidence boundary
         run: |
-          echo "✓ This gate proves CODE + CI + build integration for the 18-stage authenticated closure."
-          echo "✓ The Production route can verify Modify, Version/Undo, Database version/rollback, Workflow Safe Test/idempotency/pause, canonical 18-page route health, release readiness and brief Publish/Unpublish."
+          echo "✓ This gate proves CODE + CI + build integration for the 18-stage authenticated closure and durable server evidence ledger."
+          echo "✓ Critical persisted App/Version/Database/Workflow/Publish/Private states are reverified server-side before a PASS receipt can be issued."
+          echo "✓ Browser-only 18-page and anonymous HTTP health remains labeled browser evidence; the ledger stores privacy-bounded summaries and a SHA-256 report digest only."
           echo "✓ Authenticated Production execution still requires a real signed-in user session on exact main."
           echo "✓ Physical-device, provider-LIVE, physical DB migration, Email/WhatsApp/SMS and official-store evidence remain independent."
