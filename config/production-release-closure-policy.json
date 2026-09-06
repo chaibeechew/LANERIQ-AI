@@ -77,11 +77,21 @@
       "id": "malware-live-canary-contract",
       "workflowFile": "malware-live-canary.yml",
       "name": "LANERIQ Malware Defense Live Canary Contract"
+    },
+    {
+      "id": "supabase-admin-rpc-isolation",
+      "workflowFile": "supabase-admin-rpc-isolation-v2.yml",
+      "name": "LANERIQ Supabase Admin RPC Isolation v2 Gate"
     }
   ],
   "globalProductionEvidence": [
     {
       "id": "supabase-production-live-schema-security",
+      "required": true,
+      "verifiedByThisGate": false
+    },
+    {
+      "id": "supabase-auth-leaked-password-protection",
       "required": true,
       "verifiedByThisGate": false
     },
