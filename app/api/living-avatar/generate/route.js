@@ -1,5 +1,6 @@
 import {NextResponse} from "next/server";
-import {generateCreativeImage,ImageGenerationGatewayError} from "../../../../lib/ai/creative-image-generation-gateway.js";
+import {generateCreativeImage} from "../../../../lib/ai/creative-image-generation-gateway.js";
+import {ImageGenerationGatewayError} from "../../../../lib/ai/image-generation-gateway.js";
 import {openSuperGameDataSession,accountVerified} from "../../../../lib/game/super-game-data.js";
 import {POST as saveImage} from "../../images/save/route.js";
 
