@@ -102,7 +102,7 @@ begin
   on conflict(provider_event_id) do nothing returning * into event_row;
   if not found then return jsonb_build_object('processed',false,'replayed',true); end if;
   if p_sku like 'buyout_%' then
-    if p_app_id is null or not exists(select 1 from public.apps a where a.id=p_app_id and a.owner_id=p_user_id and coalesce(a.project_type,'')<>'game' and coalesce(a.publish_status,'draft')<>'published') then raise exception 'Buyout project is not eligible'; end if;
+    if p_app_id is null or not exists(select 1 from public.apps a where a.id=p_app_id and a.owner_id=p_user_id and coalesce(a.publish_status,'draft')<>'published') then raise exception 'Buyout project is not eligible'; end if;
     insert into public.market_access_grants(user_id,source_event_id,provider_payment_id,sku,app_id,grant_type,amount_minor,currency,state) values(p_user_id,event_row.id,p_payment_intent_id,p_sku,p_app_id,'buyout_pending',p_amount_minor,'usd','pending_security') returning * into existing_grant;
     update public.market_payment_events set status='paid_pending_security',processed_at=now() where id=event_row.id;
     return jsonb_build_object('processed',true,'access_granted',false,'state','paid_pending_security','grant_id',existing_grant.id);
