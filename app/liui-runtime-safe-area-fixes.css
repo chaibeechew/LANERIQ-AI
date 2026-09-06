@@ -24,24 +24,16 @@ body[data-liui-surface] :where(.projectCard,.templateCard,.featuredCard,.setting
 }
 
 /* Several real product routes use route-specific root classes rather than the historic
-   .page/.studioShell selectors. Keep those roots out from under the desktop rail/header. */
+   .page/.studioShell selectors. Keep only those page roots out from under the desktop rail/header. */
 @media(min-width:1001px){
-  body[data-liui-surface="media"] :where(.studio,.avatarPage),
-  body[data-liui-surface="community"] .chatPage,
-  body[data-liui-surface="more"] .settingsReference,
-  body[data-liui-surface="credits"] .creditsPage,
+  body[data-liui-surface="media"] :where(main.studio,main.avatarPage),
+  body[data-liui-surface="community"] main.chatPage,
+  body[data-liui-surface="more"] main.settingsReference,
+  body[data-liui-surface="credits"] main.creditsPage,
   body[data-liui-surface="domains"]>main,
-  body[data-liui-surface="account"] :where(.securityPage,.cloudPage,.devicePage){
+  body[data-liui-surface="account"] :where(main.securityPage,main.cloudPage,main.devicePage){
     margin-left:112px!important;
     padding-top:max(118px,var(--liui-page-top,118px))!important;
-  }
-
-  body[data-liui-surface="media"] :where(.studio,.avatarPage),
-  body[data-liui-surface="community"] .chatPage,
-  body[data-liui-surface="more"] .settingsReference,
-  body[data-liui-surface="credits"] .creditsPage,
-  body[data-liui-surface="domains"]>main,
-  body[data-liui-surface="account"] :where(.securityPage,.cloudPage,.devicePage){
     width:auto!important;
     max-width:calc(100vw - 112px)!important;
   }
@@ -66,20 +58,20 @@ body[data-liui-surface] :where(.projectCard,.templateCard,.featuredCard,.setting
   body[data-liui-surface="creation"] .accountNav{
     display:none!important;
   }
-  body[data-liui-surface="creation"] .createReference{
+  body[data-liui-surface="creation"] main.createReference{
     padding-top:max(18px,calc(env(safe-area-inset-top) + 8px))!important;
     padding-left:max(10px,env(safe-area-inset-left))!important;
     padding-right:max(10px,env(safe-area-inset-right))!important;
     padding-bottom:max(120px,calc(env(safe-area-inset-bottom) + 104px))!important;
   }
-  body[data-liui-surface="creation"] .createReference :where(input,textarea,select){
+  body[data-liui-surface="creation"] main.createReference :where(input,textarea,select){
     font-size:16px!important;
   }
-  body[data-liui-surface="creation"] .createReference :where(button,a,select,input){
+  body[data-liui-surface="creation"] main.createReference :where(button,a,select,input){
     min-height:44px!important;
     touch-action:manipulation;
   }
-  body[data-liui-surface="creation"] .createReference :where(.nameRow,.toolRow,.optionGrid,.progressActions)>*{
+  body[data-liui-surface="creation"] main.createReference :where(.nameRow,.toolRow,.optionGrid,.progressActions)>*{
     min-width:0;
   }
 
@@ -89,12 +81,12 @@ body[data-liui-surface] :where(.projectCard,.templateCard,.featuredCard,.setting
   }
 
   /* Route-specific roots use the same safe-area top/bottom contract as .page routes. */
-  body[data-liui-surface="media"] :where(.studio,.avatarPage),
-  body[data-liui-surface="community"] .chatPage,
-  body[data-liui-surface="more"] .settingsReference,
-  body[data-liui-surface="credits"] .creditsPage,
+  body[data-liui-surface="media"] :where(main.studio,main.avatarPage),
+  body[data-liui-surface="community"] main.chatPage,
+  body[data-liui-surface="more"] main.settingsReference,
+  body[data-liui-surface="credits"] main.creditsPage,
   body[data-liui-surface="domains"]>main,
-  body[data-liui-surface="account"] :where(.securityPage,.cloudPage,.devicePage){
+  body[data-liui-surface="account"] :where(main.securityPage,main.cloudPage,main.devicePage){
     padding-top:max(118px,calc(env(safe-area-inset-top) + 82px))!important;
     padding-left:max(12px,env(safe-area-inset-left))!important;
     padding-right:max(12px,env(safe-area-inset-right))!important;
@@ -104,11 +96,11 @@ body[data-liui-surface] :where(.projectCard,.templateCard,.featuredCard,.setting
   }
 
   /* More has dense cards and benefits from a slightly wider top gap below chrome. */
-  body[data-liui-surface="more"] .settingsReference{
+  body[data-liui-surface="more"] main.settingsReference{
     padding-top:max(112px,calc(env(safe-area-inset-top) + 76px))!important;
     padding-bottom:max(155px,calc(env(safe-area-inset-bottom) + 126px))!important;
   }
-  body[data-liui-surface="more"] .settingsReference :where(a,button){
+  body[data-liui-surface="more"] main.settingsReference :where(a,button){
     min-height:44px!important;
     touch-action:manipulation;
   }
@@ -118,9 +110,9 @@ body[data-liui-surface] :where(.projectCard,.templateCard,.featuredCard,.setting
     top:max(10px,calc(env(safe-area-inset-top) + 4px))!important;
     left:max(12px,env(safe-area-inset-left))!important;
   }
-  body[data-liui-surface="creations"] .projectsReference,
-  body[data-liui-surface="templates"] .referenceTemplates,
-  body[data-liui-surface="template-detail"] .templateReference{
+  body[data-liui-surface="creations"] main.projectsReference,
+  body[data-liui-surface="templates"] main.referenceTemplates,
+  body[data-liui-surface="template-detail"] main.templateReference{
     padding-top:max(92px,calc(env(safe-area-inset-top) + 68px))!important;
   }
 
@@ -142,13 +134,13 @@ body[data-liui-surface] :where(.projectCard,.templateCard,.featuredCard,.setting
   }
 
   /* Account / credits / domain actions keep native iOS text sizing and reliable tap size. */
-  body[data-liui-surface="account"] :where(.securityPage,.cloudPage,.devicePage) :where(input,textarea,select),
-  body[data-liui-surface="credits"] .creditsPage :where(input,textarea,select),
+  body[data-liui-surface="account"] :where(main.securityPage,main.cloudPage,main.devicePage) :where(input,textarea,select),
+  body[data-liui-surface="credits"] main.creditsPage :where(input,textarea,select),
   body[data-liui-surface="domains"]>main :where(input,textarea,select){
     font-size:16px!important;
   }
-  body[data-liui-surface="account"] :where(.securityPage,.cloudPage,.devicePage) :where(button,a),
-  body[data-liui-surface="credits"] .creditsPage :where(button,a),
+  body[data-liui-surface="account"] :where(main.securityPage,main.cloudPage,main.devicePage) :where(button,a),
+  body[data-liui-surface="credits"] main.creditsPage :where(button,a),
   body[data-liui-surface="domains"]>main :where(button,a){
     min-height:44px!important;
     touch-action:manipulation;
