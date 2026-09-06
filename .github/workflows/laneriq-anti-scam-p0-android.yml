@@ -7,11 +7,13 @@ on:
     paths:
       - 'projects/laneriq-anti-scam/android/**'
       - 'projects/laneriq-anti-scam/fabric/**'
+      - 'projects/laneriq-anti-scam/release/**'
       - '.github/workflows/laneriq-anti-scam-p0-android.yml'
   pull_request:
     paths:
       - 'projects/laneriq-anti-scam/android/**'
       - 'projects/laneriq-anti-scam/fabric/**'
+      - 'projects/laneriq-anti-scam/release/**'
       - '.github/workflows/laneriq-anti-scam-p0-android.yml'
   workflow_dispatch:
 
@@ -28,25 +30,41 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+      - name: Install Android 16 SDK
+        run: yes | sdkmanager 'platforms;android-36' 'build-tools;35.0.0' >/dev/null
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.10.2'
+          gradle-version: '8.11.1'
+      - name: Verify 2026 Google Play target API and identities
+        run: |
+          grep -q "compileSdk 36" projects/laneriq-anti-scam/android/app/build.gradle
+          grep -q "targetSdk 36" projects/laneriq-anti-scam/android/app/build.gradle
+          grep -q "applicationId 'ai.laneriq.antiscam'" projects/laneriq-anti-scam/android/app/build.gradle
+          grep -q "applicationIdSuffix '.test'" projects/laneriq-anti-scam/android/app/build.gradle
       - name: Run Guardian unit tests
         run: gradle -p projects/laneriq-anti-scam/android testDebugUnitTest --stacktrace
       - name: Run Android lint truth gate
-        run: gradle -p projects/laneriq-anti-scam/android lintDebug --stacktrace
-      - name: Build P0 debug APK
+        run: gradle -p projects/laneriq-anti-scam/android lintDebug lintRelease --stacktrace
+      - name: Build test APK
         run: gradle -p projects/laneriq-anti-scam/android assembleDebug --stacktrace
-      - name: Verify APK exists
-        run: test -f projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk
-      - name: Record APK SHA-256
-        run: sha256sum projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk | tee projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk.sha256
+      - name: Build release AAB structure
+        run: gradle -p projects/laneriq-anti-scam/android bundleRelease --stacktrace
+      - name: Verify artifacts exist
+        run: |
+          test -f projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk
+          test -f projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab
+      - name: Record artifact SHA-256
+        run: |
+          sha256sum projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk | tee projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk.sha256
+          sha256sum projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab | tee projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab.sha256
       - uses: actions/upload-artifact@v4
         with:
-          name: laneriq-anti-scam-p0-android-debug-apk
+          name: laneriq-anti-scam-android-test-and-unsigned-release-structure
           path: |
             projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk
             projects/laneriq-anti-scam/android/app/build/outputs/apk/debug/app-debug.apk.sha256
+            projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab
+            projects/laneriq-anti-scam/android/app/build/outputs/bundle/release/app-release.aab.sha256
           if-no-files-found: error
 
   security-fabric-p0-p6:
@@ -57,7 +75,7 @@ jobs:
         with:
           node-version: '22'
       - name: Run P0-P6 Security Fabric contract tests
-        run: node --test projects/laneriq-anti-scam/fabric/test/*.test.mjs
+        run: node --test projects/laneriq-anti-scam/fabric/test/*.test.mjs projects/laneriq-anti-scam/release/test/*.test.mjs
       - name: Enforce no billion-scale claim without evidence
         run: |
           node -e "import('./projects/laneriq-anti-scam/fabric/p6-capacity-evidence.mjs').then(({CapacityEvidenceLedger})=>{const x=new CapacityEvidenceLedger(); if(x.summary().billionScaleVerified) process.exit(1); console.log(x.summary())})"
