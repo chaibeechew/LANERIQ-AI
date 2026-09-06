@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import {MOBA_NETWORK_AUTOPILOT_V1,evaluateMobaNetworkAutopilotEvidence,planMobaNetworkAutopilot,simulateMobaCapacity} from "../lib/game/moba-network-autopilot-v1.js";
+import {MOBA_NETWORK_AUTOPILOT_V1,evaluateMobaNetworkAutopilotEvidence,planMobaNetworkAutopilot,simulateMobaCapacity,simulateMobaSoakReport} from "../lib/game/moba-network-autopilot-v1.js";
+import {MOBA_NETWORK_AUTOPILOT_EXECUTOR_V1,executeMobaNetworkAutopilot,validateMobaNetworkProviderAdapter} from "../lib/game/moba-network-autopilot-executor-v1.js";
 import {MOBA_COMPETITIVE_NETWORK_V4,acknowledgeMobaNetworkResync,buildMobaDeltaSnapshot,calculateMobaLagCompensation,calculateMobaRankedMmr,castMobaMatchVote,createMobaCompetitiveNetworkAuthority,createMobaMatchGovernance,evaluateMobaCompetitiveNetworkV4,evaluateMobaHeartbeat,finalizeMobaAuthoritativeMatchResult,heartbeatMobaPlayer,ingestMobaNetworkPacket,markMobaEarlyDisconnect,observeMobaPlayerInput,recordMobaRewindFrame,recoverMobaPacketGap,updateMobaAfkBotTakeover,validateMobaRewindSkillshot} from "../lib/game/moba-competitive-network-v4.js";
 
 const completeCaps={relay:true,matchmaking:true,authoritativeHost:true,reconnect:true,snapshotDelta:true,heartbeat:true,regionalFailover:true,tickRate:30,regions:["ap-southeast","us-west"]};
@@ -14,8 +15,16 @@ const autopilot=planMobaNetworkAutopilot({expectedConcurrentPlayers:1000,region:
 assert.equal(autopilot.decision,"connect");assert.equal(autopilot.providerId,"provider-a");assert.ok(autopilot.fallbackProviderIds.includes("provider-b"));assert.equal(autopilot.credentialsExposedToGameCreator,false);assert.ok(autopilot.rejected.some(item=>item.providerId==="provider-bad"&&item.reason.startsWith("missing_capability:")));
 const fallback=planMobaNetworkAutopilot({expectedConcurrentPlayers:1000,region:"ap-southeast",providers:[]});assert.equal(fallback.decision,"simulate");assert.equal(fallback.providerId,null);
 const capacity=simulateMobaCapacity({provider:providers[0],targetConcurrentPlayers:1000});assert.equal(capacity.capacityKnown,true);assert.ok(capacity.modeledStablePlayers>=1000);assert.equal(capacity.smoothnessGrade,"modeled_smooth");assert.equal(capacity.liveCapacityClaimAllowed,false);assert.equal(capacity.crashFreeClaimAllowed,false);
+const soak=simulateMobaSoakReport({capacityReport:capacity,durationMinutes:30});assert.equal(soak.syntheticSoakPassed,true);assert.ok(soak.modeledMatchTicks>0);assert.equal(soak.crashFreeClaimAllowed,false);assert.equal(simulateMobaSoakReport({capacityReport:capacity,invariantViolations:1}).syntheticSoakPassed,false);
 const overCapacity=simulateMobaCapacity({provider:providers[0],targetConcurrentPlayers:2100});assert.equal(overCapacity.smoothnessGrade,"modeled_over_capacity");
 const autopilotEvidence=evaluateMobaNetworkAutopilotEvidence({providerSelection:true,providerOpaque:true,capacitySimulation:true,automaticFallback:true,costPolicy:true,regionPolicy:true});assert.equal(autopilotEvidence.internalReady,true);assert.equal(autopilotEvidence.productionReady,false);
+
+assert.equal(MOBA_NETWORK_AUTOPILOT_EXECUTOR_V1.automaticFallback,true);
+assert.equal(validateMobaNetworkProviderAdapter({id:"bad"}).valid,false);
+const adapterA={id:"provider-a",async allocateAuthoritativeHost(){throw new Error("primary_unavailable")},async attachRelay(){},async openMatchmaking(){},async startTelemetry(){},async close(){}};
+const adapterB={id:"provider-b",async allocateAuthoritativeHost(){return{hostId:"host-b"}},async attachRelay(){return{relaySessionId:"relay-b"}},async openMatchmaking(){return{queueId:"queue-b"}},async startTelemetry(){return{telemetrySessionId:"telemetry-b"}},async close(){}};
+const executed=await executeMobaNetworkAutopilot({plan:autopilot,adapters:[adapterA,adapterB],requestId:"req-1",appId:"game-1"});assert.equal(executed.ok,true);assert.equal(executed.providerId,"provider-b");assert.equal(executed.usedFallback,true);assert.equal(executed.creatorConfigurationRequired,false);assert.equal(executed.session.providerEndpointExposed,false);assert.equal(executed.session.providerCredentialExposed,false);assert.equal(executed.productionEvidenceVerified,false);
+const noLive=await executeMobaNetworkAutopilot({plan:fallback,adapters:[]});assert.equal(noLive.ok,false);assert.equal(noLive.fallbackToSimulation,true);
 
 const players=Array.from({length:10},(_,i)=>({playerId:`p${i+1}`,team:i<5?"blue":"red",heroId:i<5?`blue-${i+1}`:`red-${i-4}`}));
 const authority=createMobaCompetitiveNetworkAuthority({players,startedAtMs:0});
@@ -51,4 +60,4 @@ const remakeResult=finalizeMobaAuthoritativeMatchResult({matchId:"match-remake",
 
 const v4=evaluateMobaCompetitiveNetworkV4({deltaSnapshot:true,heartbeat:true,lagCompensation:true,serverRewind:true,packetRecovery:true,afkBot:true,surrenderRemake:true,matchResultAuthority:true,mmrIntegrity:true});assert.equal(v4.passed,true);assert.equal(v4.score,100);assert.equal(v4.productionReady,false);
 
-console.log("✓ MOBA Network Autopilot + Competitive Network V4: provider auto-routing, synthetic capacity modeling, delta snapshots, heartbeat, lag compensation, server rewind, packet recovery, AFK bot takeover, surrender/remake, authoritative results and MMR integrity passed.");
+console.log("✓ MOBA Network Autopilot + Competitive Network V4: automatic provider execution/fallback, synthetic capacity/soak modeling, delta snapshots, heartbeat, lag compensation, server rewind, packet recovery, AFK bot takeover, surrender/remake, authoritative results and MMR integrity passed.");
