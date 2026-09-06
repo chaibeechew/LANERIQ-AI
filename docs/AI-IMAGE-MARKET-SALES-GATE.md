@@ -3,8 +3,8 @@
 ## Purpose
 This gate closes the gap between AI Image code readiness and truthful market-sale readiness. It never converts simulated, configured, CI-only, or provider-self-reported evidence into LIVE VERIFIED status.
 
-## Layer 1 — Production runtime wiring
-Code implementation now requires:
+## Layer 1 — Production runtime wiring — ✅ CODE / CI CLOSED
+The Production route now enforces:
 - `/api/images/generate` uses the hardened creative-media execution path for provider-backed generation.
 - Provider HTTPS output is server-captured and byte-validated before observation.
 - Independent observer evidence must cover the same captured SHA-256 bytes.
@@ -13,8 +13,15 @@ Code implementation now requires:
 - Atomic credit charge/refund remains intact.
 - Accepted provider output is durably captured in the owner's private Asset Library before release.
 - Legacy provider results without the new hardened evidence are not re-released as verified model output.
+- Provider capture and observer timeouts remain active until their response bodies are fully read.
 
-**Truth boundary:** Layer 1 can become CODE/CI verified after its contracts pass, but it is not LIVE VERIFIED merely because the wiring exists. Layer 2 still requires real provider outputs and real independent observations.
+CI closure evidence on PR #392:
+- Dedicated `LANERIQ AI Image Market Readiness Gate`: PASS.
+- Creative Media Image 5-layer contract: PASS.
+- Image Studio regression contract: PASS.
+- Main `LANERIQ AI 100 CI`: Image Studio, Runtime Reliability, Non-production 100, Structural 100 and Next.js Production Build: PASS.
+
+**Truth boundary:** Layer 1 is CODE/CI verified. It is not LIVE VERIFIED merely because the wiring exists. Layer 2 still requires real provider outputs and real independent observations.
 
 ## Layer 2 — Real provider and output proof
 Required:
