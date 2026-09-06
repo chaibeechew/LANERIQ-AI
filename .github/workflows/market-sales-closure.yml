@@ -1,0 +1,61 @@
+name: LANERIQ Market Sales Closure Gate
+
+on:
+  push:
+    branches: ['batch191-market-sales-closure']
+    paths:
+      - 'config/market-billing-catalog.js'
+      - 'lib/billing/**'
+      - 'lib/market/**'
+      - 'app/api/billing/**'
+      - 'app/api/market-readiness/**'
+      - 'supabase/migrations/20260906043000_market_sales_closure.sql'
+      - 'scripts/market-sales-closure-contract-tests.mjs'
+      - '.github/workflows/market-sales-closure.yml'
+  pull_request:
+    paths:
+      - 'config/market-billing-catalog.js'
+      - 'lib/billing/**'
+      - 'lib/market/**'
+      - 'app/api/billing/**'
+      - 'app/api/market-readiness/**'
+      - 'supabase/migrations/20260906043000_market_sales_closure.sql'
+      - 'scripts/market-sales-closure-contract-tests.mjs'
+      - '.github/workflows/market-sales-closure.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: market-sales-closure-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  market-sales-closure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Market Sales Closure contract
+        run: node scripts/market-sales-closure-contract-tests.mjs
+      - name: Credits and entitlement regression
+        run: npm run test:credits
+      - name: Auth boundary regression
+        run: npm run test:auth-mobile-entry
+      - name: Provider boundary regression
+        run: npm run test:provider-boundary
+      - name: Production E2E evidence regression
+        run: npm run test:production-e2e-evidence
+      - name: Production public identity regression
+        run: npm run test:production-public
+      - name: Next.js build
+        run: npm run build
+      - name: Truth boundary
+        run: |
+          test "${MARKET_SALES_VERIFIED:-false}" != "true"
+          echo "CI success is not LIVE market-sales evidence."
