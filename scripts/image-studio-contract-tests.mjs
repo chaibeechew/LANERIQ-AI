@@ -144,7 +144,7 @@ assert.match(save,/Cache-Control":"private, no-store/);
 assert.match(assetMigration,/asset_library_user_fingerprint_unique_idx/);
 assert.match(assetMigration,/user_id, content_fingerprint/);
 assert.match(assetMigration,/reusableAcrossUsers/);
-assert.match(assetMigration,/rawPrivateCustomerAssetsReusableAcrossCustomers/);
+assert.match(assetMigration,/rawPrivateAssetsReusableAcrossCustomers/);
 assert.match(assetMigration,/revoke insert, update, delete on table public\.asset_library from anon/i);
 assert.match(replayMigration,/create table if not exists public\.image_generation_requests/i);
 assert.match(replayMigration,/unique \(user_id, request_id\)/i);
