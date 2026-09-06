@@ -46,7 +46,10 @@
       "L5.staged_load_cost",
       "L5.google_play_declarations",
       "L5.privacy_policy_data_safety",
-      "L5.production_signed_artifact"
+      "L5.production_signed_artifact",
+      "L5.exact_main_alignment",
+      "L5.main_branch_protection_required_checks",
+      "L5.production_release_exact_sha_convergence"
     ]
   },
   "rule": "A gate is not PASS until its proof reference is immutable/auditable, the verifier is pinned in TRUSTED_RELEASE_EVIDENCE_KEYS.json, the token signature verifies, and the evidence is fresh for the release under review."
