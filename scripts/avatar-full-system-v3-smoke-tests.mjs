@@ -8,3 +8,4 @@ import './laneriq-knowledge-fabric-v2-contract-tests.mjs';
 import './laneriq-operating-intelligence-contract-tests.mjs';
 import './laneriq-knowledge-control-plane-v45-contract-tests.mjs';
 import './avatar-five-live-readiness-v46-contract-tests.mjs';
+import './avatar-live-evidence-v47-contract-tests.mjs';
