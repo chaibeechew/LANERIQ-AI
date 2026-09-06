@@ -10,6 +10,7 @@ on:
       - 'projects/laneriq-anti-scam/release/**'
       - '.github/workflows/laneriq-anti-scam-p0-android.yml'
       - '.github/workflows/laneriq-anti-scam-production-aab.yml'
+      - '.github/workflows/laneriq-anti-scam-final-store-release-gate.yml'
   pull_request:
     paths:
       - 'projects/laneriq-anti-scam/android/**'
@@ -17,6 +18,7 @@ on:
       - 'projects/laneriq-anti-scam/release/**'
       - '.github/workflows/laneriq-anti-scam-p0-android.yml'
       - '.github/workflows/laneriq-anti-scam-production-aab.yml'
+      - '.github/workflows/laneriq-anti-scam-final-store-release-gate.yml'
   workflow_dispatch:
 
 permissions:
@@ -92,6 +94,12 @@ jobs:
           test -f .github/workflows/laneriq-anti-scam-production-aab.yml
           grep -q "LANERIQ_ANDROID_UPLOAD_KEYSTORE_B64" .github/workflows/laneriq-anti-scam-production-aab.yml
           grep -q "verifyProductionSigningConfigured" .github/workflows/laneriq-anti-scam-production-aab.yml
+      - name: Verify final store release governance workflow exists
+        run: |
+          test -f .github/workflows/laneriq-anti-scam-final-store-release-gate.yml
+          grep -q "Require execution from main" .github/workflows/laneriq-anti-scam-final-store-release-gate.yml
+          grep -q "Verify main branch protection and required checks" .github/workflows/laneriq-anti-scam-final-store-release-gate.yml
+          grep -q "Require Public Production READY" .github/workflows/laneriq-anti-scam-final-store-release-gate.yml
       - name: Enforce no billion-scale claim without evidence
         run: |
           node -e "import('./projects/laneriq-anti-scam/fabric/p6-capacity-evidence.mjs').then(({CapacityEvidenceLedger})=>{const x=new CapacityEvidenceLedger(); if(x.summary().billionScaleVerified) process.exit(1); console.log(x.summary())})"
