@@ -33,6 +33,8 @@ LANERIQ selects one of four modes: `fast`, `deep`, `council`, or `verified-criti
 ## Cognitive Council
 The first council round is blind and independent. Explorer, Conservative, Challenger, Evidence and Systems roles cannot see each other's candidate answers before round one. Judge receives candidate summaries only after the independent pass. No agent may self-grant permissions.
 
+Round 2 adds an executable Council runtime. Council seats call the existing provider execution boundary through `generateWithFallback` by default, while contract tests inject a deterministic mock generator. Candidate raw responses are represented by SHA-256 response digests in the runtime evidence surface. The Judge receives bounded candidate summaries after the independent round.
+
 ## World simulation and counterfactuals
 The simulator creates baseline, growth, 100x stress, provider-outage and adversarial scenarios plus counterfactual questions. Simulation evidence remains `SIMULATED`; it cannot become measured or Production evidence merely because the simulation passed.
 
@@ -47,8 +49,20 @@ No lower class may be promoted into a higher class without the corresponding rea
 ## Failure Memory
 Failure Memory stores method-level signals only: failure code, generalized strategy, repair pattern, provider/runtime class and whether the repair succeeded. Raw prompts, raw customer data, credentials, secrets, private files and source code are rejected from reusable Failure Memory.
 
+Round 2 adds a bounded Failure Memory store and an adapter-based repository boundary. The repository requires explicit `load` and `save` adapters and does not silently choose a database. The current Supabase Project Memory database contract has a strict top-level field allowlist, so Failure Memory is intentionally **not** written into `project_memory.memory_json` in this batch. A separate reviewed Supabase migration and database test gate is required before durable database wiring.
+
 ## Provider Router contract
 Cognitive OS requests capabilities, not vendor identity. The routing policy is capability-first, then quality, latency, cost and availability. Council/verified-critical paths prefer failover and cross-provider verification when eligible providers exist. No dedicated LANERIQ-owned server is required by this layer.
+
+## Shared cognitive service
+Round 2 adds one shared cognitive service contract for:
+- App Builder
+- Malware Defense
+- AI Image
+- AI Video
+- Production Release
+
+Each domain has an explicit risk/complexity/capability profile. Production Release is always `verified-critical`, requires human approval, and cannot become unbounded autonomous execution.
 
 ## Execution boundary
 Executable work is least-privilege and sandbox-oriented. Network, background compute, shared compute and private-data reuse are explicit permissions. Destructive, financial, Production, critical, or high-risk external-side-effect work requires human approval, rollback planning and dry-run where applicable.
@@ -58,6 +72,8 @@ Acceptance requires completion, tests, security, privacy, output verification, s
 
 ## LANERIQ Intelligence Benchmark
 The benchmark covers 15 domains: reasoning, coding, planning, research, agent execution, long-horizon completion, memory, self-healing, hallucination resistance, security, tool use, multimodal, app building, business reasoning and cost optimization.
+
+Round 2 adds a campaign runner that creates deterministic domain cases, records score/pass/duration/evidence class, rejects evidence-class drift, emits per-result SHA-256 digests, and produces a campaign digest. Internal or simulated campaigns may qualify engineering thresholds but cannot claim Production benchmark verification.
 
 A high internal benchmark score is not a Production superiority claim. `mayClaimProductionBenchmarkVerified` remains false until qualifying benchmark evidence is actually Production-class and externally verified.
 
@@ -70,4 +86,4 @@ A high internal benchmark score is not a Production superiority claim. `mayClaim
 - SMS remains outside this change and remains on hold.
 
 ## Release truth boundary
-This batch establishes architecture, deterministic contracts, tests and CI only. It does not claim that external models were benchmarked live, that every provider is connected, that a real-world simulation is measured evidence, or that LANERIQ is already more intelligent than another named model. Those claims require independent benchmark campaigns and exact Production evidence.
+This batch establishes architecture, deterministic contracts, executable Council orchestration, shared domain profiles, adapter-bounded Failure Memory and benchmark campaign code. It does not claim that external models were benchmarked live, that every provider is connected, that Failure Memory is already durably stored in Supabase, that a real-world simulation is measured evidence, or that LANERIQ is already more intelligent than another named model. Those claims require independent benchmark campaigns, reviewed persistence migrations and exact Production evidence.
