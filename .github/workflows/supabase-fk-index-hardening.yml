@@ -1,0 +1,37 @@
+name: LANERIQ Supabase FK Index Hardening Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/20260906074500_cover_creator_support_fk_indexes.sql"
+      - "scripts/supabase-fk-index-hardening-contract-tests.mjs"
+      - ".github/workflows/supabase-fk-index-hardening.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/20260906074500_cover_creator_support_fk_indexes.sql"
+      - "scripts/supabase-fk-index-hardening-contract-tests.mjs"
+      - ".github/workflows/supabase-fk-index-hardening.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify additive FK covering-index contract
+        run: node scripts/supabase-fk-index-hardening-contract-tests.mjs
+      - name: Truth boundary
+        run: |
+          echo "✓ This gate validates additive index DDL only."
+          echo "✓ It does not mutate Production Supabase or claim LIVE Advisor closure."
+          echo "✓ Unused-index INFO findings are intentionally not auto-dropped."
