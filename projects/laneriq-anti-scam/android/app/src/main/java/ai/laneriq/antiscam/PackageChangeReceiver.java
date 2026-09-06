@@ -36,9 +36,13 @@ public class PackageChangeReceiver extends BroadcastReceiver {
                 context.startService(service);
             }
         } catch (RuntimeException e) {
-            // The package event itself remains preserved locally. If Android blocks
-            // background FGS delivery, never pretend the Guardian handled it live.
-            leaseStore.serviceStopped("package-event-delivery-blocked");
+            // Preserve the package event locally. A background-start restriction is
+            // not proof that the already-running Guardian died. Only mark the lease
+            // offline if it was already not claimable.
+            ProtectionLeaseStore.Lease current = leaseStore.read();
+            if (!current.mayClaimGuardianActive()) {
+                leaseStore.serviceStopped("package-event-delivery-blocked");
+            }
             events.recordOnce(
                     "package_delivery_deferred",
                     e.getClass().getSimpleName(),
