@@ -1,0 +1,55 @@
+name: Customer Payment Autopilot / Stripe Connect
+on:
+  push:
+    branches: [batch192-customer-payment-autopilot]
+    paths:
+      - 'config/customer-payment-connect-policy.js'
+      - 'lib/payments/stripe-connect.js'
+      - 'lib/payments/customer-connect-store.js'
+      - 'lib/payments/customer-payment-context.js'
+      - 'app/api/payments/connect/**'
+      - 'app/payments/connect/**'
+      - 'supabase/migrations/20260906051000_customer_payment_connect_autopilot.sql'
+      - 'scripts/customer-payment-autopilot-contract-tests.mjs'
+      - 'next.config.mjs'
+      - '.github/workflows/customer-payment-autopilot.yml'
+  pull_request:
+    paths:
+      - 'config/customer-payment-connect-policy.js'
+      - 'lib/payments/stripe-connect.js'
+      - 'lib/payments/customer-connect-store.js'
+      - 'lib/payments/customer-payment-context.js'
+      - 'app/api/payments/connect/**'
+      - 'app/payments/connect/**'
+      - 'supabase/migrations/20260906051000_customer_payment_connect_autopilot.sql'
+      - 'scripts/customer-payment-autopilot-contract-tests.mjs'
+      - 'next.config.mjs'
+      - '.github/workflows/customer-payment-autopilot.yml'
+permissions:
+  contents: read
+jobs:
+  customer-payment-autopilot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ci_placeholder
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-anon-key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Customer Payment Autopilot contract
+        run: node scripts/customer-payment-autopilot-contract-tests.mjs
+      - name: Security regression
+        run: npm run test:security
+      - name: Account/session regression
+        run: npm run test:account && npm run test:session-authority
+      - name: Production build
+        run: npm run build
+      - name: Truth boundary
+        run: |
+          node -e "const fs=require('fs');const p=fs.readFileSync('config/customer-payment-connect-policy.js','utf8');if(!p.includes('sensitiveKycStoredByLaneriq:false')||!p.includes('liveClaimRequiresStripeActiveCapability:true'))process.exit(1);console.log('Customer payment truth boundary: PASS')"

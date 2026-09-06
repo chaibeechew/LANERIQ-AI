@@ -16,6 +16,24 @@ const CONTENT_SECURITY_POLICY = [
   "upgrade-insecure-requests",
 ].join("; ");
 
+const CONNECT_CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'self'",
+  "object-src 'none'",
+  "script-src 'self' 'unsafe-inline' https://connect-js.stripe.com https://js.stripe.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https: https://*.stripe.com",
+  "media-src 'self' blob: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
+  "frame-src 'self' https://connect-js.stripe.com https://js.stripe.com https://*.stripe.com",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+  "upgrade-insecure-requests",
+].join("; ");
+
 const SECURITY_HEADERS = [
   { key:"Content-Security-Policy", value:CONTENT_SECURITY_POLICY },
   { key:"Strict-Transport-Security", value:"max-age=63072000; includeSubDomains; preload" },
@@ -27,11 +45,16 @@ const SECURITY_HEADERS = [
   { key:"Cross-Origin-Resource-Policy", value:"same-site" },
   { key:"X-Permitted-Cross-Domain-Policies", value:"none" },
 ];
+const CONNECT_SECURITY_HEADERS=SECURITY_HEADERS.map((header)=>header.key==="Content-Security-Policy"?{...header,value:CONNECT_CONTENT_SECURITY_POLICY}:header.key==="Cross-Origin-Opener-Policy"?{...header,value:"unsafe-none"}:header);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async headers() {
-    return [{ source:"/:path*", headers:SECURITY_HEADERS }];
+    return [
+      { source:"/:path*", headers:SECURITY_HEADERS },
+      { source:"/payments/connect", headers:CONNECT_SECURITY_HEADERS },
+      { source:"/payments/connect/:path*", headers:CONNECT_SECURITY_HEADERS },
+    ];
   },
   async redirects() {
     return [
