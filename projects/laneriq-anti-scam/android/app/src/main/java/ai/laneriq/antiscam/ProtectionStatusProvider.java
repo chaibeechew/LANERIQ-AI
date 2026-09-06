@@ -23,7 +23,9 @@ public final class ProtectionStatusProvider extends ContentProvider {
             "unexpected_protection_loss", "freeze_sensitive_laneriq_actions", "self_integrity_state",
             "self_integrity_continuity_acceptable", "install_source_integrity_state", "install_source_continuity_acceptable",
             "alert_delivery_state", "alert_delivery_available", "platform_integrity_state", "background_restricted",
-            "battery_optimization_exemption", "last_stop_reason"
+            "battery_optimization_exemption", "witness_proof_schema", "witness_proof_available",
+            "witness_key_id_sha256", "witness_public_key_b64", "witness_signature_b64", "witness_observed_at_ms",
+            "last_stop_reason"
     };
 
     @Override public boolean onCreate() { return true; }
@@ -50,15 +52,46 @@ public final class ProtectionStatusProvider extends ContentProvider {
                 || installSource.unexpectedChange
                 || emergency.level == EmergencyModeStore.Level.URGENT;
 
+        long witnessObservedAtMs = System.currentTimeMillis();
+        String witnessKeyId = "";
+        String witnessPublicKey = "";
+        String witnessSignature = "";
+        boolean witnessProofAvailable = false;
+        try {
+            WitnessProofPayload payload = new WitnessProofPayload(
+                    getContext().getPackageName(),
+                    lease.epoch,
+                    lease.heartbeatSequence,
+                    lease.expiresAtMs,
+                    integrity.state.name(),
+                    emergency.level.name(),
+                    alertDelivery.state.name(),
+                    lease.policyVersion,
+                    witnessObservedAtMs);
+            GuardianWitnessKeyStore.SignedProof proof = GuardianWitnessKeyStore.sign(payload);
+            witnessKeyId = proof.keyIdSha256;
+            witnessPublicKey = proof.publicKeyBase64;
+            witnessSignature = proof.signatureBase64;
+            witnessProofAvailable = !witnessKeyId.isEmpty()
+                    && !witnessPublicKey.isEmpty()
+                    && !witnessSignature.isEmpty();
+        } catch (Exception ignored) {
+            // Local protection truth remains available, but a companion must not
+            // claim cryptographic Witness origin when Keystore proof is unavailable.
+            witnessProofAvailable = false;
+        }
+
         MatrixCursor cursor = new MatrixCursor(COLUMNS, 1);
         cursor.addRow(new Object[] {
-                8, lease.state.name(), claimable ? 1 : 0, lease.sameBootSession ? 1 : 0, lease.userOptedIn ? 1 : 0,
+                9, lease.state.name(), claimable ? 1 : 0, lease.sameBootSession ? 1 : 0, lease.userOptedIn ? 1 : 0,
                 lease.expiresAtMs, lease.heartbeatSequence, lease.localRiskLevel, lease.activeEngineSet, lease.policyVersion,
                 emergency.level.name(), emergency.active ? emergency.expiresAtMs : 0L, network.name(), integrity.state.name(),
                 integrity.unexpectedProtectionLoss ? 1 : 0, freezeSensitive ? 1 : 0, selfIntegrity.state.name(),
                 selfIntegrity.continuityAcceptable ? 1 : 0, installSource.state.name(), installSource.continuityAcceptable ? 1 : 0,
                 alertDelivery.state.name(), alertDelivery.mayClaimUserAlertsAvailable ? 1 : 0, platform.decision.state.name(),
                 platform.backgroundRestricted ? 1 : 0, platform.batteryOptimizationExemption ? 1 : 0,
+                WitnessProofPayload.SCHEMA_VERSION, witnessProofAvailable ? 1 : 0,
+                witnessKeyId, witnessPublicKey, witnessSignature, witnessObservedAtMs,
                 lease.lastStopReason == null ? "" : lease.lastStopReason
         });
         return cursor;
