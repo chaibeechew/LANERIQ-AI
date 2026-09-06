@@ -1,5 +1,7 @@
 package ai.laneriq.antiscam;
 
+import java.util.Locale;
+
 public final class SignerContinuityPolicy {
     public enum State {
         BASELINE_REQUIRED,
@@ -50,6 +52,6 @@ public final class SignerContinuityPolicy {
     }
 
     private static String normalize(String value) {
-        return value == null ? "" : value.trim().toLowerCase();
+        return value == null ? "" : value.trim().toLowerCase(Locale.US);
     }
 }
