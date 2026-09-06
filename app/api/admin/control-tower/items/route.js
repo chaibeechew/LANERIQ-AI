@@ -19,7 +19,7 @@ export async function GET(request) {
   try {
     const auth = await requireControlTowerApi(request);
     if (!auth.ok) return auth.response;
-    const releaseId = new URL(request.url).searchParams.get("releaseId")?.trim();
+    const releaseId = request.nextUrl.searchParams.get("releaseId")?.trim();
     let query = auth.supabase
       .from("control_tower_items")
       .select(ITEM_SELECT)
@@ -32,10 +32,23 @@ export async function GET(request) {
       if (isControlTowerStorageMissing(error)) return controlTowerJson({ storageReady: false, items: [] });
       throw error;
     }
-    return controlTowerJson({ storageReady: true, items: data || [] });
+    return controlTowerJson({ storageReady: true, items: data || [], capabilities: auth.capabilities });
   } catch {
     return controlTowerJson({ error: "Unable to load Control Tower items." }, 500);
   }
+}
+
+async function validateWorkstreamOwnership(supabase, releaseId, workstreamId) {
+  if (!workstreamId) return null;
+  const { data, error } = await supabase
+    .from("control_tower_workstreams")
+    .select("id,release_id")
+    .eq("id", workstreamId)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return "Referenced workstream does not exist.";
+  if (data.release_id !== releaseId) return "Referenced workstream belongs to a different release.";
+  return null;
 }
 
 export async function POST(request) {
@@ -49,23 +62,32 @@ export async function POST(request) {
 
     const { data: release, error: releaseError } = await auth.supabase
       .from("control_tower_releases")
-      .select("id,stage")
+      .select("id,stage,release_version")
       .eq("id", validation.value.release_id)
       .maybeSingle();
     if (releaseError) {
       if (isControlTowerStorageMissing(releaseError)) return controlTowerJson({ error: "Control Tower storage migration is not active in this environment." }, 503);
       throw releaseError;
     }
-    if (!release) return controlTowerJson({ error: "Release does not exist." }, 409);
+    if (!release) return controlTowerJson({ error: "Release does not exist." }, 404);
+    if (release.stage === "closed") {
+      return controlTowerJson({ error: "Closed releases are immutable.", code: "RELEASE_CLOSED" }, 409);
+    }
 
     const frozen = isControlTowerReleaseFrozen(release.stage);
-    const allowedWhileFrozen = ["evidence", "decision"].includes(validation.value.item_type);
-    if (frozen && !allowedWhileFrozen) {
+    if (frozen && validation.value.item_type !== "decision") {
       return controlTowerJson({
-        error: `Release is frozen at ${release.stage}. Only evidence or decision records may be appended without rolling the release back.`,
+        error: `Release is frozen at ${release.stage}. Only append-only decision records may be added; evidence uses the dedicated evidence endpoint.`,
         code: "RELEASE_FROZEN",
       }, 409);
     }
+
+    const ownershipError = await validateWorkstreamOwnership(
+      auth.supabase,
+      validation.value.release_id,
+      validation.value.workstream_id,
+    );
+    if (ownershipError) return controlTowerJson({ error: ownershipError, code: "WORKSTREAM_RELEASE_MISMATCH" }, 409);
 
     const { data, error } = await auth.supabase
       .from("control_tower_items")
@@ -84,7 +106,12 @@ export async function POST(request) {
       entityType: data.item_type,
       entityId: data.id,
       afterState: data,
-      metadata: { release_stage: release.stage, release_frozen: frozen, actor_role: auth.role },
+      metadata: {
+        release_stage: release.stage,
+        release_version: release.release_version,
+        release_frozen: frozen,
+        actor_role: auth.role,
+      },
     });
     return controlTowerJson({ item: data }, 201);
   } catch {
@@ -119,13 +146,16 @@ export async function PATCH(request) {
 
     const { data: release, error: releaseError } = await auth.supabase
       .from("control_tower_releases")
-      .select("id,stage")
+      .select("id,stage,release_version")
       .eq("id", before.release_id)
       .maybeSingle();
     if (releaseError) throw releaseError;
     if (!release) return controlTowerJson({ error: "Parent release not found." }, 409);
-    if (isControlTowerReleaseFrozen(release.stage) && before.item_type !== "decision") {
-      return controlTowerJson({ error: `Release is frozen at ${release.stage}.`, code: "RELEASE_FROZEN" }, 409);
+    if (isControlTowerReleaseFrozen(release.stage) || release.stage === "closed") {
+      return controlTowerJson({
+        error: `Items are immutable after the release reaches ${release.stage}. Append a new decision or evidence record instead.`,
+        code: "RELEASE_FROZEN",
+      }, 409);
     }
 
     if (validation.patch.stage && !canTransitionControlTowerStage(before.stage, validation.patch.stage)) {
@@ -144,7 +174,11 @@ export async function PATCH(request) {
       entityId: data.id,
       beforeState: before,
       afterState: data,
-      metadata: { release_stage: release.stage, actor_role: auth.role },
+      metadata: {
+        release_stage: release.stage,
+        release_version: release.release_version,
+        actor_role: auth.role,
+      },
     });
     return controlTowerJson({ item: data });
   } catch {
