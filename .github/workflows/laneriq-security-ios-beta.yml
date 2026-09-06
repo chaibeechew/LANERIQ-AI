@@ -1,0 +1,46 @@
+name: LANERIQ Anti Scam iOS Beta
+
+on:
+  push:
+    branches:
+      - main
+      - test/laneriq-security-ios-beta-20260905
+    paths:
+      - 'apps/laneriq-security-ios/**'
+      - '.github/workflows/laneriq-security-ios-beta.yml'
+  pull_request:
+    paths:
+      - 'apps/laneriq-security-ios/**'
+      - '.github/workflows/laneriq-security-ios-beta.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ios-beta:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        run: xcodegen generate --spec apps/laneriq-security-ios/project.yml
+      - name: Build iOS Simulator app
+        run: |
+          xcodebuild \
+            -project apps/laneriq-security-ios/LANERIQSecurityBeta.xcodeproj \
+            -scheme LANERIQSecurityBeta \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath apps/laneriq-security-ios/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+      - name: Verify app exists
+        run: test -d 'apps/laneriq-security-ios/DerivedData/Build/Products/Debug-iphonesimulator/LANERIQ Anti Scam Beta.app'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laneriq-anti-scam-ios-beta-simulator-app
+          path: 'apps/laneriq-security-ios/DerivedData/Build/Products/Debug-iphonesimulator/LANERIQ Anti Scam Beta.app'
+          if-no-files-found: error
