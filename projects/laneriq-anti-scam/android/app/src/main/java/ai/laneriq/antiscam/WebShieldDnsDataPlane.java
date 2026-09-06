@@ -33,6 +33,16 @@ public final class WebShieldDnsDataPlane implements AutoCloseable {
     private static final String DNS6_LOCAL = "fd66:6c61:6e65::1";
     private static final String DNS6_VIRTUAL = "fd66:6c61:6e65::2";
 
+    private static final class UpstreamDnsEndpoint {
+        final Network network;
+        final InetAddress address;
+
+        UpstreamDnsEndpoint(Network network, InetAddress address) {
+            this.network = network;
+            this.address = address;
+        }
+    }
+
     private final VpnService service;
     private final WebShieldStateStore stateStore;
     private final LocalEventStore eventStore;
@@ -150,15 +160,19 @@ public final class WebShieldDnsDataPlane implements AutoCloseable {
     }
 
     private byte[] queryUpstream(byte[] dnsQuery) {
-        for (InetAddress upstream : currentUpstreamDnsServers()) {
+        for (UpstreamDnsEndpoint endpoint : currentUpstreamDnsServers()) {
             try (DatagramSocket socket = new DatagramSocket()) {
                 if (!service.protect(socket)) continue;
+                endpoint.network.bindSocket(socket);
+                service.setUnderlyingNetworks(new Network[]{endpoint.network});
+                socket.connect(endpoint.address, 53);
                 socket.setSoTimeout(2500);
-                socket.send(new DatagramPacket(dnsQuery, dnsQuery.length, upstream, 53));
+                socket.send(new DatagramPacket(dnsQuery, dnsQuery.length));
                 byte[] buffer = new byte[8192];
                 DatagramPacket response = new DatagramPacket(buffer, buffer.length);
                 socket.receive(response);
                 if (response.getLength() < 12) continue;
+                if (!sameDnsTransaction(dnsQuery, response.getData(), response.getOffset(), response.getLength())) continue;
                 byte[] result = new byte[response.getLength()];
                 System.arraycopy(response.getData(), response.getOffset(), result, 0, response.getLength());
                 return result;
@@ -171,22 +185,53 @@ public final class WebShieldDnsDataPlane implements AutoCloseable {
         return null;
     }
 
-    private List<InetAddress> currentUpstreamDnsServers() {
-        ArrayList<InetAddress> result = new ArrayList<>();
+    private boolean sameDnsTransaction(byte[] query, byte[] response, int offset, int length) {
+        return query != null
+                && query.length >= 2
+                && response != null
+                && length >= 2
+                && offset >= 0
+                && offset + 1 < response.length
+                && query[0] == response[offset]
+                && query[1] == response[offset + 1];
+    }
+
+    private List<UpstreamDnsEndpoint> currentUpstreamDnsServers() {
+        ArrayList<UpstreamDnsEndpoint> result = new ArrayList<>();
         ConnectivityManager cm = (ConnectivityManager) service.getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm == null) return result;
+
+        Network preferred = cm.getActiveNetwork();
+        if (preferred != null) collectNetworkDns(cm, preferred, result);
         for (Network network : cm.getAllNetworks()) {
-            NetworkCapabilities caps = cm.getNetworkCapabilities(network);
-            if (caps == null
-                    || !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-                    || caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) continue;
-            LinkProperties links = cm.getLinkProperties(network);
-            if (links == null) continue;
-            for (InetAddress dns : links.getDnsServers()) {
-                if (dns != null && !result.contains(dns)) result.add(dns);
-            }
+            if (network == null || network.equals(preferred)) continue;
+            collectNetworkDns(cm, network, result);
         }
         return result;
+    }
+
+    private void collectNetworkDns(ConnectivityManager cm,
+                                   Network network,
+                                   List<UpstreamDnsEndpoint> result) {
+        NetworkCapabilities caps = cm.getNetworkCapabilities(network);
+        if (caps == null
+                || !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                || caps.hasTransport(NetworkCapabilities.TRANSPORT_VPN)) return;
+        LinkProperties links = cm.getLinkProperties(network);
+        if (links == null) return;
+        for (InetAddress dns : links.getDnsServers()) {
+            if (dns == null || containsEndpoint(result, network, dns)) continue;
+            result.add(new UpstreamDnsEndpoint(network, dns));
+        }
+    }
+
+    private boolean containsEndpoint(List<UpstreamDnsEndpoint> endpoints,
+                                     Network network,
+                                     InetAddress address) {
+        for (UpstreamDnsEndpoint endpoint : endpoints) {
+            if (endpoint.network.equals(network) && endpoint.address.equals(address)) return true;
+        }
+        return false;
     }
 
     @Override public void close() {
@@ -199,6 +244,7 @@ public final class WebShieldDnsDataPlane implements AutoCloseable {
             worker.interrupt();
             worker = null;
         }
+        try { service.setUnderlyingNetworks(null); } catch (Exception ignored) {}
         stateStore.markStopped("dns-data-plane-stopped");
     }
 }
