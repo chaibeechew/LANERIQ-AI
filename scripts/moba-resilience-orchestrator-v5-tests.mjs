@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import {MOBA_RESILIENCE_ORCHESTRATOR_V5,buildMobaCreatorCapacityReport,buildMobaLoadRampPlan,calculateMobaAutoscalePlan,createMobaFaultInjectionCampaign,evaluateMobaCapacityCertification,evaluateMobaFaultCampaign,evaluateMobaResilienceV5,planMobaMatchMigration,planMobaRegionalPlacement,validateMobaMigrationHandoff} from "../lib/game/moba-resilience-orchestrator-v5.js";
 
 assert.equal(MOBA_RESILIENCE_ORCHESTRATOR_V5.providerNeutral,true);
 assert.equal(MOBA_RESILIENCE_ORCHESTRATOR_V5.dedicatedLanerIqServerRequired,false);
 assert.equal(MOBA_RESILIENCE_ORCHESTRATOR_V5.zeroTouchCreatorExperience,true);
+
+const capacityRoute=fs.readFileSync("app/api/game/multiplayer/capacity/route.js","utf8");
+for(const pattern of [/auth\.getUser\(\)/,/professional\.active/,/PRO_GAME_CREATOR_REQUIRED/,/\.eq\("owner_id",userId\)/,/MAX_REQUEST_BYTES/,/targetConcurrentPlayers/,/getMultiplayerProviderConfig/,/creatorServerConfigurationRequired:false/,/endpointExposed:false/,/credentialExposed:false/,/capacityKnown:false/,/productionEvidenceVerified:false/])assert.match(capacityRoute,pattern);
+assert.doesNotMatch(capacityRoute,/MULTIPLAYER_PROVIDER_TOKEN/);assert.doesNotMatch(capacityRoute,/matchmakingEndpoint/);
 
 const providers=[
   {id:"ap-a",connected:true,healthy:true,commercialUseAllowed:true,regions:["ap-southeast"],maxConcurrentMatches:80,currentConcurrentMatches:10,latencyByRegion:{"ap-southeast":42}},
@@ -36,4 +41,4 @@ const certified=evaluateMobaCapacityCertification({targetConcurrentPlayers:5000,
 const report=buildMobaCreatorCapacityReport({certification:certified,simulation});assert.match(report.headline,/5,000 concurrent players/);assert.equal(report.creatorNeedsServerExpertise,false);assert.equal(report.providerDetailsHidden,true);assert.equal(report.showCrashFreeBadge,false);
 
 const v5=evaluateMobaResilienceV5({regionalPlacement:true,autoscaling:true,loadRamp:true,faultInjection:true,matchMigration:true,capacityCertification:true,creatorReport:true});assert.equal(v5.score,100);assert.equal(v5.internalReady,true);assert.equal(v5.productionReady,false);
-console.log("✓ MOBA Resilience V5 passed: multi-region placement, autoscaling, load ramp, fault injection, authoritative migration, strict capacity certification and creator-safe reporting.");
+console.log("✓ MOBA Resilience V5 passed: zero-touch capacity API, multi-region placement, autoscaling, load ramp, fault injection, authoritative migration, strict capacity certification and creator-safe reporting.");
