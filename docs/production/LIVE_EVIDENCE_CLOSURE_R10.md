@@ -1,6 +1,6 @@
 # LANERIQ AI — Round 10 LIVE Evidence Closure
 
-Status: CODE + CI VERIFIED / Preview partially verified / Production pending
+Status: CODE + CI + PREVIEW VERIFIED / Production pending
 
 Round 10 converts the remaining Production Cognitive Gate requirements into an auditable evidence-closure program and adds eight concrete product/runtime upgrades. It does not create a speculative future-intelligence layer.
 
@@ -45,6 +45,6 @@ Preview readiness, fixtures, mocks, static CI and simulated evidence MUST NOT be
 - Production database mutation occurs only after the exact candidate is merged into main.
 - Production closure may be claimed only when the repository Production Cognitive Gate returns PASS using LIVE evidence.
 
-## Current Round 10 verification boundary
+## Verification boundary
 
-The dedicated `LANERIQ Round 10 LIVE Platform Upgrade Gate` runs the eight-part contract suite plus Round 9 constitutional regression, App Builder zero-cost admission, Project Memory and Cognitive Self-Heal/Production-gate regressions. The latest code head before this documentation-only status update passed all of those checks. Because this file update creates a new exact head, the gate must rerun again before the documentation head can be described as CI verified. Vercel Preview status is tracked separately and never counts as Production evidence.
+The dedicated `LANERIQ Round 10 LIVE Platform Upgrade Gate` runs the eight-part contract suite plus Round 9 constitutional regression, App Builder zero-cost admission, Project Memory and Cognitive Self-Heal/Production-gate regressions. CODE/CI success and Vercel Preview success remain distinct from Provider LIVE and Production evidence.
