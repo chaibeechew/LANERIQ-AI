@@ -139,6 +139,32 @@ const brokenDr = evaluateControlTowerDisasterRecovery({
 assert.equal(brokenDr.ready, false);
 assert.ok(brokenDr.failedChecks.includes("chaos_fresh"));
 
+const missingRecoveryMetrics = evaluateControlTowerDisasterRecovery({
+  items: items.map((item) => item.metadata.kind === "backup_restore"
+    ? evidence("backup_restore", "2026-09-05T12:00:00.000Z", "backup-missing", { restore_succeeded: true })
+    : item),
+  now,
+});
+assert.equal(missingRecoveryMetrics.ready, false);
+assert.equal(missingRecoveryMetrics.backup.restoreMinutes, null);
+assert.equal(missingRecoveryMetrics.backup.rpoMinutes, null);
+assert.equal(missingRecoveryMetrics.backup.rtoMet, false);
+assert.equal(missingRecoveryMetrics.backup.rpoMet, false);
+
+const missingSupplyMetrics = evaluateControlTowerSupplyChain({
+  items: items.map((item) => item.metadata.kind === "supply_chain"
+    ? evidence("supply_chain", "2026-09-06T23:00:00.000Z", "supply-missing", {
+      sbom_verified: true,
+      provenance_verified: true,
+      dependency_lock_verified: true,
+    })
+    : item),
+  now,
+});
+assert.equal(missingSupplyMetrics.ready, false);
+assert.equal(missingSupplyMetrics.criticalVulnerabilities, null);
+assert.equal(missingSupplyMetrics.highVulnerabilities, null);
+
 const staleObservability = evaluateControlTowerObservability({
   items: items.map((item) => item.metadata.kind === "observability"
     ? evidence("observability", "2026-09-05T00:00:00.000Z", "observe-old", item.metadata.snapshot)
@@ -147,6 +173,15 @@ const staleObservability = evaluateControlTowerObservability({
 });
 assert.equal(staleObservability.ready, false);
 assert.equal(staleObservability.freshness.state, "stale");
+
+const futureObservability = evaluateControlTowerObservability({
+  items: items.map((item) => item.metadata.kind === "observability"
+    ? evidence("observability", "2026-09-07T02:00:00.000Z", "observe-future", item.metadata.snapshot)
+    : item),
+  now,
+});
+assert.equal(futureObservability.ready, false);
+assert.equal(futureObservability.freshness.state, "invalid");
 
 const weakCapacity = evaluateControlTowerCapacity({
   items: items.map((item) => item.metadata.kind === "capacity"
@@ -160,5 +195,15 @@ const weakCapacity = evaluateControlTowerCapacity({
 });
 assert.equal(weakCapacity.ready, false);
 assert.ok(weakCapacity.score < 100);
+
+const missingCapacityMetrics = evaluateControlTowerCapacity({
+  items: items.map((item) => item.metadata.kind === "capacity"
+    ? evidence("capacity", "2026-09-06T22:00:00.000Z", "capacity-missing", { provider_failover_ready: true })
+    : item),
+  now,
+});
+assert.equal(missingCapacityMetrics.ready, false);
+assert.equal(missingCapacityMetrics.headroomRatio, null);
+assert.equal(missingCapacityMetrics.queueHeadroomRatio, null);
 
 console.log("Control Tower technical-ceiling tests passed.");
