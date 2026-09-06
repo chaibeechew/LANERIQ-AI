@@ -10,6 +10,7 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
   const appGradle = read('android/app/build.gradle');
   const manifest = read('android/app/src/main/AndroidManifest.xml');
   const prTruth = read('release/STORE_READINESS_2026.md');
+  const signingContract = read('release/ANDROID_PRODUCTION_SIGNING.md');
 
   const checks = {
     productionApplicationId: /applicationId\s+['"]ai\.laneriq\.antiscam['"]/.test(appGradle),
@@ -17,13 +18,17 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
     compileSdk36: /compileSdk\s+36\b/.test(appGradle),
     targetSdk36: /targetSdk\s+36\b/.test(appGradle),
     releaseLintEnabled: /checkReleaseBuilds\s+true/.test(appGradle),
+    productionSigningFailsClosed: /verifyProductionSigningConfigured/.test(appGradle)
+      && /Production signing inputs are not configured/.test(appGradle),
     backupDisabled: /android:allowBackup=['"]false['"]/.test(manifest),
     cleartextDisabled: /android:usesCleartextTraffic=['"]false['"]/.test(manifest),
+    appLabelBuildSpecific: /android:label=['"]@string\/app_name['"]/.test(manifest),
     protectionProviderSignaturePermission: /android:protectionLevel=['"]signature['"]/.test(manifest)
       && /android:permission=['"]ai\.laneriq\.antiscam\.permission\.READ_PROTECTION_STATUS['"]/.test(manifest),
     privacyPolicyDraftPresent: exists('release/PRIVACY_POLICY_DRAFT.md'),
     playDeclarationDraftPresent: exists('release/GOOGLE_PLAY_DECLARATIONS_DRAFT.md'),
-    signingContractPresent: exists('release/ANDROID_PRODUCTION_SIGNING.md'),
+    signingContractPresent: exists('release/ANDROID_PRODUCTION_SIGNING.md')
+      && /must never be signed with the debug key/i.test(signingContract),
     fiveLayerExitGatesPresent: exists('release/FIVE_LAYER_EXIT_GATES.md'),
     storeReadinessPresent: exists('release/STORE_READINESS_2026.md'),
     checklistPackageMatches: checklist?.android?.applicationId === 'ai.laneriq.antiscam',
