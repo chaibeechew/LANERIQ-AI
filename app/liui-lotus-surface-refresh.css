@@ -17,6 +17,28 @@
   --lotus-shadow:0 26px 78px rgba(0,17,43,.34);
 }
 
+/* A single brand anchor for portal-style pages that intentionally do not use the workspace rail. */
+.liuiPortalBrandAnchor{
+  position:fixed;
+  z-index:9860;
+  top:max(16px,env(safe-area-inset-top));
+  left:clamp(18px,4vw,54px);
+  display:flex;
+  align-items:center;
+  min-height:48px;
+  padding:7px 12px;
+  border:1px solid rgba(191,222,249,.18);
+  border-radius:18px;
+  background:linear-gradient(145deg,rgba(10,39,70,.72),rgba(4,20,43,.62));
+  color:#f8fbff;
+  text-decoration:none;
+  box-shadow:0 18px 52px rgba(0,14,38,.25);
+  backdrop-filter:blur(22px) saturate(140%);
+  -webkit-backdrop-filter:blur(22px) saturate(140%);
+}
+body[data-liui-surface="creations"] .projectsReference,
+body[data-liui-surface="templates"] .referenceTemplates{padding-top:104px!important}
+
 body[data-liui-surface="media"],
 body[data-liui-surface="brand"],
 body[data-liui-surface="assets"],
@@ -25,6 +47,7 @@ body[data-liui-surface="account"],
 body[data-liui-surface="workflow"],
 body[data-liui-surface="analytics"],
 body[data-liui-surface="quality"],
+body[data-liui-surface="community"],
 body[data-liui-surface="more"]{
   background:var(--lotus-blue-950)!important;
   color:var(--lotus-text)!important;
@@ -37,7 +60,8 @@ body[data-liui-surface="assistant"] :where(.page,.soolenCenter),
 body[data-liui-surface="account"] :where(.page,.securityPage,.cloudPage,.devicePage),
 body[data-liui-surface="workflow"] .page,
 body[data-liui-surface="analytics"] .page,
-body[data-liui-surface="quality"] .page{
+body[data-liui-surface="quality"] .page,
+body[data-liui-surface="community"] .chatPage{
   min-height:100svh!important;
   background:transparent!important;
   color:var(--lotus-text)!important;
@@ -51,7 +75,8 @@ body[data-liui-surface="assistant"] :where(.shell,.wrap,.soolenCenter>div),
 body[data-liui-surface="account"] :where(.shell,.wrap),
 body[data-liui-surface="workflow"] .wrap,
 body[data-liui-surface="analytics"] .wrap,
-body[data-liui-surface="quality"] .wrap{
+body[data-liui-surface="quality"] .wrap,
+body[data-liui-surface="community"] .chatShell{
   width:min(1120px,100%)!important;
   margin-inline:auto!important;
 }
@@ -178,6 +203,72 @@ body[data-liui-surface="account"] :where(.page,.cloudPage,.devicePage) :where(se
 body[data-liui-surface="account"] :where(.page,.cloudPage,.devicePage) :where(h1,h2,h3){color:#fff!important}
 body[data-liui-surface="account"] :where(.page,.cloudPage,.devicePage) :where(p,small,.muted){color:var(--lotus-muted)!important}
 
+/* Community remains explicit opt-in; this only replaces the legacy green presentation. */
+body[data-liui-surface="community"] .chatPage{
+  padding:118px 18px 132px!important;
+}
+body[data-liui-surface="community"] .chatHeader{
+  align-items:flex-end!important;
+  margin-bottom:16px!important;
+}
+body[data-liui-surface="community"] .chatHeader .eyebrow{color:var(--lotus-gold)!important}
+body[data-liui-surface="community"] .chatHeader h1{
+  margin:7px 0!important;
+  color:#fff!important;
+  font-size:clamp(36px,5vw,56px)!important;
+  letter-spacing:-.04em!important;
+}
+body[data-liui-surface="community"] .chatHeader p{max-width:700px!important;color:#afc3d5!important}
+body[data-liui-surface="community"] :where(.optInCard,.messages){
+  border:1px solid var(--lotus-line)!important;
+  background:var(--lotus-glass)!important;
+  box-shadow:var(--lotus-shadow)!important;
+  backdrop-filter:blur(24px) saturate(140%)!important;
+  -webkit-backdrop-filter:blur(24px) saturate(140%)!important;
+}
+body[data-liui-surface="community"] .optInCard{border-radius:26px!important}
+body[data-liui-surface="community"] .notice{
+  border:1px solid rgba(242,200,102,.16)!important;
+  background:rgba(242,200,102,.07)!important;
+  color:#d7e3ed!important;
+}
+body[data-liui-surface="community"] .messages{border-radius:22px!important}
+body[data-liui-surface="community"] .bubble{
+  border:1px solid rgba(177,216,247,.12)!important;
+  background:linear-gradient(145deg,rgba(14,54,88,.9),rgba(7,29,55,.94))!important;
+  color:#f4f9fd!important;
+}
+body[data-liui-surface="community"] .message.ai .bubble{
+  border-color:rgba(242,200,102,.22)!important;
+  background:linear-gradient(145deg,rgba(66,53,29,.72),rgba(18,38,59,.9))!important;
+  color:#ffedb6!important;
+}
+body[data-liui-surface="community"] .messageLabel{color:#8fa8bc!important}
+body[data-liui-surface="community"] .composer textarea{
+  min-height:58px!important;
+  border:1px solid rgba(137,200,246,.24)!important;
+  background:rgba(4,24,49,.86)!important;
+  color:#fff!important;
+  font-size:16px!important;
+}
+body[data-liui-surface="community"] .primaryButton{
+  border:1px solid rgba(255,236,177,.76)!important;
+  background:linear-gradient(110deg,#edba45,#ffe493 48%,#dca536)!important;
+  color:#13233a!important;
+  box-shadow:0 12px 32px rgba(210,157,38,.16)!important;
+}
+body[data-liui-surface="community"] .ghostButton{
+  border:1px solid rgba(173,215,249,.2)!important;
+  background:rgba(5,27,53,.72)!important;
+  color:#d9eafb!important;
+}
+body[data-liui-surface="community"] .empty{color:#829bb0!important}
+body[data-liui-surface="community"] .error{
+  border:1px solid rgba(255,121,121,.22)!important;
+  background:rgba(125,40,52,.24)!important;
+  color:#ffc2c2!important;
+}
+
 /* More/Settings stays visually connected to the same city and lotus shell. */
 body[data-liui-surface="more"] .settingsReference{background:transparent!important}
 body[data-liui-surface="more"] .settingsBg{opacity:.86!important}
@@ -189,11 +280,21 @@ body[data-liui-surface="more"] :where(.workspaceBanner,.settingCard,.qualityGrid
 
 /* Mobile: preserve native input zoom safety and give the bottom nav breathing room. */
 @media(max-width:1000px){
+  .liuiPortalBrandAnchor{
+    top:max(10px,env(safe-area-inset-top));
+    left:12px;
+    min-height:44px;
+    padding:5px 9px;
+    border-radius:16px;
+  }
+  body[data-liui-surface="creations"] .projectsReference,
+  body[data-liui-surface="templates"] .referenceTemplates{padding-top:84px!important}
   body[data-liui-surface="media"] :where(.studio,.page),
   body[data-liui-surface="brand"] .page,
   body[data-liui-surface="assets"] .page,
   body[data-liui-surface="assistant"] :where(.page,.soolenCenter),
-  body[data-liui-surface="account"] :where(.page,.cloudPage,.devicePage){
+  body[data-liui-surface="account"] :where(.page,.cloudPage,.devicePage),
+  body[data-liui-surface="community"] .chatPage{
     padding-inline:12px!important;
     padding-bottom:max(118px,calc(env(safe-area-inset-bottom) + 104px))!important;
   }
@@ -201,6 +302,11 @@ body[data-liui-surface="more"] :where(.workspaceBanner,.settingCard,.qualityGrid
   body[data-liui-surface] :where(.studio,.page,.soolenCenter) .hero{padding-top:18px!important}
   body[data-liui-surface] :where(.studio,.page,.soolenCenter) .hero h1{font-size:clamp(34px,10vw,48px)!important}
   body[data-liui-surface="media"] :where(.workspace,.gallery){grid-template-columns:1fr!important}
+}
+
+@media(max-width:700px){
+  body[data-liui-surface="community"] .chatPage{padding-top:92px!important}
+  body[data-liui-surface="community"] .chatHeader{align-items:stretch!important}
 }
 
 @media(prefers-reduced-motion:reduce){
