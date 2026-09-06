@@ -5,6 +5,13 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "lib/sovereign/**"
+      - "app/api/system/sovereign/**"
+      - "scripts/sovereign-modular-intelligence-contract-tests.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/sovereign-modular-intelligence.yml"
 
 jobs:
   verify:

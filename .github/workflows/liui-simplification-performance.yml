@@ -3,6 +3,17 @@ name: LANERIQ LIUI Simplification Performance Gate
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "app/**"
+      - "lib/design/**"
+      - "lib/ai/liui-standard.js"
+      - "scripts/batch156-liui-simplification-performance-tests.mjs"
+      - "scripts/batch153-liui-five-layer-100-tests.mjs"
+      - "scripts/mobile-ui-contract-tests.mjs"
+      - "scripts/mobile-performance-contract-tests.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/liui-simplification-performance.yml"
   push:
     branches: [main]
 

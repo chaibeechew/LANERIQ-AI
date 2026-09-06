@@ -5,6 +5,24 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "app/api/templates/**"
+      - "lib/templateCatalog.js"
+      - "lib/trendingAppReferences.js"
+      - "lib/ai/template-intelligence-fusion.js"
+      - "lib/ai/provider-prompt-intelligence.js"
+      - "lib/ai/**"
+      - "lib/fabric/service-observability.js"
+      - "lib/communications/cutover-readiness.js"
+      - "services/fabric/**"
+      - "scripts/batch34b-template-observability-contract-tests.mjs"
+      - "scripts/industry-intelligence-contract-tests.mjs"
+      - "scripts/generation-outcome-intelligence-contract-tests.mjs"
+      - "scripts/benchmark-factory-contract-tests.mjs"
+      - "scripts/zero-cost-omnichannel-contract-tests.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/batch34b-template-observability.yml"
 
 jobs:
   template-observability:

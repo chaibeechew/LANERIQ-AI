@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "lib/infrastructure/capacity-evidence.js"
+      - "scripts/capacity-load-evidence-contract-tests.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/capacity-load-evidence.yml"
 
 jobs:
   capacity-evidence:

@@ -3,6 +3,14 @@ name: Auth Mobile Entry Contract
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "app/auth/**"
+      - "app/api/auth/**"
+      - "lib/auth/**"
+      - "scripts/auth-mobile-entry-contract-tests.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/auth-mobile-entry.yml"
   push:
     branches: [main]
 

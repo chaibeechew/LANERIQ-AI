@@ -5,6 +5,21 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "config/launch-mode.js"
+      - "app/components/LaunchModeGuard.js"
+      - "app/credits/**"
+      - "app/api/credits/**"
+      - "app/layout.js"
+      - "app/page.js"
+      - "app/home-liui-v5.css"
+      - "lib/app-builder-finance.js"
+      - "app/api/generate/**"
+      - "app/api/modify/**"
+      - "scripts/no-credits-launch-mode-contract-tests.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/no-credits-launch-mode.yml"
 
 jobs:
   no-credits-launch-mode:

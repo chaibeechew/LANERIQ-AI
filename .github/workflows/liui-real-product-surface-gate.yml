@@ -5,6 +5,15 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "app/**"
+      - "lib/product/laneriq-18-page-master.js"
+      - "lib/ai/liui-standard.js"
+      - "scripts/batch40-liui-real-product-surface-tests.mjs"
+      - "docs/LANERIQ_AI_18_PAGE_MASTER_PRODUCT_SPEC.md"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/liui-real-product-surface-gate.yml"
 
 jobs:
   liui-real-product-surface:
