@@ -5,14 +5,18 @@ on:
     branches: [main]
     paths:
       - 'lib/soolen/**'
+      - 'lib/project-memory.js'
       - 'scripts/cognitive-os-contract-tests.mjs'
+      - 'scripts/cognitive-runtime-contract-tests.mjs'
       - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
       - '.github/workflows/cognitive-os-gate.yml'
   pull_request:
     branches: [main]
     paths:
       - 'lib/soolen/**'
+      - 'lib/project-memory.js'
       - 'scripts/cognitive-os-contract-tests.mjs'
+      - 'scripts/cognitive-runtime-contract-tests.mjs'
       - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
       - '.github/workflows/cognitive-os-gate.yml'
 
@@ -36,5 +40,9 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: Cognitive OS fail-closed contracts
         run: node scripts/cognitive-os-contract-tests.mjs
+      - name: Cognitive runtime, failure memory and benchmark campaign contracts
+        run: node scripts/cognitive-runtime-contract-tests.mjs
+      - name: Existing Project Memory regression
+        run: node scripts/project-memory-contract-tests.mjs
       - name: Super Brain integration smoke
         run: node --input-type=module -e "import {createSuperBrainJob} from './lib/soolen/super-brain.js'; const job=createSuperBrainJob({goal:'verify cognitive integration',simulationRequired:true}); if(job.cognitiveOSVersion!=='1.0.0'||job.cognitive.layers.length!==20) process.exit(1);"
