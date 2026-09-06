@@ -7,7 +7,9 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.ServiceInfo;
 import android.graphics.Color;
+import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
@@ -80,7 +82,7 @@ public class GuardianService extends Service {
         }
 
         intentionalStopRequested = false;
-        startForeground(NOTIFICATION_ID,
+        startGuardianForeground(
                 buildProtectionNotification("Guardian starting • verifying local protection state"));
 
         ProtectionLeaseStore.Lease before = leaseStore.read();
@@ -110,6 +112,17 @@ public class GuardianService extends Service {
             }
         }
         return START_STICKY;
+    }
+
+    private void startGuardianForeground(Notification notification) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } else {
+            startForeground(NOTIFICATION_ID, notification);
+        }
     }
 
     private void runRiskCheck() {
