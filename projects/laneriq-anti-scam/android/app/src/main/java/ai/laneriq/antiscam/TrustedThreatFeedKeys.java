@@ -1,6 +1,7 @@
 package ai.laneriq.antiscam;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -11,13 +12,21 @@ import java.util.Map;
  * here (or generate an equivalent immutable build-time source) and attach release
  * evidence for the key provenance/rotation procedure.
  *
- * The default map is intentionally empty. Therefore no remote feed can manufacture
- * a strong KNOWN_MALICIOUS verdict until a real feed key is deliberately pinned.
+ * Production remains intentionally empty until a real reviewed feed is onboarded.
+ * Debug builds may add exactly one internal-test key so real-device blocking can be
+ * proven with cryptographic evidence instead of forged SharedPreferences state.
  */
 public final class TrustedThreatFeedKeys {
+    public static final String INTERNAL_TEST_SOURCE_ID = "laneriq-internal-test-feed";
+
     private TrustedThreatFeedKeys() {}
 
     public static Map<String, String> pinnedX509Base64BySource() {
-        return Collections.emptyMap();
+        if (!BuildConfig.DEBUG) return Collections.emptyMap();
+        String debugKey = BuildConfig.INTERNAL_TEST_THREAT_KEY_X509_B64;
+        if (debugKey == null || debugKey.trim().isEmpty()) return Collections.emptyMap();
+        HashMap<String, String> keys = new HashMap<>();
+        keys.put(INTERNAL_TEST_SOURCE_ID, debugKey.trim());
+        return Collections.unmodifiableMap(keys);
     }
 }
