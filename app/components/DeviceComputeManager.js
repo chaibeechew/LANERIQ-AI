@@ -11,6 +11,12 @@ import {
   createDefaultDeviceComputeSettings,
   sanitizeDeviceComputeSettings,
 } from "../../lib/device-compute/policy.js";
+import {
+  createBrowserForegroundExecutor,
+  detectBrowserExecutorCapabilities,
+  probeBrowserWebGPU,
+  publicBrowserExecutorTruth,
+} from "../../lib/device-compute/browser-executor.js";
 
 function installationId() {
   try {
@@ -125,6 +131,7 @@ export default function DeviceComputeManager() {
       visibility: typeof document !== "undefined" ? document.visibilityState : "visible",
       hardwareConcurrency: input.hardwareConcurrency,
     });
+    const browserCapabilities = detectBrowserExecutorCapabilities();
     return {
       policyVersion: DEVICE_COMPUTE_POLICY_VERSION,
       settings,
@@ -132,13 +139,24 @@ export default function DeviceComputeManager() {
       budget,
       storagePersistent,
       nativeThermalTelemetry: thermalState !== "unknown",
+      browserExecutor: {
+        ...publicBrowserExecutorTruth(),
+        capabilities: browserCapabilities,
+      },
     };
   }, [battery.charging, battery.level, ready, settings, storagePersistent, thermalState]);
 
   useEffect(() => {
     if (!snapshot) return;
+    const browserExecutor = createBrowserForegroundExecutor({
+      budgetProvider: () => snapshot.budget,
+      capabilitiesProvider: () => snapshot.browserExecutor.capabilities,
+      visibilityProvider: () => typeof document !== "undefined" ? document.visibilityState : "visible",
+    });
     const api = Object.freeze({
       getSnapshot: () => snapshot,
+      executeForegroundTask: (taskType, payload, options) => browserExecutor.execute(taskType, payload, options),
+      probeWebGPU: () => probeBrowserWebGPU(),
       policyVersion: DEVICE_COMPUTE_POLICY_VERSION,
       ownDevicesOnly: true,
       crossUserComputeAllowed: false,

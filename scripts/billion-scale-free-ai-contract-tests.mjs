@@ -12,6 +12,13 @@ import {
   publicBillionScaleFreeAiPolicy,
 } from "../lib/offline/billion-scale-free-ai.js";
 import { computeDeviceBudget, createDefaultDeviceComputeSettings, publicDeviceComputePolicy } from "../lib/device-compute/policy.js";
+import {
+  BROWSER_EXECUTOR_TASKS,
+  detectBrowserExecutorCapabilities,
+  planBrowserExecution,
+  publicBrowserExecutorTruth,
+} from "../lib/device-compute/browser-executor.js";
+import { buildPersistentReuseKey, getSemanticReusePersistenceTruth } from "../lib/ai/semantic-reuse-persistence.js";
 import { assertAdmissionSafe, decideZeroCostAdmission, ZERO_COST_ADMISSION_POLICY } from "../lib/ai/zero-cost-admission-controller.js";
 import { zeroCostPolicy } from "../lib/soolen/cost-policy.js";
 
@@ -127,6 +134,54 @@ const cloudOnlyOffline = computeDeviceBudget({
 assert.equal(cloudOnlyOffline.route, "offline_queue");
 assert.equal(cloudOnlyOffline.cloudFallbackAllowed, false);
 
+const browserCapabilities = detectBrowserExecutorCapabilities({
+  navigatorLike: { hardwareConcurrency: 8, gpu: { requestAdapter: async () => ({}) } },
+  WorkerCtor: function WorkerContractStub() {},
+  WebAssemblyImpl: { instantiate: async () => ({}) },
+  crossOriginIsolatedValue: true,
+});
+assert.equal(browserCapabilities.workers, true);
+assert.equal(browserCapabilities.wasm, true);
+assert.equal(browserCapabilities.webgpu, true);
+const browserPlan = planBrowserExecution({
+  budget: offlineLocal,
+  capabilities: browserCapabilities,
+  taskType: BROWSER_EXECUTOR_TASKS.VECTOR_DOT,
+  visibility: "visible",
+});
+assert.equal(browserPlan.admitted, true);
+assert.equal(browserPlan.route, "BROWSER_FOREGROUND");
+assert.ok(browserPlan.maxParallel >= 1 && browserPlan.maxParallel <= 2, "Mobile browser executor must remain conservatively bounded.");
+assert.equal(browserPlan.ownDeviceOnly, true);
+assert.equal(browserPlan.crossUserComputeAllowed, false);
+assert.equal(planBrowserExecution({ budget: offlineLocal, capabilities: browserCapabilities, taskType: BROWSER_EXECUTOR_TASKS.VECTOR_DOT, visibility: "hidden" }).reason, "foreground_only");
+assert.equal(planBrowserExecution({ budget: cloudOnlyOffline, capabilities: browserCapabilities, taskType: BROWSER_EXECUTOR_TASKS.VECTOR_DOT, visibility: "visible" }).reason, "local_device_not_admitted");
+const browserTruth = publicBrowserExecutorTruth();
+assert.equal(browserTruth.webWorkerTaskRuntimeLive, true);
+assert.equal(browserTruth.wasmWorkerKernelLive, true);
+assert.equal(browserTruth.webgpuAdapterProbeLive, true);
+assert.equal(browserTruth.webgpuComputeKernelLive, false);
+assert.equal(browserTruth.browserAiInferenceRuntimeLive, false);
+assert.equal(browserTruth.crossUserComputeAllowed, false);
+
+const persistenceKey = buildPersistentReuseKey({
+  scope: "contract-user-scope",
+  purpose: "general",
+  keyMaterial: "private prompt must never be stored raw",
+  variant: "v1",
+});
+assert.equal(persistenceKey.valid, true);
+assert.match(persistenceKey.scopeHash, /^[a-f0-9]{64}$/);
+assert.match(persistenceKey.exactHash, /^[a-f0-9]{64}$/);
+assert.equal(Object.prototype.hasOwnProperty.call(persistenceKey, "keyMaterial"), false);
+const persistenceTruth = getSemanticReusePersistenceTruth({ LANERIQ_SEMANTIC_CACHE_PERSISTENCE: "off" });
+assert.equal(persistenceTruth.configured, false);
+assert.equal(persistenceTruth.exactReuseOnly, true);
+assert.equal(persistenceTruth.rawPromptStored, false);
+assert.equal(persistenceTruth.scopeStoredAsHashOnly, true);
+assert.equal(persistenceTruth.crossUserPrivateReuseAllowed, false);
+assert.equal(persistenceTruth.failOpenToExistingRouterOnPersistenceError, true);
+
 const freeAdmissionOffline = decideZeroCostAdmission({
   costMode: "free",
   connectivityState: "offline",
@@ -192,11 +247,24 @@ assert.match(policyRoute, /publicBillionScaleFreeAiPolicy/);
 assert.match(policyRoute, /privateTelemetryContentUploadDefault/);
 assert.match(policyRoute, /freeModeManagedPaidFallbackAllowed/);
 
+const deviceComputeManager = fs.readFileSync("app/components/DeviceComputeManager.js", "utf8");
+assert.match(deviceComputeManager, /createBrowserForegroundExecutor/);
+assert.match(deviceComputeManager, /executeForegroundTask/);
+assert.match(deviceComputeManager, /probeWebGPU/);
+assert.match(deviceComputeManager, /crossUserComputeAllowed:\s*false/);
+
+const admittedGeneration = fs.readFileSync("lib/ai/zero-cost-admitted-generation.js", "utf8");
+assert.match(admittedGeneration, /lookupPersistentSemanticReuse/);
+assert.match(admittedGeneration, /persistentReuseBeforeInference:\s*true/);
+assert.match(admittedGeneration, /storePersistentSemanticReuse/);
+
 console.log("✓ LANERIQ Free AI routes deterministic/reuse/cache/local/own-device before any remote capacity");
+console.log("✓ L0 persistent exact semantic reuse is scope-hashed, raw-prompt-free, and fail-open only as a cache miss");
+console.log("✓ L4 browser foreground execution exposes bounded Web Worker/WASM tasks with WebGPU probe and cross-user compute forced OFF");
 console.log("✓ Fully offline execution cannot claim cloud fallback; jobs store-and-forward when no safe local capacity exists");
 console.log("✓ Same-user LAN device mesh is allowed by policy while cross-user compute remains forced OFF");
 console.log("✓ Free/zero modes cannot enter LANERIQ-managed paid inference; sponsored/BYO paths remain explicit and bounded");
 console.log("✓ Reconnect sync keeps P3 private content local by default, requires encrypted delta opt-in, and blocks P4 automatic sync");
-console.log("✓ Batch 130 remains CODE_READY for native offline model/LAN mesh/key exchange until physical runtime evidence exists");
+console.log("✓ Batch 133 keeps native offline model/LAN mesh/WebGPU inference truth flags false until physical runtime evidence exists");
 
 await import("./offline-runtime-core-contract-tests.mjs");
