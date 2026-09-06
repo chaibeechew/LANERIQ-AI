@@ -236,11 +236,6 @@ public class GuardianService extends Service {
                 this, 1, open,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
-        Intent stop = new Intent(this, GuardianService.class).setAction(ACTION_STOP);
-        PendingIntent stopPi = PendingIntent.getService(
-                this, 2, stop,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-
         return new Notification.Builder(this, CHANNEL_PROTECTION)
                 .setSmallIcon(android.R.drawable.ic_lock_lock)
                 .setContentTitle("LANERIQ Anti Scam • Guardian")
@@ -250,8 +245,7 @@ public class GuardianService extends Service {
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setCategory(Notification.CATEGORY_SERVICE)
-                .addAction(android.R.drawable.ic_menu_view, "Open", openPi)
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop Guardian", stopPi)
+                .addAction(android.R.drawable.ic_menu_view, "Open Anti Scam", openPi)
                 .build();
     }
 
@@ -308,8 +302,6 @@ public class GuardianService extends Service {
             if (eventStore != null) {
                 eventStore.recordOnce("guardian_destroyed", "expected-user-stop", 10_000L);
             }
-            // The explicit user-stop path already wrote the authoritative state.
-            // Do not overwrite it with a generic lifecycle reason.
         } else {
             if (eventStore != null) {
                 eventStore.recordOnce("guardian_destroyed", "unexpected-service-end", 10_000L);
