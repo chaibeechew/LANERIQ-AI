@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict'
 import './moba-creator-productization-tests.mjs'
+import './moba-technical-ceiling-tests.mjs'
 import {buildMobaRealProviderSmokePlan,evaluateMobaRealProviderSmokeEvidence,MOBA_REAL_PROVIDER_SMOKE_V15} from '../lib/game/moba-real-provider-smoke-v15.js'
 import {decideMobaSelfHealingAction,evaluateMobaTelemetryWindow,MOBA_LIVE_SELF_HEALING_V16} from '../lib/game/moba-live-self-healing-v16.js'
 import {buildMobaDeviceNetworkMatrix,evaluateMobaDeviceNetworkEvidence,MOBA_DEVICE_NETWORK_LAB_V17} from '../lib/game/moba-device-network-lab-v17.js'
