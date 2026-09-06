@@ -24,17 +24,31 @@ export function buildL1L5ExecutionStatus({ root = process.cwd(), evidence = {} }
 
   const l1Code = staticGate.checks.l1VpnServicePlatformProtected
     && staticGate.checks.l1VpnConsentRequired
+    && staticGate.checks.l1ProductionAlwaysOnDisabledUntilEvidence
     && staticGate.checks.l1FakeTunnelForbidden
+    && staticGate.checks.l1InternalDnsDataPlanePresent
+    && staticGate.checks.l1DebugTestSurfaceSeparated
+    && staticGate.checks.l1ReleaseHasNoInternalThreatTrustRoot
+    && staticGate.checks.l1RealDeviceHarnessPresent
     && staticGate.checks.signedReputationCryptoPathPresent;
+
   const l2Code = staticGate.checks.l2SharedMalwareBrokerHashBound
-    && projectFile(root, 'cloud/lib/selected-file-scan-handler.mjs');
-  const l3Code = staticGate.checks.l3RealDeviceHarnessPresent
+    && staticGate.checks.l2DeepScanConsentAndAttestation
+    && staticGate.checks.l2BenchmarkFactoryPresent;
+
+  const l3Code = staticGate.checks.l3ColdProcessLeaseInvalidation
+    && staticGate.checks.l3RealDeviceHarnessPresent
+    && staticGate.checks.l3DebugControllerSeparated
     && projectFile(root, 'fabric/app-builder-witness-consumer.mjs');
+
   const l4Code = staticGate.checks.l4AttestationAndWitnessRequired
     && staticGate.checks.l4PrivateHeartbeatFieldsRejected
-    && staticGate.checks.l4DeadmanRlsAndReplayProtection
+    && staticGate.checks.l4TrustedIngressAndRegionRequired
+    && staticGate.checks.l4DeadmanRlsReplayAndRateLimit
+    && staticGate.checks.l4RetentionAndDeletionPresent
     && projectFile(root, 'cloud/lib/supabase-deadman-store.mjs')
     && repoFile(root, '.github/workflows/laneriq-anti-scam-cloud-deadman-deploy.yml');
+
   const l5Code = repoFile(root, '.github/workflows/laneriq-anti-scam-production-aab.yml')
     && repoFile(root, '.github/workflows/laneriq-anti-scam-final-store-release-gate.yml')
     && projectFile(root, 'release/PUBLIC_RELEASE_EVIDENCE.json');
