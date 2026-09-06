@@ -2,9 +2,11 @@ import { requireControlTowerApi } from "../../../../../lib/control-tower-api.js"
 import { appendControlTowerAudit } from "../../../../../lib/control-tower-audit.js";
 import { controlTowerJson } from "../../../../../lib/control-tower-http.js";
 import { validateControlTowerEvidenceInput } from "../../../../../lib/control-tower-evidence.js";
+import { getControlTowerPrivilegedClient } from "../../../../../lib/control-tower-privileged.js";
 import { isControlTowerStorageMissing } from "../../../../../lib/control-tower-validation.js";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
 
 const EVIDENCE_SELECT = "id,release_id,title,description,stage,priority,external_ref,metadata,created_at,updated_at";
 
@@ -79,7 +81,17 @@ export async function POST(request) {
       }
     }
 
-    const { data, error } = await auth.supabase
+    let privileged;
+    try {
+      privileged = getControlTowerPrivilegedClient();
+    } catch (error) {
+      if (error?.code === "CONTROL_TOWER_PRIVILEGED_RUNTIME_MISSING") {
+        return controlTowerJson({ error: "Privileged Control Tower runtime is not configured for sealed evidence writes.", code: error.code }, 503);
+      }
+      throw error;
+    }
+
+    const { data, error } = await privileged
       .from("control_tower_items")
       .insert(validation.value)
       .select(EVIDENCE_SELECT)
@@ -107,6 +119,7 @@ export async function POST(request) {
         actor_role: auth.role,
         release_stage: release.stage,
         release_version: release.release_version,
+        privileged_write: true,
       },
     });
 
