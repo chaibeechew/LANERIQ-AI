@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,13 +21,18 @@ assert.match(route, /no-store/);
 assert.match(route, /Referrer-Policy/);
 
 const now = "2026-09-07T00:00:00.000Z";
-const evidenceItem = (kind, capturedAt, fingerprint, snapshot = {}) => ({
+const MAIN_SHA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const PREVIOUS_SHA = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+const BAD_SHA = "cccccccccccccccccccccccccccccccccccccccc";
+const fingerprint = (label) => createHash("sha256").update(String(label)).digest("hex");
+const evidenceItem = (kind, capturedAt, fingerprintLabel, snapshot = {}, metadata = {}) => ({
   item_type: "evidence",
   metadata: {
     kind,
     captured_at: capturedAt,
-    fingerprint,
+    fingerprint: fingerprintLabel === null ? null : fingerprint(fingerprintLabel),
     snapshot,
+    ...metadata,
   },
 });
 
@@ -38,14 +44,14 @@ const items = [
   }),
   evidenceItem("supabase_migration", "2026-09-06T23:00:00.000Z", "db-1", { verified: true }),
   evidenceItem("vercel_deployment", "2026-09-06T23:50:00.000Z", "dpl-current", {
-    sha: "main-sha",
+    sha: MAIN_SHA,
     environment: "production",
     state: "ready",
     healthy: true,
     verified: true,
   }),
   evidenceItem("vercel_deployment", "2026-09-06T20:00:00.000Z", "dpl-rollback", {
-    sha: "previous-sha",
+    sha: PREVIOUS_SHA,
     environment: "production",
     state: "ready",
     healthy: true,
@@ -83,6 +89,13 @@ const unsignedFreshness = evaluateControlTowerEvidenceFreshness({
 });
 assert.equal(unsignedFreshness.healthy, false);
 assert.ok(unsignedFreshness.invalid.includes("security"));
+
+const malformedFingerprint = items.map((item) => item.metadata.kind === "security"
+  ? { ...item, metadata: { ...item.metadata, fingerprint: "abc123" } }
+  : item);
+const malformedFreshness = evaluateControlTowerEvidenceFreshness({ items: malformedFingerprint, phase: "production", now });
+assert.equal(malformedFreshness.healthy, false);
+assert.ok(malformedFreshness.invalid.includes("security"));
 
 const futureFreshness = evaluateControlTowerEvidenceFreshness({
   items: items.map((item) =>
@@ -127,31 +140,66 @@ assert.equal(partialRequestBudget.healthy, false);
 assert.equal(partialRequestBudget.state, "missing");
 assert.equal(partialRequestBudget.errorRate, null);
 
+const negativeBudget = evaluateControlTowerSloBudget({
+  availabilityTarget: 0.999,
+  windowMinutes: 43200,
+  badMinutes: -1,
+});
+assert.equal(negativeBudget.healthy, false);
+assert.equal(negativeBudget.state, "invalid");
+assert.equal(negativeBudget.reason, "negative_bad_minutes");
+
+const impossibleRequestBudget = evaluateControlTowerSloBudget({
+  availabilityTarget: 0.999,
+  windowMinutes: 43200,
+  requests: 10,
+  errors: 11,
+});
+assert.equal(impossibleRequestBudget.healthy, false);
+assert.equal(impossibleRequestBudget.state, "invalid");
+assert.equal(impossibleRequestBudget.reason, "errors_exceed_requests");
+
+const invalidTargetBudget = evaluateControlTowerSloBudget({
+  availabilityTarget: 1.2,
+  windowMinutes: 43200,
+  badMinutes: 0,
+});
+assert.equal(invalidTargetBudget.healthy, false);
+assert.equal(invalidTargetBudget.state, "invalid");
+assert.equal(invalidTargetBudget.reason, "invalid_availability_target");
+
 const rollback = selectControlTowerRollbackCandidate({
-  currentSha: "main-sha",
+  currentSha: MAIN_SHA,
   now,
   deployments: [
-    { sha: "main-sha", environment: "production", state: "ready", healthy: true, verified: true, capturedAt: now },
-    { sha: "previous-sha", environment: "production", state: "ready", healthy: true, verified: true, capturedAt: "2026-09-06T20:00:00.000Z" },
-    { sha: "bad-sha", environment: "production", state: "ready", healthy: false, verified: true, capturedAt: "2026-09-06T21:00:00.000Z" },
+    { sha: MAIN_SHA, environment: "production", state: "ready", healthy: true, verified: true, capturedAt: now },
+    { sha: PREVIOUS_SHA, environment: "production", state: "ready", healthy: true, verified: true, capturedAt: "2026-09-06T20:00:00.000Z" },
+    { sha: BAD_SHA, environment: "production", state: "ready", healthy: false, verified: true, capturedAt: "2026-09-06T21:00:00.000Z" },
   ],
 });
 assert.equal(rollback.ready, true);
-assert.equal(rollback.candidate?.sha, "previous-sha");
+assert.equal(rollback.candidate?.sha, PREVIOUS_SHA);
 assert.ok(rollback.candidate?.ageMinutes >= 0);
 
 const noRollback = selectControlTowerRollbackCandidate({
-  currentSha: "main-sha",
+  currentSha: MAIN_SHA,
   now,
-  deployments: [{ sha: "main-sha", environment: "production", state: "ready", healthy: true, verified: true, capturedAt: now }],
+  deployments: [{ sha: MAIN_SHA, environment: "production", state: "ready", healthy: true, verified: true, capturedAt: now }],
 });
 assert.equal(noRollback.ready, false);
 
+const malformedRollback = selectControlTowerRollbackCandidate({
+  currentSha: MAIN_SHA,
+  now,
+  deployments: [{ sha: "not-a-git-sha", environment: "production", state: "ready", healthy: true, verified: true, capturedAt: "2026-09-06T20:00:00.000Z" }],
+});
+assert.equal(malformedRollback.ready, false);
+
 const staleRollback = selectControlTowerRollbackCandidate({
-  currentSha: "main-sha",
+  currentSha: MAIN_SHA,
   now,
   deployments: [{
-    sha: "old-sha",
+    sha: PREVIOUS_SHA,
     environment: "production",
     state: "ready",
     healthy: true,
@@ -162,10 +210,10 @@ const staleRollback = selectControlTowerRollbackCandidate({
 assert.equal(staleRollback.ready, false);
 
 const futureRollback = selectControlTowerRollbackCandidate({
-  currentSha: "main-sha",
+  currentSha: MAIN_SHA,
   now,
   deployments: [{
-    sha: "future-sha",
+    sha: PREVIOUS_SHA,
     environment: "production",
     state: "ready",
     healthy: true,
@@ -176,8 +224,8 @@ const futureRollback = selectControlTowerRollbackCandidate({
 assert.equal(futureRollback.ready, false);
 
 const liveStatus = {
-  github: { mainSha: "main-sha" },
-  runtime: { commitSha: "main-sha", environment: "production" },
+  github: { mainSha: MAIN_SHA },
+  runtime: { commitSha: MAIN_SHA, environment: "production" },
   releaseTruth: { exactSha: true, productionVerified: true },
 };
 const release = { id: "release-1", product_version: "LANERIQ AI", release_version: "v-next", stage: "production" };
@@ -205,6 +253,16 @@ const changedAttestation = buildControlTowerReleaseAttestation({
 });
 assert.notEqual(attestationA.digest, changedAttestation.digest);
 
+const trustChangedAttestation = buildControlTowerReleaseAttestation({
+  release,
+  gates,
+  items: items.map((item) => item.metadata.kind === "security"
+    ? { ...item, metadata: { ...item.metadata, trust_level: "system", source_provider: "security-scanner", subject_sha: MAIN_SHA } }
+    : item),
+  liveStatus,
+});
+assert.notEqual(attestationA.digest, trustChangedAttestation.digest);
+
 const ceiling = computeControlTowerOperationalResilience({ release, items, gates, liveStatus, now });
 assert.equal(ceiling.evidence.healthy, true);
 assert.equal(ceiling.slo.healthy, true);
@@ -217,7 +275,7 @@ assert.deepEqual(ceiling.blockers, []);
 
 const blocked = computeControlTowerOperationalResilience({
   release,
-  items: items.filter((item) => item.metadata.kind !== "security" && item.metadata.fingerprint !== "dpl-rollback"),
+  items: items.filter((item) => item.metadata.kind !== "security" && item.metadata.fingerprint !== fingerprint("dpl-rollback")),
   gates,
   liveStatus: {
     ...liveStatus,
