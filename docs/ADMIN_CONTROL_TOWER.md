@@ -73,27 +73,81 @@ Customer UI should describe the current workflow/stage rather than expose a fixe
 
 Production completion requires exact build identity verification across release sources. A feature may not be marked Production merely because code was merged or a deployment is READY.
 
+The Control Tower live evaluator currently checks:
+
+- GitHub `main` SHA availability.
+- Runtime build SHA availability.
+- Runtime environment (`production`, `preview`, etc.).
+- Exact GitHub-main/runtime SHA equality.
+- GitHub combined commit status.
+- Supabase runtime configuration presence.
+
+A Preview deployment never becomes `PRODUCTION VERIFIED`, even if its SHA happens to match `main`.
+
+## Management data model
+
+The staged additive migration introduces:
+
+- `control_tower_releases`
+- `control_tower_workstreams`
+- `control_tower_items`
+- `control_tower_release_gates`
+- `control_tower_audit_log`
+
+All tables use RLS. Owner, Super Admin and Admin are the only authenticated roles allowed to access Control Tower data. Audit-log writes are append-only from authenticated Control Tower admins; update/delete grants are not provided.
+
+## Admin management APIs
+
+Protected APIs now exist for:
+
+- `GET/POST /api/admin/control-tower/releases`
+- `GET/POST /api/admin/control-tower/workstreams`
+- `GET /api/admin/control-tower/status`
+
+When the migration is not yet active in an environment, the management board reports storage as pending instead of exposing a broken customer surface.
+
+## CI contract
+
+A path-scoped Control Tower workflow verifies:
+
+- route-level authentication/authorization hooks;
+- private/no-store API response behavior;
+- live release-truth invariants;
+- RLS/audit migration presence;
+- release/workstream input validation;
+- Preview cannot be promoted to Production by SHA equality alone.
+
 ## Rollout plan
 
-### Phase 1 — Foundation
+### Phase 1 — Foundation — implemented in Draft PR
 
 - Protected `/admin/control-tower` route.
 - Central internal-role helper.
 - Initial Control Tower information architecture.
 - No customer navigation changes.
 
-### Phase 2 — Management data model
+### Phase 2 — Management data model — staged in Draft PR
 
-- Release trains, workstreams, items, dependencies, risks, decisions, deprecated assets and evidence records.
+- Release trains, workstreams, items and release gates.
 - RLS and least-privilege policies.
-- Immutable audit trail for sensitive admin actions.
+- Append-only audit log.
+- Release and workstream create/list APIs.
+- Admin management board that activates when storage migration is present.
 
-### Phase 3 — Live integrations
+### Phase 3 — Live integrations — partially implemented
 
-- GitHub PR / commit state.
-- Vercel deployment and exact-SHA evidence.
-- Supabase migration/runtime verification.
-- CI, security, benchmark and release-gate summaries.
+Implemented:
+- GitHub main identity.
+- Runtime/Vercel build identity from deployment environment.
+- Exact-SHA release truth evaluation.
+- GitHub combined commit status.
+- Supabase runtime configuration presence.
+
+Next:
+- PR-level evidence and workflow summaries per release.
+- Vercel deployment history/target evidence per release.
+- Supabase migration-version evidence rather than configuration presence only.
+- Security, benchmark and release-gate rollups.
 
 ### Phase 4 — Automated release governance
 
@@ -106,3 +160,7 @@ Production completion requires exact build identity verification across release 
 
 - Generate customer-safe release notes and status views from internal release data.
 - Never expose internal roadmap, security detail, provider costs, secrets or unreleased work.
+
+## Integration rule
+
+This work remains isolated in its Draft PR until concurrent workstreams settle. Before Production integration, rebase/realign to the latest `main`, rerun all relevant CI, then follow Production Release Control. Do not call the Control Tower Production merely because its Preview is READY.
