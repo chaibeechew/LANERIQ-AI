@@ -33,6 +33,7 @@ public class GuardianService extends Service {
     private String lastAlertFingerprint = "";
     private int consecutiveHealthyTicks = 0;
     private int consecutiveLowRiskTicks = 0;
+    private boolean intentionalStopRequested = false;
 
     private final Runnable monitor = new Runnable() {
         @Override public void run() {
@@ -54,6 +55,7 @@ public class GuardianService extends Service {
         String action = intent == null ? ACTION_START : intent.getAction();
 
         if (ACTION_STOP.equals(action)) {
+            intentionalStopRequested = true;
             leaseStore.setUserOptedIn(false);
             leaseStore.serviceStopped("user-stop");
             emergencyStore.clear();
@@ -64,6 +66,7 @@ public class GuardianService extends Service {
             return START_NOT_STICKY;
         }
 
+        intentionalStopRequested = false;
         startForeground(NOTIFICATION_ID,
                 buildProtectionNotification("Guardian starting • verifying local protection state"));
 
@@ -114,7 +117,7 @@ public class GuardianService extends Service {
 
         leaseStore.heartbeat(
                 snapshot.riskLevel,
-                "guardian,device-signals,event-dedup,resource-governor,emergency-mode,lease-v2");
+                "guardian,device-signals,event-dedup,resource-governor,emergency-mode,anti-tamper,lease-v3");
 
         ProtectionLeaseStore.Lease lease = leaseStore.read();
         EmergencyModeStore.State emergency = emergencyStore.read();
@@ -123,8 +126,9 @@ public class GuardianService extends Service {
                 snapshot.riskLevel,
                 constrained,
                 lease.recentRestartAttempts);
+        GuardianIntegrityPolicy.Decision integrity = GuardianIntegrityPolicy.evaluate(lease);
 
-        if (lease.mayClaimGuardianActive()) {
+        if (lease.mayClaimGuardianActive() && integrity.mayClaimProtected) {
             consecutiveHealthyTicks++;
             if (consecutiveHealthyTicks >= 3) {
                 leaseStore.resetAutomaticRestartCircuit();
@@ -136,6 +140,8 @@ public class GuardianService extends Service {
         String summary;
         if (emergency.level == EmergencyModeStore.Level.URGENT) {
             summary = "URGENT • remote-control risk signals • avoid banking/payments until reviewed";
+        } else if (!integrity.mayClaimProtected) {
+            summary = "Guardian integrity • " + integrity.state.name() + " • " + integrity.reason;
         } else {
             switch (health) {
                 case HEALTHY:
@@ -189,6 +195,9 @@ public class GuardianService extends Service {
         }
         if (!GuardianHealth.mayClaimGuardianActive(health)) {
             eventStore.recordOnce("guardian_health_not_active", health.name(), 60_000L);
+        }
+        if (integrity.unexpectedProtectionLoss) {
+            eventStore.recordOnce("unexpected_protection_loss", integrity.state.name(), 60_000L);
         }
     }
 
@@ -266,10 +275,20 @@ public class GuardianService extends Service {
 
     @Override public void onDestroy() {
         handler.removeCallbacks(monitor);
-        if (eventStore != null) {
-            eventStore.recordOnce("guardian_destroyed", "service-lifecycle", 10_000L);
+        if (intentionalStopRequested) {
+            if (eventStore != null) {
+                eventStore.recordOnce("guardian_destroyed", "expected-user-stop", 10_000L);
+            }
+            // The explicit user-stop path already wrote the authoritative state.
+            // Do not overwrite it with a generic lifecycle reason.
+        } else {
+            if (eventStore != null) {
+                eventStore.recordOnce("guardian_destroyed", "unexpected-service-end", 10_000L);
+            }
+            if (leaseStore != null && leaseStore.isUserOptedIn()) {
+                leaseStore.serviceStopped("unexpected-service-destroy");
+            }
         }
-        if (leaseStore != null) leaseStore.serviceStopped("service-destroyed");
         super.onDestroy();
     }
 
