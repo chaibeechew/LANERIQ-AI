@@ -1,37 +1,16 @@
-name: LANERIQ 18-Page Interaction Integrity
+name: RETIRED - Legacy 18-Page Interaction Integrity
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'app/**'
-      - 'lib/product/laneriq-18-page-master.js'
-      - 'scripts/18-page-interaction-integrity-tests.mjs'
-      - '.github/workflows/18-page-interaction-integrity.yml'
-  push:
-    branches:
-      - main
-      - 'fix/18-page-*'
-    paths:
-      - 'app/**'
-      - 'lib/product/laneriq-18-page-master.js'
-      - 'scripts/18-page-interaction-integrity-tests.mjs'
-      - '.github/workflows/18-page-interaction-integrity.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
-  interaction-integrity:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: read
+  retired:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: 22
-      - name: Verify all 18 interaction surfaces
-        run: node scripts/18-page-interaction-integrity-tests.mjs
-      - name: Evidence boundary
-        run: echo 'CODE/CI only. Authenticated browser, provider, device and store interactions still require runtime evidence.'
+      - name: Legacy gate retired
+        run: |
+          echo "The fixed 18-page interaction gate is retired and is no longer a Canonical UI or Production release authority."
+          echo "Use LANERIQ Canonical UI Regression Gate plus Production Mobile Browser QA instead."
