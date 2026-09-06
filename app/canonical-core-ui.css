@@ -96,6 +96,15 @@ body[data-canonical-core-ui="auth"] .authPage::after{
   -webkit-backdrop-filter:blur(18px) saturate(140%);
   touch-action:manipulation;
 }
+.canonicalHeaderActions a::before,
+.canonicalHeaderActions a::after{
+  content:none!important;
+  display:none!important;
+}
+.canonicalHeaderActions a:focus-visible{
+  outline:2px solid #f7d675;
+  outline-offset:3px;
+}
 
 /* Canonical bottom navigation is owned only by the Home/Create core shell. */
 .canonicalBottomNav{
@@ -202,7 +211,25 @@ body[data-canonical-core-ui="auth"] .authCard{
   backdrop-filter:blur(24px) saturate(135%)!important;
   -webkit-backdrop-filter:blur(24px) saturate(135%)!important;
 }
-body[data-canonical-core-ui="auth"] .authEnvelope{margin-top:-68px!important}
+body[data-canonical-core-ui="auth"] .authCard .cardTop{
+  position:relative!important;
+  z-index:2;
+  min-height:36px;
+  gap:12px;
+}
+body[data-canonical-core-ui="auth"] .authCard .cardTop>small{
+  min-width:0;
+  max-width:calc(100% - 50px);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+body[data-canonical-core-ui="auth"] .authEnvelope{
+  position:relative!important;
+  inset:auto!important;
+  transform:none!important;
+  margin:12px auto 10px!important;
+}
 body[data-canonical-core-ui="auth"] .otpCells{
   grid-template-columns:repeat(8,minmax(0,1fr))!important;
   gap:6px!important;
@@ -218,6 +245,7 @@ body[data-canonical-core-ui="create"] .createReference{
   padding-top:calc(var(--laneriq-core-header-height) + env(safe-area-inset-top) + 12px)!important;
   padding-bottom:calc(var(--laneriq-core-bottom-height) + env(safe-area-inset-bottom) + 36px)!important;
   overflow-x:hidden!important;
+  overflow-y:auto!important;
 }
 body[data-canonical-core-ui="create"] .createWrap,
 body[data-canonical-core-ui="create"] .progressWrap{width:min(900px,100%);padding-inline:2px}
@@ -279,9 +307,46 @@ body[data-canonical-core-ui="create"] .truthNote{
   body[data-canonical-core-ui="home"] .premiumHome .heroCopy h1 strong{font-size:clamp(42px,14vw,58px)!important}
   body[data-canonical-core-ui="home"] .premiumHome .featureCards{grid-template-columns:1fr!important}
   body[data-canonical-core-ui="home"] .premiumHome .buildCta{font-size:17px!important;padding:16px 14px!important}
-  body[data-canonical-core-ui="auth"] .authShell{padding-top:calc(var(--laneriq-core-header-height) + env(safe-area-inset-top) + 34px)!important}
-  body[data-canonical-core-ui="auth"] .authCard{padding:24px 14px 20px!important;border-radius:23px!important}
-  body[data-canonical-core-ui="auth"] .authEnvelope{width:76px!important;height:64px!important;margin-top:-54px!important}
+  body[data-canonical-core-ui="auth"] .authPage{background-attachment:scroll!important}
+  body[data-canonical-core-ui="auth"] .authShell{
+    padding-top:calc(var(--laneriq-core-header-height) + env(safe-area-inset-top) + 12px)!important;
+    padding-bottom:max(24px,env(safe-area-inset-bottom))!important;
+    align-items:start!important;
+  }
+  body[data-canonical-core-ui="auth"] .authCard{
+    padding:18px 14px 16px!important;
+    border-radius:23px!important;
+  }
+  body[data-canonical-core-ui="auth"] .authCard .cardTop{min-height:32px}
+  body[data-canonical-core-ui="auth"] .authCard .cardTop>small{font-size:9px!important;letter-spacing:.16em!important}
+  body[data-canonical-core-ui="auth"] .authEnvelope{
+    width:64px!important;
+    height:54px!important;
+    margin:6px auto 8px!important;
+    border-radius:18px!important;
+    font-size:28px!important;
+  }
+  body[data-canonical-core-ui="auth"] .authWelcome{margin-bottom:6px!important;font-size:13px!important}
+  body[data-canonical-core-ui="auth"] .authWelcome b{font-size:22px!important}
+  body[data-canonical-core-ui="auth"] .authWelcome small{margin-top:4px!important;font-size:7px!important}
+  body[data-canonical-core-ui="auth"] .authCard h2{margin:6px 0 4px!important;font-size:30px!important;line-height:1.02!important}
+  body[data-canonical-core-ui="auth"] .authCard>p{margin-bottom:12px!important;font-size:12px!important;line-height:1.45!important}
+  body[data-canonical-core-ui="auth"] .authCard form{gap:10px!important}
+  body[data-canonical-core-ui="auth"] .inputWrap{height:54px!important}
+  body[data-canonical-core-ui="auth"] .authCard .notice,
+  body[data-canonical-core-ui="auth"] .authCard .sentTo{
+    margin:0!important;
+    padding:7px 8px!important;
+    border:0!important;
+    border-radius:10px!important;
+    background:rgba(255,255,255,.30)!important;
+    color:#557b9e!important;
+    font-size:10px!important;
+    line-height:1.35!important;
+    box-shadow:none!important;
+  }
+  body[data-canonical-core-ui="auth"] .primary{min-height:56px!important;margin-top:2px!important}
+  body[data-canonical-core-ui="auth"] .authCard footer{margin-top:13px!important;padding-top:10px!important}
   body[data-canonical-core-ui="auth"] .otpCells{gap:4px!important}
   body[data-canonical-core-ui="auth"] .otpCells>span{font-size:18px!important;border-radius:8px!important}
   body[data-canonical-core-ui="create"] .createReference{padding-left:9px!important;padding-right:9px!important}
@@ -293,6 +358,8 @@ body[data-canonical-core-ui="create"] .truthNote{
 @media(max-width:360px){
   .canonicalBrandLink .laneriqLotusWordmark{display:none}
   .canonicalBottomNav a b{font-size:7px}
+  body[data-canonical-core-ui="auth"] .authCard{padding-inline:12px!important}
+  body[data-canonical-core-ui="auth"] .authCard h2{font-size:28px!important}
   body[data-canonical-core-ui="auth"] .otpCells{gap:3px!important}
   body[data-canonical-core-ui="auth"] .otpCells>span{font-size:16px!important}
 }
