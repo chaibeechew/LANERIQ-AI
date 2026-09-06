@@ -51,7 +51,13 @@ jobs:
           grep -Fq "applicationId 'ai.laneriq.antiscam'" "$APP_GRADLE"
           grep -Fq "applicationIdSuffix '.test'" "$APP_GRADLE"
           grep -Fq "buildConfig true" "$APP_GRADLE"
-          grep -Fq "buildConfigField 'String', 'INTERNAL_TEST_THREAT_KEY_X509_B64', '\"\"'" "$APP_GRADLE"
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('projects/laneriq-anti-scam/android/app/build.gradle').read_text()
+          needle = "buildConfigField 'String', 'INTERNAL_TEST_THREAT_KEY_X509_B64', '\\"\\"'"
+          if needle not in text:
+              raise SystemExit('release INTERNAL_TEST_THREAT_KEY_X509_B64 must be an empty BuildConfig string')
+          PY
       - name: Run Guardian unit tests
         run: gradle -p projects/laneriq-anti-scam/android testDebugUnitTest --stacktrace
       - name: Run Android lint truth gate
