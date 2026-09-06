@@ -1,0 +1,102 @@
+name: LANERIQ Anti Scam Final Store Release Gate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_PROJECT: projects/laneriq-anti-scam
+
+jobs:
+  final-store-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require execution from main
+        run: |
+          test "${GITHUB_REF_NAME}" = "main" || {
+            echo "Final Store Release Gate must run from main, not ${GITHUB_REF_NAME}." >&2
+            exit 1
+          }
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Verify checkout equals current remote main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          LOCAL_SHA="$(git rev-parse HEAD)"
+          REMOTE_SHA="$(gh api "repos/${GITHUB_REPOSITORY}/branches/main" --jq '.commit.sha')"
+          echo "checkout_sha=$LOCAL_SHA"
+          echo "remote_main_sha=$REMOTE_SHA"
+          test "$LOCAL_SHA" = "$REMOTE_SHA" || {
+            echo "main moved after checkout; release evidence must be regenerated on the new exact SHA." >&2
+            exit 1
+          }
+
+      - name: Verify main branch protection and required checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BRANCH_JSON="$(gh api "repos/${GITHUB_REPOSITORY}/branches/main")"
+          PROTECTED="$(printf '%s' "$BRANCH_JSON" | jq -r '.protected // false')"
+          CONTEXT_COUNT="$(printf '%s' "$BRANCH_JSON" | jq '(.protection.required_status_checks.contexts // []) | length')"
+          CHECK_COUNT="$(printf '%s' "$BRANCH_JSON" | jq '(.protection.required_status_checks.checks // []) | length')"
+          TOTAL=$((CONTEXT_COUNT + CHECK_COUNT))
+          echo "main_protected=$PROTECTED"
+          echo "required_check_entries=$TOTAL"
+          test "$PROTECTED" = "true" || {
+            echo "main is not protected; public Anti Scam release is blocked." >&2
+            exit 1
+          }
+          test "$TOTAL" -gt 0 || {
+            echo "main has no required status checks; public Anti Scam release is blocked." >&2
+            exit 1
+          }
+
+      - name: Run complete release contracts
+        run: node --test "$RELEASE_PROJECT/fabric/test/"*.test.mjs "$RELEASE_PROJECT/release/test/"*.test.mjs
+
+      - name: Run static store package gate
+        run: node "$RELEASE_PROJECT/release/store-static-gate.mjs"
+
+      - name: Generate signed-evidence launch report
+        run: node "$RELEASE_PROJECT/release/launch-report.mjs" | tee "$RELEASE_PROJECT/release/final-launch-report.json"
+
+      - name: Require Public Production READY
+        run: |
+          set -euo pipefail
+          STATE="$(jq -r '.publicProduction' "$RELEASE_PROJECT/release/final-launch-report.json")"
+          KEY_COUNT="$(jq -r '.trustedReleaseEvidenceKeyCount' "$RELEASE_PROJECT/release/final-launch-report.json")"
+          REJECTED="$(jq -r '.evidenceBundle.rejectedGateIds | length' "$RELEASE_PROJECT/release/final-launch-report.json")"
+          echo "public_production=$STATE"
+          echo "trusted_release_keys=$KEY_COUNT"
+          echo "rejected_evidence_tokens=$REJECTED"
+          test "$STATE" = "READY" || {
+            echo "Five-layer Public Production evidence is incomplete." >&2
+            exit 1
+          }
+          test "$KEY_COUNT" -gt 0 || {
+            echo "No trusted release-evidence verifier key is pinned." >&2
+            exit 1
+          }
+          test "$REJECTED" -eq 0 || {
+            echo "One or more release-evidence tokens were rejected." >&2
+            exit 1
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laneriq-anti-scam-final-store-release-report
+          path: projects/laneriq-anti-scam/release/final-launch-report.json
+          if-no-files-found: error
