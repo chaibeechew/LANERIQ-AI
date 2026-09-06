@@ -29,7 +29,7 @@ const refundIndex=route.indexOf("refundAiCredits(userId",catchIndex);
 const qualityIndex=route.indexOf('if(error?.code==="GENERATION_QUALITY_GATE_NOT_MET"||generationQualityGateFailure(message))',catchIndex);
 const unknownErrorIndex=route.indexOf('console.error("AI BUILD APP & WEB error:",error)',catchIndex);
 const rescueLoopIndex=route.indexOf("for(let attempt=1;attempt<=QUALITY_GATE_RESCUE_ATTEMPTS;attempt+=1)");
-const persistenceIndex=route.indexOf("persistBuilderGeneratedProject");
+const persistenceIndex=route.indexOf("const persistence=await persistBuilderGeneratedProject",rescueLoopIndex);
 assert.ok(rescueLoopIndex>=0,"Generate route must include bounded targeted quality rescue attempts.");
 assert.ok(persistenceIndex>rescueLoopIndex,"Quality rescue and final verification must complete before project persistence.");
 assert.ok(catchIndex>=0&&refundIndex>catchIndex,"Generate catch must preserve automatic financial restoration.");
