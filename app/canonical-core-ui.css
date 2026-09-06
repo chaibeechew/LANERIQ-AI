@@ -1,6 +1,6 @@
-/* LANERIQ AI Canonical UI Source of Truth — Cleanup Round 1.
-   Loaded last from app/template.js. Scope is limited to Home, Login, Auth and Create.
-   Legacy 18-page customer presentation is suppressed globally without changing internal product registry semantics. */
+/* LANERIQ AI Canonical Core UI.
+   Loaded last from app/template.js for the protected Home / Login / Auth / Create journey.
+   Workspace route/context presentation is owned separately by the canonical LIUI workspace shell. */
 
 :root{
   --laneriq-canonical-gold:#f2c862;
@@ -14,13 +14,7 @@
   --laneriq-core-bottom-height:78px;
 }
 
-/* P0-1 / P0-2: remove legacy fixed-page customer presentation from runtime. */
-.liuiContextIntelligence .liuiMasterLayout,
-.liuiContextIntelligence .liuiContextCounter,
-.liuiContextIntelligence .liuiContextGroup{
-  display:none!important;
-}
-
+/* Core routes never display workspace context/account chrome. */
 body[data-canonical-core-ui] .liuiContextIntelligence,
 body[data-canonical-core-ui] .accountNav{
   display:none!important;
@@ -40,7 +34,7 @@ body[data-canonical-core-ui] .loginPage{
   background:#04101b;
 }
 
-/* One canonical customer-facing background source for the five-step core journey. */
+/* One canonical customer-facing background source for the protected core journey. */
 body[data-canonical-core-ui] .premiumHome .bg,
 body[data-canonical-core-ui] .createBg,
 .loginPage .canonicalBackdrop{
@@ -103,7 +97,7 @@ body[data-canonical-core-ui="auth"] .authPage::after{
   touch-action:manipulation;
 }
 
-/* Canonical bottom navigation used only by Home and Create in Round 1. */
+/* Canonical bottom navigation is owned only by the Home/Create core shell. */
 .canonicalBottomNav{
   position:fixed;
   z-index:1190;
@@ -138,11 +132,10 @@ body[data-canonical-core-ui="auth"] .authPage::after{
 .canonicalBottomNav a b{font-size:9px;white-space:nowrap}
 .canonicalBottomNav a[aria-current="page"]{color:#f1cd70;background:rgba(242,200,98,.08)}
 
-/* Hide page-owned chrome so one owner controls header/nav on the core journey. */
+/* Hide only page-owned chrome that still exists on protected core routes. */
 body[data-canonical-core-ui="home"] .premiumHome .topbar,
 body[data-canonical-core-ui="home"] .premiumHome .bottomNav,
-body[data-canonical-core-ui="auth"] .brandBar,
-body[data-canonical-core-ui="create"] .createHeader{
+body[data-canonical-core-ui="auth"] .brandBar{
   display:none!important;
 }
 
@@ -219,7 +212,7 @@ body[data-canonical-core-ui="auth"] .otpCells{
 body[data-canonical-core-ui="auth"] .otpCells>span{min-width:0!important}
 body[data-canonical-core-ui="auth"] .bottomBrand{display:none!important}
 
-/* Create: same header/background/nav system, remove hard-coded page-count chrome from view. */
+/* Create uses the same core header/background/navigation system. */
 body[data-canonical-core-ui="create"] .createReference{
   min-height:100svh!important;
   padding-top:calc(var(--laneriq-core-header-height) + env(safe-area-inset-top) + 12px)!important;
