@@ -1,0 +1,40 @@
+name: LANERIQ Cognitive OS Gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'lib/soolen/**'
+      - 'scripts/cognitive-os-contract-tests.mjs'
+      - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
+      - '.github/workflows/cognitive-os-gate.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'lib/soolen/**'
+      - 'scripts/cognitive-os-contract-tests.mjs'
+      - 'docs/LANERIQ_COGNITIVE_OS_V1.md'
+      - '.github/workflows/cognitive-os-gate.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cognitive-os-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cognitive-os-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Cognitive OS fail-closed contracts
+        run: node scripts/cognitive-os-contract-tests.mjs
+      - name: Super Brain integration smoke
+        run: node --input-type=module -e "import {createSuperBrainJob} from './lib/soolen/super-brain.js'; const job=createSuperBrainJob({goal:'verify cognitive integration',simulationRequired:true}); if(job.cognitiveOSVersion!=='1.0.0'||job.cognitive.layers.length!==20) process.exit(1);"
