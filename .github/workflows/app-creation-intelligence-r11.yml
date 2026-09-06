@@ -1,0 +1,70 @@
+name: LANERIQ App Creation Intelligence R11 Gate
+
+on:
+  pull_request:
+    paths:
+      - 'lib/ai/app-builder-design-intent.js'
+      - 'lib/ai/app-builder-template-intelligence.js'
+      - 'lib/ai/app-builder-page-blueprint.js'
+      - 'lib/ai/app-builder-layout-engine.js'
+      - 'lib/ai/app-builder-component-composer.js'
+      - 'lib/ai/app-builder-design-judge.js'
+      - 'lib/ai/app-builder-live-verification.js'
+      - 'lib/ai/app-builder-creation-pipeline.js'
+      - 'lib/ai/app-creation-intelligence-policy.js'
+      - 'lib/buildStandards.js'
+      - 'lib/templateCatalog.js'
+      - 'lib/design/**'
+      - 'lib/generator/**'
+      - 'scripts/app-creation-intelligence-r11-contract-tests.mjs'
+      - 'scripts/template-contract-tests.mjs'
+      - 'scripts/generated-experience-standard-tests.mjs'
+      - 'scripts/generation-outcome-intelligence-contract-tests.mjs'
+      - '.github/workflows/app-creation-intelligence-r11.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  app-creation-intelligence-r11:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Round 11 creation intelligence contract
+        run: node scripts/app-creation-intelligence-r11-contract-tests.mjs
+      - name: Canonical 3000-template regression
+        run: node scripts/template-contract-tests.mjs
+      - name: Generated Experience regression
+        run: node scripts/generated-experience-standard-tests.mjs
+      - name: Generation Outcome + Self-Heal regression
+        run: node scripts/generation-outcome-intelligence-contract-tests.mjs
+      - name: Syntax checks
+        run: |
+          node --check lib/ai/app-builder-design-intent.js
+          node --check lib/ai/app-builder-template-intelligence.js
+          node --check lib/ai/app-builder-page-blueprint.js
+          node --check lib/ai/app-builder-layout-engine.js
+          node --check lib/ai/app-builder-component-composer.js
+          node --check lib/ai/app-builder-design-judge.js
+          node --check lib/ai/app-builder-live-verification.js
+          node --check lib/ai/app-builder-creation-pipeline.js
+          node --check lib/ai/app-creation-intelligence-policy.js
+          node --check lib/buildStandards.js
+      - name: LIVE truth boundary
+        run: |
+          node --input-type=module - <<'NODE'
+          import { evaluateAppBuilderLiveVerification } from './lib/ai/app-builder-live-verification.js';
+          const ci=evaluateAppBuilderLiveVerification({ci:{exactHead:true,success:true}});
+          if(ci.state!=='CI_VERIFIED'||ci.productionClaimAllowed) throw new Error('Static CI must never become LIVE verification');
+          console.log('Round 11 LIVE truth boundary: PASS');
+          NODE
