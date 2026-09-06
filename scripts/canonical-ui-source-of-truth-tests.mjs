@@ -27,7 +27,12 @@ requireMatch(owner,/canonical-ui-registry\.js/,"Canonical core owner must use th
 requireMatch(realSurface,/canonical-ui-registry\.js/,"Real product surface must use the canonical UI registry");
 requireMatch(context,/canonical-ui-registry\.js/,"Context intelligence must use the canonical UI registry");
 requireMatch(owner,/LaneriqLotusBrand/,"Canonical core owner must use the LANERIQ lotus brand source");
-for(const route of ["/","/login","/auth","/create"])if(!registry.includes(`pattern:/^\\${route==="/"?"/$":route.replaceAll("/","\\/")+"\\/?$/"}`)&&!registry.includes(`route: \"${route}\"`)&&!registry.includes(`href: \"${route}\"`))throw new Error(`Missing canonical core route: ${route}`);
+for(const id of ["home","login","auth","create"]){
+  if(!registry.includes(`id:\"${id}\"`))throw new Error(`Missing canonical core route id: ${id}`);
+}
+for(const route of ["/","/login","/auth","/create"]){
+  if(!registry.includes(route))throw new Error(`Missing canonical core route path: ${route}`);
+}
 
 for(const [name,value] of [["real product surface",realSurface],["context intelligence",context],["canonical registry",registry]]){
   forbid(value,/\bPage\s+\d+\s*(?:of|\/)\s*(?:18|23|25)\b/i,`${name} must not expose fixed page totals`);
@@ -44,8 +49,6 @@ requireMatch(css,/overflow-x:hidden/,"Canonical UI must guard horizontal overflo
 requireMatch(login,/href=\"\/auth\?next=%2Fcreate\"/,"Login must continue to Enter Email and return to Create");
 forbid(login,/\b(?:18|23|25)[ -]?pages?\b/i,"Login must not expose legacy fixed page counts");
 
-// Create still contains a historical route-local header for compatibility, but it is never visible.
-// Keep this assertion until that local header is fully extracted in a later cleanup commit.
 if(/Page\s+[23]\s+of\s+18/i.test(create)&&!/body\[data-canonical-core-ui=\"create\"\][\s\S]*\.createHeader[\s\S]*display:none!important/.test(css)){
   throw new Error("Historical Create page-count chrome is not safely suppressed");
 }
