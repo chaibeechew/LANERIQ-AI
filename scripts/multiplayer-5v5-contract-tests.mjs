@@ -9,6 +9,7 @@ import "./moba-session-shield-v8-tests.mjs";
 import "./moba-adaptive-matchmaking-v9-tests.mjs";
 import "./moba-capacity-verification-runner-v10-tests.mjs";
 import "./moba-ranked-integrity-v11-tests.mjs";
+import "./moba-live-activation-v12-tests.mjs";
 import {getMultiplayerProviderConfig} from "../lib/game/multiplayer-provider-gateway.js";
 import {evaluateAdapterEvidence} from "../lib/game/multiplayer-adapter-v1.js";
 import {evaluateLiveTransportReadiness} from "../lib/game/live-multiplayer-transport-v1.js";
@@ -25,20 +26,26 @@ assert.equal(evaluateAdapterEvidence({shapeValidated:true}).productionReady,fals
 assert.equal(evaluateLiveTransportReadiness({adapter:true}).productionReady,false);
 
 const route=fs.readFileSync("app/api/game/multiplayer/matchmaking/route.js","utf8");
+const cloud=fs.readFileSync("lib/cloud/game-multiplayer.js","utf8");
+const dataAdapter=fs.readFileSync("lib/cloud-adapters/game-multiplayer-data.js","utf8");
 const gateway=fs.readFileSync("lib/game/multiplayer-provider-gateway.js","utf8");
 const authority=fs.readFileSync("lib/game/multiplayer-authority-v1.js","utf8");
 const transport=fs.readFileSync("lib/game/live-multiplayer-transport-v1.js","utf8");
 const migration=fs.readFileSync("supabase/migrations/20260901134732_harden_multiplayer_session_contract.sql","utf8");
 const claimMigration=fs.readFileSync("supabase/migrations/20260903022000_multiplayer_provider_claim_v2.sql","utf8");
 
-for(const pattern of [/auth\.getUser\(\)/,/professional\.active/,/PRO_GAME_CREATOR_REQUIRED/,/\.eq\("owner_id",userId\)/,/productType===\"mobile_game\"/,/game\?\.enabled===true/,/REQUEST_ID/,/MAX_REQUEST_BYTES/,/server_reserve_multiplayer_session/,/server_claim_multiplayer_provider_v2/,/server_finalize_multiplayer_provider_v2/,/MULTIPLAYER_SUBMISSION_IN_PROGRESS/,/LIVE_MULTIPLAYER_NOT_CONNECTED/,/productionEvidenceVerified:false/,/Cache-Control\":\"private, no-store/])assert.match(route,pattern);
-assert.ok(route.indexOf('server_reserve_multiplayer_session')<route.indexOf('server_claim_multiplayer_provider_v2'),"Session reservation must precede provider claim.");
-assert.ok(route.indexOf('server_claim_multiplayer_provider_v2')<route.indexOf('createMultiplayerTicket({requestId'),"Provider execution must be downstream of the atomic provider claim.");
-assert.match(route,/same idempotency key after an uncertain acknowledgement/i);
-assert.match(route,/will not start a duplicate ticket/i);
+for(const pattern of [/lib\/cloud\/game-multiplayer\.js/,/getBuilderGameMultiplayerReadiness/,/startBuilderGameMultiplayer/,/checkBuilderGameMultiplayer/,/cancelBuilderGameMultiplayer/,/MAX_REQUEST_BYTES/,/Cache-Control/])assert.match(route,pattern);
+assert.doesNotMatch(route,/lib\/supabase\//);
+assert.doesNotMatch(route,/createClient|createAdminClient|getAppBuilderAccess|MULTIPLAYER_PROVIDER_TOKEN|MULTIPLAYER_MATCHMAKING_ENDPOINT/);
 
-for(const pattern of [/assertRuntimeUrlAllowed/,/AbortController/,/TIMEOUT_MS/,/MAX_RESPONSE_BYTES/,/redirect:\"error\"/,/cache:\"no-store\"/,/MULTIPLAYER_PROVIDER_TOKEN/,/MULTIPLAYER_COST_POLICY_BLOCKED/,/LIVE_MULTIPLAYER_NOT_CONNECTED/,/REQUEST_ID/,/Idempotency-Key/,/idempotencyKey:stableRequestId/,/validId/,/SAFE_STATUS/])assert.match(gateway,pattern);
-assert.doesNotMatch(route,/MULTIPLAYER_PROVIDER_TOKEN/);
+for(const pattern of [/createGameMultiplayerDataAdapter/,/getMultiplayerProviderConfig/,/createMultiplayerTicket/,/server submission|provider submission/i,/MULTIPLAYER_SUBMISSION_IN_PROGRESS/,/LIVE_MULTIPLAYER_NOT_CONNECTED/,/productionEvidenceVerified:\s*false/,/same idempotency key after an uncertain acknowledgement/i,/will not start a duplicate ticket/i])assert.match(cloud,pattern);
+assert.ok(cloud.indexOf("beginSubmission")<cloud.indexOf("createMultiplayerTicket"),"Cloud data reservation/claim must precede provider execution.");
+assert.doesNotMatch(cloud,/MULTIPLAYER_PROVIDER_TOKEN/);
+
+for(const pattern of [/auth\.getUser\(\)/,/professional\?\.active/,/\.eq\("owner_id", user\.id\)/,/productType !== "mobile_game"/,/game\?\.enabled !== true/,/server_reserve_multiplayer_session/,/server_claim_multiplayer_provider_v2/,/server_finalize_multiplayer_provider_v2/,/server_update_multiplayer_session/])assert.match(dataAdapter,pattern);
+assert.ok(dataAdapter.indexOf("server_reserve_multiplayer_session")<dataAdapter.indexOf("server_claim_multiplayer_provider_v2"),"Session reservation must precede provider claim inside the isolated data adapter.");
+
+for(const pattern of [/assertRuntimeUrlAllowed/,/AbortController/,/TIMEOUT_MS/,/MAX_RESPONSE_BYTES/,/redirect:"error"/,/cache:"no-store"/,/MULTIPLAYER_PROVIDER_TOKEN/,/MULTIPLAYER_COST_POLICY_BLOCKED/,/LIVE_MULTIPLAYER_NOT_CONNECTED/,/REQUEST_ID/,/Idempotency-Key/,/idempotencyKey:stableRequestId/,/validId/,/SAFE_STATUS/])assert.match(gateway,pattern);
 assert.match(authority,/authoritative:true/);assert.match(authority,/liveTransport:false/);assert.match(authority,/stale_sequence/);assert.match(authority,/rate_limited/);assert.match(authority,/reconnect/);
 assert.match(transport,/adapterConnected:false/);assert.match(transport,/liveServiceVerified:false/);assert.match(transport,/reconnecting/);assert.match(transport,/resyncing/);assert.match(transport,/realDevices/);assert.match(transport,/regionalFailover/);
 
@@ -92,4 +99,4 @@ const load=evaluateMobaLoadEvidence({concurrentMatches:100,concurrentPlayers:100
 assert.equal(evaluateMobaProductionEvidence({authoritativeCombat:true,reconnectResync:true,antiCheat:true,loadTest:true}).productionReady,false);
 assert.equal(evaluateMobaProductionEvidence({liveRelay:true,matchmaking:true,authoritativeCombat:true,reconnectResync:true,antiCheat:true,loadTest:true,lossLatency:true,regionalFailover:true,iosDevice:true,androidDevice:true}).productionReady,true);
 
-console.log("Multiplayer / 5v5 contract passed: authenticated Pro + owned-Game gating, atomic provider submission claim, downstream idempotency, replay-safe recovery, provider SSRF/timeout/cost controls, server-authoritative MOBA combat, reconnect/resync input lock, anti-cheat scoring, measured load gates and truthful LIVE PENDING evidence are locked.");
+console.log("Multiplayer / 5v5 contract passed: provider-opaque Cloud matchmaking, authenticated Pro + owned-Game gating, atomic provider submission claim, downstream idempotency, replay-safe recovery, provider SSRF/timeout/cost controls, server-authoritative MOBA combat, reconnect/resync input lock, anti-cheat scoring, measured load gates and truthful LIVE PENDING evidence are locked.");
