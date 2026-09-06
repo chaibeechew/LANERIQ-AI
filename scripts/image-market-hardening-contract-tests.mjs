@@ -104,6 +104,9 @@ try{
   assert.match(runtime,/createHmac\('sha256'/);
   assert.match(runtime,/providerHash&&providerHash!==artifactHash/);
   assert.match(runtime,/signedEvidence:signatureVerified/);
+  assert.match(runtime,/canonicalImage:`data:\$\{mime\};base64,/);
+  assert.match(runtime,/item\.image=artifact\.canonicalImage/);
+  assert.match(runtime,/item\.expectedSha256=artifact\.artifactHash/);
   assert.match(runtime,/verifiedOutputCount>=MIN_VERIFIED_OUTPUTS&&verifiedQualityScore>=MIN_VERIFIED_QUALITY_SCORE/);
   assert.match(runtime,/sampleSize>=100&&successRate>=0\.98/);
   assert.match(runtime,/refundFailureRate===0&&idempotencyVerified&&rateLimitVerified&&providerFailoverVerified/);
