@@ -1,0 +1,37 @@
+name: LANERIQ AI Map + Super Game Fusion Gate
+
+on:
+  push:
+    paths:
+      - 'lib/game/super-game-composer-v1.js'
+      - 'app/api/ai-map/**'
+      - 'app/api/super-game/**'
+      - 'app/ai-map/**'
+      - 'app/super-game-builder/**'
+      - 'supabase/migrations/*ai_map_super_game*'
+      - 'scripts/ai-map-super-game-contract-tests.mjs'
+      - '.github/workflows/ai-map-super-game.yml'
+  pull_request:
+    paths:
+      - 'lib/game/super-game-composer-v1.js'
+      - 'app/api/ai-map/**'
+      - 'app/api/super-game/**'
+      - 'app/ai-map/**'
+      - 'app/super-game-builder/**'
+      - 'supabase/migrations/*ai_map_super_game*'
+      - 'scripts/ai-map-super-game-contract-tests.mjs'
+      - '.github/workflows/ai-map-super-game.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: AI Map + Super Game contract
+        run: node scripts/ai-map-super-game-contract-tests.mjs
