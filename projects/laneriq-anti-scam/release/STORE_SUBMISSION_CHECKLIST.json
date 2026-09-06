@@ -8,8 +8,10 @@
       "ANDROID_PRODUCTION_SIGNING.md",
       "PRIVACY_POLICY_DRAFT.md",
       "GOOGLE_PLAY_DECLARATIONS_DRAFT.md",
+      "STORE_LISTING_COPY_DRAFT.md",
       "STORE_READINESS_2026.md",
-      "FIVE_LAYER_EXIT_GATES.md"
+      "FIVE_LAYER_EXIT_GATES.md",
+      "EXTERNAL_VALIDATION_RUNBOOK.md"
     ],
     "externalEvidenceGates": [
       "android_release_ci_passed",
@@ -23,11 +25,18 @@
       "google_play_vpn_declaration_verified_if_applicable",
       "google_play_fgs_declaration_verified",
       "store_listing_truth_review_passed",
-      "latest_main_alignment_verified"
+      "latest_main_alignment_verified",
+      "main_branch_protection_required_checks_verified",
+      "production_release_exact_sha_convergence_verified"
     ]
   },
   "ios": {
     "status": "SEPARATE_DRAFT_BETA",
+    "requiredDocuments": [
+      "IOS_STORE_READINESS.md",
+      "PRIVACY_POLICY_DRAFT.md",
+      "STORE_LISTING_COPY_DRAFT.md"
+    ],
     "externalEvidenceGates": [
       "final_bundle_id_and_signing_verified",
       "physical_device_testflight_verified",
@@ -36,7 +45,9 @@
       "export_compliance_reviewed",
       "network_extension_entitlement_and_organization_eligibility_verified_if_vpn_enabled",
       "store_listing_truth_review_passed",
-      "latest_main_alignment_verified"
+      "latest_main_alignment_verified",
+      "main_branch_protection_required_checks_verified",
+      "production_release_exact_sha_convergence_verified"
     ]
   },
   "publicProductionRule": "No store submission is authorized until every applicable external evidence gate is represented by trusted signed release evidence and the exact shipping artifact/source commit is pinned."
