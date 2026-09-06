@@ -1,0 +1,38 @@
+name: LANERIQ Supabase Public Object Default ACL Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "supabase/migrations/20260906084500_public_table_sequence_default_privileges_fail_closed.sql"
+      - "scripts/supabase-public-object-default-acl-contract-tests.mjs"
+      - ".github/workflows/supabase-public-object-default-acl.yml"
+  push:
+    branches: [main]
+    paths:
+      - "supabase/migrations/20260906084500_public_table_sequence_default_privileges_fail_closed.sql"
+      - "scripts/supabase-public-object-default-acl-contract-tests.mjs"
+      - ".github/workflows/supabase-public-object-default-acl.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify default ACL fail-closed contract
+        run: node scripts/supabase-public-object-default-acl-contract-tests.mjs
+      - name: Truth boundary
+        run: |
+          echo "✓ This gate changes future-object defaults only; existing table/sequence privileges and RLS behavior are untouched."
+          echo "✓ Future postgres-owned public tables/sequences require explicit API grants."
+          echo "✓ supabase_admin owner-default hardening is attempted only with real elevated-role authority."
+          echo "✓ LIVE pg_default_acl verification remains required after Production migration."
