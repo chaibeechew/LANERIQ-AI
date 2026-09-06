@@ -37,6 +37,9 @@ public final class ProtectionStatusProvider extends ContentProvider {
             "self_integrity_continuity_acceptable",
             "alert_delivery_state",
             "alert_delivery_available",
+            "platform_integrity_state",
+            "background_restricted",
+            "battery_optimization_exemption",
             "last_stop_reason"
     };
 
@@ -62,6 +65,8 @@ public final class ProtectionStatusProvider extends ContentProvider {
         GuardianIntegrityPolicy.Decision integrity = GuardianIntegrityPolicy.evaluate(lease);
         AppSelfIntegrityStore.Result selfIntegrity = new AppSelfIntegrityStore(getContext()).probe();
         AlertDeliveryIntegrity.Decision alertDelivery = AlertDeliveryIntegrity.capture(getContext());
+        PlatformProtectionIntegrityProbe.Snapshot platform =
+                PlatformProtectionIntegrityProbe.capture(getContext());
         NetworkProtectionCapability.State network = NetworkProtectionCapability.evaluate(
                 new NetworkProtectionCapability.Evidence(
                         false,
@@ -80,7 +85,7 @@ public final class ProtectionStatusProvider extends ContentProvider {
 
         MatrixCursor cursor = new MatrixCursor(COLUMNS, 1);
         cursor.addRow(new Object[] {
-                6,
+                7,
                 lease.state.name(),
                 claimable ? 1 : 0,
                 lease.sameBootSession ? 1 : 0,
@@ -100,6 +105,9 @@ public final class ProtectionStatusProvider extends ContentProvider {
                 selfIntegrity.continuityAcceptable ? 1 : 0,
                 alertDelivery.state.name(),
                 alertDelivery.mayClaimUserAlertsAvailable ? 1 : 0,
+                platform.decision.state.name(),
+                platform.backgroundRestricted ? 1 : 0,
+                platform.batteryOptimizationExemption ? 1 : 0,
                 lease.lastStopReason == null ? "" : lease.lastStopReason
         });
         return cursor;
