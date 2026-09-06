@@ -13,3 +13,4 @@ import './avatar-trusted-live-verification-v48-contract-tests.mjs';
 import './avatar-production-closure-v49-contract-tests.mjs';
 import './avatar-evidence-execution-v50-contract-tests.mjs';
 import './avatar-validation-reliability-v51-contract-tests.mjs';
+import './avatar-competitive-runtime-v52-contract-tests.mjs';
