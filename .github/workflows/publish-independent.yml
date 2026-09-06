@@ -5,6 +5,17 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "services/publish/**"
+      - "app/api/apps/**/publish/**"
+      - "app/release/**"
+      - "lib/publishing/**"
+      - "scripts/web-publish*.mjs"
+      - "supabase/migrations/*web_publish*.sql"
+      - "supabase/migrations/*published_project_version*.sql"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/publish-independent.yml"
 
 jobs:
   verify:

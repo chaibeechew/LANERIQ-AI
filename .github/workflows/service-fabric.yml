@@ -5,6 +5,16 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "services/fabric/**"
+      - "services/generation/**"
+      - "services/memory/**"
+      - "services/cloud/**"
+      - "services/publish/**"
+      - "app/api/system/sovereign/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/service-fabric.yml"
 
 jobs:
   verify:

@@ -5,6 +5,20 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "services/memory/**"
+      - "lib/project-memory.js"
+      - "lib/cloud-adapters/builder-project-data.js"
+      - "lib/cloud-adapters/builder-project-world-data.js"
+      - "app/api/apps/**/memory/**"
+      - "app/api/apps/**/bootstrap/**"
+      - "app/api/generate/**"
+      - "app/api/modify/**"
+      - "scripts/project-memory-contract-tests.mjs"
+      - "supabase/migrations/*project_memory*.sql"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/memory-independent.yml"
 
 jobs:
   verify:

@@ -3,6 +3,14 @@ name: LANERIQ LIUI Runtime Capabilities Gate
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "app/**"
+      - "lib/design/**"
+      - "lib/ai/liui-standard.js"
+      - "scripts/batch95-liui-runtime-capabilities-tests.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/liui-runtime-capabilities-gate.yml"
   push:
     branches: [main]
 

@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "lib/infrastructure/**"
+      - "scripts/workload-protection-exit-drill-contract-tests.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/workload-protection-exit-drill.yml"
 
 jobs:
   workload-protection-capacity-recovery:

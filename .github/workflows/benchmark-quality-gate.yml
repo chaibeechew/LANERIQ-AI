@@ -5,6 +5,18 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "lib/ai/benchmark-factory.js"
+      - "lib/ai/**quality*"
+      - "lib/ai/**self-heal*"
+      - "scripts/benchmark-factory-contract-tests.mjs"
+      - "scripts/generation-outcome-intelligence-contract-tests.mjs"
+      - "scripts/self-heal-contract-tests.mjs"
+      - "app/api/generate/**"
+      - "app/api/modify/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/benchmark-quality-gate.yml"
 
 jobs:
   benchmark-quality-gate:

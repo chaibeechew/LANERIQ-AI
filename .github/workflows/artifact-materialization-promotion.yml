@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "lib/infrastructure/**"
+      - "scripts/artifact-materialization-promotion-contract-tests.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/artifact-materialization-promotion.yml"
 
 jobs:
   artifact-materialization-promotion:

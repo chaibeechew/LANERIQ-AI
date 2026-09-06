@@ -1,0 +1,80 @@
+name: LANERIQ CI PR Fanout Governance Gate
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/liui-runtime-capabilities-gate.yml"
+      - ".github/workflows/liui-living-runtime-v2-gate.yml"
+      - ".github/workflows/liui-surface-convergence-gate.yml"
+      - ".github/workflows/liui-real-product-surface-gate.yml"
+      - ".github/workflows/liui-simplification-performance.yml"
+      - ".github/workflows/liui-five-layer-100-gate.yml"
+      - ".github/workflows/auth-mobile-entry.yml"
+      - ".github/workflows/publish-independent.yml"
+      - ".github/workflows/communications-independent.yml"
+      - ".github/workflows/memory-independent.yml"
+      - ".github/workflows/artifact-materialization-promotion.yml"
+      - ".github/workflows/service-fabric.yml"
+      - ".github/workflows/capacity-load-evidence.yml"
+      - ".github/workflows/no-credits-launch-mode.yml"
+      - ".github/workflows/benchmark-quality-gate.yml"
+      - ".github/workflows/sovereign-modular-intelligence.yml"
+      - ".github/workflows/sovereign-core-services.yml"
+      - ".github/workflows/workload-protection-exit-drill.yml"
+      - ".github/workflows/outcome-intelligence-release-gate.yml"
+      - ".github/workflows/portability-agreement.yml"
+      - ".github/workflows/batch34b-template-observability.yml"
+      - "config/production-release-closure-policy.json"
+      - ".github/workflows/ci-pr-fanout-governance.yml"
+      - "scripts/ci-pr-fanout-contract-tests.mjs"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/liui-runtime-capabilities-gate.yml"
+      - ".github/workflows/liui-living-runtime-v2-gate.yml"
+      - ".github/workflows/liui-surface-convergence-gate.yml"
+      - ".github/workflows/liui-real-product-surface-gate.yml"
+      - ".github/workflows/liui-simplification-performance.yml"
+      - ".github/workflows/liui-five-layer-100-gate.yml"
+      - ".github/workflows/auth-mobile-entry.yml"
+      - ".github/workflows/publish-independent.yml"
+      - ".github/workflows/communications-independent.yml"
+      - ".github/workflows/memory-independent.yml"
+      - ".github/workflows/artifact-materialization-promotion.yml"
+      - ".github/workflows/service-fabric.yml"
+      - ".github/workflows/capacity-load-evidence.yml"
+      - ".github/workflows/no-credits-launch-mode.yml"
+      - ".github/workflows/benchmark-quality-gate.yml"
+      - ".github/workflows/sovereign-modular-intelligence.yml"
+      - ".github/workflows/sovereign-core-services.yml"
+      - ".github/workflows/workload-protection-exit-drill.yml"
+      - ".github/workflows/outcome-intelligence-release-gate.yml"
+      - ".github/workflows/portability-agreement.yml"
+      - ".github/workflows/batch34b-template-observability.yml"
+      - "config/production-release-closure-policy.json"
+      - ".github/workflows/ci-pr-fanout-governance.yml"
+      - "scripts/ci-pr-fanout-contract-tests.mjs"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Verify PR fanout governance
+        run: node scripts/ci-pr-fanout-contract-tests.mjs
+      - name: Truth boundary
+        run: |
+          echo "✓ Twenty-one non-mandatory PR gates are changed-domain scoped."
+          echo "✓ Release-policy always-required workflows remain required on every PR."
+          echo "✓ Push-to-main verification remains intact."
+          echo "✓ This unit does not bypass Core Release, main CI, Release Integrity or Production Closure requirements."

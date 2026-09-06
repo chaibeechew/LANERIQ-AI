@@ -5,6 +5,17 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "lib/communications/**"
+      - "services/communications/**"
+      - "app/api/communications/**"
+      - "scripts/*communications*.mjs"
+      - "scripts/zero-cost-omnichannel-contract-tests.mjs"
+      - "supabase/migrations/*communication*.sql"
+      - "docs/independent-communications-service.md"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/communications-independent.yml"
 
 jobs:
   verify:

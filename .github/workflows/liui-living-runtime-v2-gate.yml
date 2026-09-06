@@ -3,6 +3,14 @@ name: LANERIQ LIUI Living Runtime v2 Gate
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "app/**"
+      - "lib/design/**"
+      - "lib/ai/liui-standard.js"
+      - "scripts/batch99-liui-living-runtime-v2-tests.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/liui-living-runtime-v2-gate.yml"
   push:
     branches: [main]
 

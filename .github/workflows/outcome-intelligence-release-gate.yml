@@ -5,6 +5,21 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+    paths:
+      - "lib/ai/**"
+      - "lib/buildStandards.js"
+      - "app/api/generate/**"
+      - "app/api/modify/**"
+      - "scripts/generation-outcome-intelligence-contract-tests.mjs"
+      - "scripts/benchmark-factory-contract-tests.mjs"
+      - "scripts/outcome-intelligence-release-gate-tests.mjs"
+      - "scripts/batch36b-executable-quality-loop-tests.mjs"
+      - "scripts/batch37-replan-reduction-tests.mjs"
+      - "scripts/batch38-outcome-learning-tests.mjs"
+      - "scripts/release-quality-generation-sample.mjs"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/outcome-intelligence-release-gate.yml"
 
 jobs:
   outcome-intelligence-release-gate:

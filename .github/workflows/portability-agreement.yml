@@ -3,6 +3,17 @@ name: LANERIQ Portability Agreement + No-Buyout Gate
 on:
   pull_request:
     branches: [main]
+    paths:
+      - "docs/legal/LANERIQ_PROJECT_PORTABILITY_REVENUE_SHARE_AGREEMENT_v1.md"
+      - "docs/legal/LANERIQ_CONTRACTING_PARTY_INTAKE_TEMPLATE.md"
+      - "config/project-portability-policy.js"
+      - "config/product-policy.js"
+      - "app/api/apps/**/migration-agreement/**"
+      - "app/components/ProjectPortabilityPanel.js"
+      - "supabase/migrations/*creator_support_and_portability*.sql"
+      - "supabase/migrations/*migration_agreement*.sql"
+      - "scripts/project-portability-agreement-contract-tests.mjs"
+      - ".github/workflows/portability-agreement.yml"
   push:
     branches: [main]
 
