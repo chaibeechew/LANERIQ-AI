@@ -4,14 +4,19 @@ on:
   push:
     branches:
       - 'batch170-*'
+      - 'batch176-*'
     paths:
       - 'app/api/generate/route.js'
+      - 'lib/generator/quality-gate-rescue.js'
+      - 'lib/generator/quality-recovery-intelligence.js'
       - 'scripts/generate-quality-gate-error-boundary-tests.mjs'
       - '.github/workflows/generate-quality-gate-error-boundary.yml'
   pull_request:
     branches: [main]
     paths:
       - 'app/api/generate/route.js'
+      - 'lib/generator/quality-gate-rescue.js'
+      - 'lib/generator/quality-recovery-intelligence.js'
       - 'scripts/generate-quality-gate-error-boundary-tests.mjs'
       - '.github/workflows/generate-quality-gate-error-boundary.yml'
 
@@ -36,4 +41,4 @@ jobs:
       - name: App and Website combined E2E regression
         run: npm run test:combined-e2e-code
       - name: Truth boundary
-        run: echo 'A controlled quality-gate rejection is not a successful generation. Unknown server faults must remain 500 errors.'
+        run: echo 'Preventive preflight is deterministic guidance, not a failure probability. A controlled quality-gate rejection is not a successful generation. Targeted rescue must pass the same deterministic checks before persistence; unknown server faults must remain 500 errors.'

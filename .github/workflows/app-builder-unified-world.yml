@@ -6,6 +6,8 @@ on:
     paths:
       - 'app/api/generate/route.js'
       - 'app/api/modify/route.js'
+      - 'lib/generator/quality-gate-rescue.js'
+      - 'lib/generator/quality-recovery-intelligence.js'
       - 'lib/project-memory.js'
       - 'lib/cloud/builder-projects.js'
       - 'lib/cloud-adapters/builder-project-world-data.js'
@@ -51,6 +53,8 @@ jobs:
         run: |
           node --check lib/intelligence/app-builder-world-bridge.js
           node --check lib/intelligence/unified-intelligence-contract.js
+          node --check lib/generator/quality-gate-rescue.js
+          node --check lib/generator/quality-recovery-intelligence.js
           node --check lib/project-memory.js
           node --check lib/cloud-adapters/builder-project-world-data.js
           node --check lib/cloud/builder-projects.js
