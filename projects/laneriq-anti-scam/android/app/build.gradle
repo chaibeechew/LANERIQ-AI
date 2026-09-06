@@ -1,5 +1,13 @@
 plugins { id 'com.android.application' }
 
+
+def releaseKeystorePath = System.getenv('LANERIQ_ANDROID_UPLOAD_KEYSTORE_PATH')
+def releaseKeyAlias = System.getenv('LANERIQ_ANDROID_UPLOAD_KEY_ALIAS')
+def releaseStorePassword = System.getenv('LANERIQ_ANDROID_UPLOAD_STORE_PASSWORD')
+def releaseKeyPassword = System.getenv('LANERIQ_ANDROID_UPLOAD_KEY_PASSWORD')
+def hasReleaseSigning = [releaseKeystorePath, releaseKeyAlias, releaseStorePassword, releaseKeyPassword]
+        .every { it != null && !it.trim().isEmpty() }
+
 android {
     namespace 'ai.laneriq.antiscam'
     compileSdk 36
@@ -13,6 +21,19 @@ android {
         resValue 'string', 'app_name', 'LANERIQ Anti Scam'
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            productionUpload {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+                enableV1Signing true
+                enableV2Signing true
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix '.test'
@@ -22,12 +43,28 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (hasReleaseSigning) {
+                signingConfig signingConfigs.productionUpload
+            }
         }
     }
 
     lint {
         abortOnError true
         checkReleaseBuilds true
+    }
+}
+
+tasks.register('verifyProductionSigningConfigured') {
+    doLast {
+        if (!hasReleaseSigning) {
+            throw new GradleException('Production signing inputs are not configured. Structural unsigned release builds are not store-submittable.')
+        }
+        def keyFile = file(releaseKeystorePath)
+        if (!keyFile.exists() || !keyFile.isFile()) {
+            throw new GradleException('Configured production keystore path does not exist.')
+        }
+        println('Production signing configuration present; secret values are not printed.')
     }
 }
 
