@@ -10,6 +10,9 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
   const appGradle = read('android/app/build.gradle');
   const manifest = read('android/app/src/main/AndroidManifest.xml');
   const guardian = read('android/app/src/main/java/ai/laneriq/antiscam/GuardianService.java');
+  const signedReputation = read('android/app/src/main/java/ai/laneriq/antiscam/SignedThreatReputationEvidence.java');
+  const reputationStore = read('android/app/src/main/java/ai/laneriq/antiscam/LocalThreatReputationStore.java');
+  const feedKeys = read('android/app/src/main/java/ai/laneriq/antiscam/TrustedThreatFeedKeys.java');
   const prTruth = read('release/STORE_READINESS_2026.md');
   const signingContract = read('release/ANDROID_PRODUCTION_SIGNING.md');
 
@@ -32,6 +35,12 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
       && /anti-scam Guardian device-risk monitoring/i.test(manifest),
     specialUseFgsRuntimeType: /FOREGROUND_SERVICE_TYPE_SPECIAL_USE/.test(guardian)
       && /Build\.VERSION_CODES\.UPSIDE_DOWN_CAKE/.test(guardian),
+    signedReputationCryptoPathPresent: /SHA256withECDSA/.test(signedReputation)
+      && /productionVerifier\(\)/.test(signedReputation)
+      && /VerifiedEvidence/.test(signedReputation),
+    signedReputationCacheReverified: /reverifySignedEnvelope/.test(reputationStore)
+      && /productionVerifier\(\)\.verify/.test(reputationStore),
+    threatFeedTrustRootFailsClosedByDefault: /Collections\.emptyMap\(\)/.test(feedKeys),
     privacyPolicyDraftPresent: exists('release/PRIVACY_POLICY_DRAFT.md'),
     playDeclarationDraftPresent: exists('release/GOOGLE_PLAY_DECLARATIONS_DRAFT.md'),
     signingContractPresent: exists('release/ANDROID_PRODUCTION_SIGNING.md')
