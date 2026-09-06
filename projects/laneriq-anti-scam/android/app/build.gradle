@@ -2,17 +2,23 @@ plugins { id 'com.android.application' }
 
 android {
     namespace 'ai.laneriq.antiscam'
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
-        applicationId 'ai.laneriq.antiscam.test'
+        applicationId 'ai.laneriq.antiscam'
         minSdk 26
-        targetSdk 35
-        versionCode 3004
-        versionName '0.3.0-protection.4'
+        targetSdk 36
+        versionCode 4000
+        versionName '0.4.0-rc.1'
+        resValue 'string', 'app_name', 'LANERIQ Anti Scam'
     }
 
     buildTypes {
+        debug {
+            applicationIdSuffix '.test'
+            versionNameSuffix '-test'
+            resValue 'string', 'app_name', 'LANERIQ Anti Scam Test'
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
@@ -21,7 +27,7 @@ android {
 
     lint {
         abortOnError true
-        checkReleaseBuilds false
+        checkReleaseBuilds true
     }
 }
 
