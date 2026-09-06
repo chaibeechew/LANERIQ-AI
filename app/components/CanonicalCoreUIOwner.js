@@ -2,24 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import LaneriqLotusBrand from "./LaneriqLotusBrand";
+import { CANONICAL_PRIMARY_NAV, resolveCanonicalUiContext } from "../../lib/product/canonical-ui-registry.js";
 
-const CORE_ROUTES = new Map([
-  ["/", "home"],
-  ["/login", "login"],
-  ["/auth", "auth"],
-  ["/create", "create"],
-]);
-
-function routeKey(pathname) {
-  const path = String(pathname || "/");
-  if (path === "/") return "home";
-  if (path === "/login" || path.startsWith("/login/")) return "login";
-  if (path === "/auth" || path.startsWith("/auth/")) return "auth";
-  if (path === "/create" || path.startsWith("/create/")) return "create";
-  return "";
-}
+const CORE_IDS = new Set(["home", "login", "auth", "create", "build-progress"]);
 
 async function readSession() {
   try {
@@ -37,23 +24,27 @@ async function readSession() {
 
 export default function CanonicalCoreUIOwner() {
   const pathname = usePathname() || "/";
-  const current = useMemo(() => routeKey(pathname), [pathname]);
+  const searchParams = useSearchParams();
+  const context = useMemo(() => resolveCanonicalUiContext(pathname, searchParams), [pathname, searchParams]);
+  const current = context?.id || "";
   const [authenticated, setAuthenticated] = useState(false);
 
   useEffect(() => {
     const body = document.body;
-    if (!current) {
+    if (!CORE_IDS.has(current)) {
       delete body.dataset.canonicalCoreUi;
       return undefined;
     }
-    body.dataset.canonicalCoreUi = current;
+    const dataValue = current === "build-progress" ? "create" : current;
+    body.dataset.canonicalCoreUi = dataValue;
+    body.dataset.canonicalUiVersion = "2026.09-canonical-ui-v1";
     return () => {
-      if (body.dataset.canonicalCoreUi === current) delete body.dataset.canonicalCoreUi;
+      if (body.dataset.canonicalCoreUi === dataValue) delete body.dataset.canonicalCoreUi;
     };
   }, [current]);
 
   useEffect(() => {
-    if (!current || current === "login" || current === "auth") return undefined;
+    if (!CORE_IDS.has(current) || current === "login" || current === "auth") return undefined;
     let active = true;
     readSession().then((value) => { if (active) setAuthenticated(value); });
     const refresh = () => readSession().then((value) => { if (active) setAuthenticated(value); });
@@ -64,11 +55,12 @@ export default function CanonicalCoreUIOwner() {
     };
   }, [current]);
 
-  if (!current || !CORE_ROUTES.has(pathname) && !["login", "auth", "create"].includes(current)) return null;
+  if (!CORE_IDS.has(current)) return null;
 
-  const showBottomNav = current === "home" || current === "create";
+  const showBottomNav = current === "home" || current === "create" || current === "build-progress";
   const accountHref = authenticated ? "/my-apps" : "/login";
   const accountLabel = authenticated ? "Projects" : "Sign in";
+  const stageLabel = current === "auth" ? "EMAIL VERIFICATION" : context?.stage?.toUpperCase?.() || "LIVING INTELLIGENCE";
 
   return (
     <>
@@ -76,9 +68,7 @@ export default function CanonicalCoreUIOwner() {
         <Link href="/" className="canonicalBrandLink" aria-label="LANERIQ AI home">
           <LaneriqLotusBrand compact />
         </Link>
-        <div className="canonicalHeaderStage" aria-hidden="true">
-          {current === "login" ? "LOGIN" : current === "auth" ? "EMAIL VERIFICATION" : current === "create" ? "CREATE" : "LIVING INTELLIGENCE"}
-        </div>
+        <div className="canonicalHeaderStage" aria-hidden="true">{stageLabel}</div>
         <nav className="canonicalHeaderActions" aria-label="Core account actions">
           {(current === "login" || current === "auth") ? (
             <Link href="/">Home</Link>
@@ -90,11 +80,10 @@ export default function CanonicalCoreUIOwner() {
 
       {showBottomNav && (
         <nav className="canonicalBottomNav" aria-label="LANERIQ primary navigation">
-          <Link href="/" aria-current={current === "home" ? "page" : undefined}><span>⌂</span><b>Home</b></Link>
-          <Link href="/my-apps"><span>▦</span><b>Projects</b></Link>
-          <Link href="/create" aria-current={current === "create" ? "page" : undefined}><span>✦</span><b>Create</b></Link>
-          <Link href="/templates"><span>◇</span><b>Templates</b></Link>
-          <Link href="/studio"><span>•••</span><b>More</b></Link>
+          {CANONICAL_PRIMARY_NAV.map((item) => {
+            const active = context?.nav === item.label || (item.id === "home" && current === "home") || (item.id === "create" && (current === "create" || current === "build-progress"));
+            return <Link key={item.id} href={item.href} aria-current={active ? "page" : undefined}><span>{item.icon}</span><b>{item.label}</b></Link>;
+          })}
         </nav>
       )}
     </>
