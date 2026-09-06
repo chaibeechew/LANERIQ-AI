@@ -35,6 +35,8 @@ The first council round is blind and independent. Explorer, Conservative, Challe
 
 Round 2 adds an executable Council runtime. Council seats call the existing provider execution boundary through `generateWithFallback` by default, while contract tests inject a deterministic mock generator. Candidate raw responses are represented by SHA-256 response digests in the runtime evidence surface. The Judge receives bounded candidate summaries after the independent round.
 
+Round 3 adds an observable provider-diversity policy. When multiple configured/authorized providers are available, worker seats prefer unused providers first and the Judge prefers a provider not already used. Runtime evidence records the actual distinct provider count and whether the diversity target was satisfied. A single-provider environment remains allowed but cannot claim cross-provider diversity.
+
 ## World simulation and counterfactuals
 The simulator creates baseline, growth, 100x stress, provider-outage and adversarial scenarios plus counterfactual questions. Simulation evidence remains `SIMULATED`; it cannot become measured or Production evidence merely because the simulation passed.
 
@@ -64,6 +66,15 @@ Round 2 adds one shared cognitive service contract for:
 
 Each domain has an explicit risk/complexity/capability profile. Production Release is always `verified-critical`, requires human approval, and cannot become unbounded autonomous execution.
 
+Round 3 wires the service into real runtime boundaries:
+- App Builder admission creates a Cognitive envelope and injects the Cognitive execution contract into the existing generation prompt without bypassing zero-cost admission, private reuse scoping or provider routing.
+- AI Image creates a local Cognitive envelope at the external image gateway, emits privacy-safe method telemetry and sends only bounded mode/evidence headers in addition to the unchanged provider request schema.
+- AI Video applies the same pattern at renderer submission and status-check boundaries while preserving idempotency, approved-output validation and durable capture requirements.
+- Malware Defense attaches Cognitive risk/evidence metadata to the deterministic runtime-defense pipeline. Cognitive metadata cannot override ALLOW/HOLD/QUARANTINE/RANSOMWARE enforcement decisions.
+
+## Privacy-safe Cognitive telemetry
+Round 3 adds an in-process bounded telemetry ring for method-level runtime evidence. Events include domain, phase, reasoning mode, evidence class, council/approval requirements, outcome, provider class, latency and a SHA-256 operation digest. Telemetry explicitly excludes raw prompts, raw customer data and secrets. It is not durable and is not a Production observability claim.
+
 ## Execution boundary
 Executable work is least-privilege and sandbox-oriented. Network, background compute, shared compute and private-data reuse are explicit permissions. Destructive, financial, Production, critical, or high-risk external-side-effect work requires human approval, rollback planning and dry-run where applicable.
 
@@ -81,9 +92,9 @@ A high internal benchmark score is not a Production superiority claim. `mayClaim
 - Existing Provider Router remains the provider execution boundary.
 - Existing Project Memory remains separate from global reusable experience.
 - Existing bounded Self-Heal remains the repair executor; Cognitive OS supplies escalation/judging policy.
-- Existing App Builder and autonomous engine can consume the cognitive plan without receiving extra permissions.
+- App Builder, AI Image, AI Video and Malware Defense now consume the shared Cognitive contract at runtime boundaries without receiving extra permissions.
 - Existing Production Release Control remains authoritative: GitHub `main` exact SHA = Vercel Production exact SHA = runtime verified SHA before Production closure.
 - SMS remains outside this change and remains on hold.
 
 ## Release truth boundary
-This batch establishes architecture, deterministic contracts, executable Council orchestration, shared domain profiles, adapter-bounded Failure Memory and benchmark campaign code. It does not claim that external models were benchmarked live, that every provider is connected, that Failure Memory is already durably stored in Supabase, that a real-world simulation is measured evidence, or that LANERIQ is already more intelligent than another named model. Those claims require independent benchmark campaigns, reviewed persistence migrations and exact Production evidence.
+This batch establishes architecture, deterministic contracts, executable Council orchestration, provider-diversity evidence, shared domain profiles, cross-feature runtime wiring, privacy-safe in-process telemetry, adapter-bounded Failure Memory and benchmark campaign code. It does not claim that external models were benchmarked live, that every provider is connected, that Failure Memory is already durably stored in Supabase, that telemetry is a durable Production observability system, that a real-world simulation is measured evidence, or that LANERIQ is already more intelligent than another named model. Those claims require independent benchmark campaigns, reviewed persistence migrations and exact Production evidence.
