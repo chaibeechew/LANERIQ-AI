@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import "./moba-production-qualification-v13-tests.mjs";
 import {
   MOBA_LIVE_ACTIVATION_V12,
   evaluateMobaLivePreviewActivation,
