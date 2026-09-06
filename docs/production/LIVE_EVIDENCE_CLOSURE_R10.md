@@ -1,8 +1,8 @@
 # LANERIQ AI — Round 10 LIVE Evidence Closure
 
-Status: FAIL-CLOSED / Production pending
+Status: CODE + CI + PREVIEW VERIFIED / Production pending
 
-This round does not add speculative product capability. It converts the remaining Production Cognitive Gate requirements into an auditable evidence-closure program.
+Round 10 converts the remaining Production Cognitive Gate requirements into an auditable evidence-closure program and adds eight concrete product/runtime upgrades. It does not create a speculative future-intelligence layer.
 
 ## Evidence ladder
 
@@ -10,7 +10,18 @@ SPEC → CODE → CI → BROWSER VERIFIED → DEVICE VERIFIED → PROVIDER LIVE 
 
 Preview readiness, fixtures, mocks, static CI and simulated evidence MUST NOT be promoted to a higher evidence class.
 
-## 10 closure lanes
+## Eight implemented upgrades
+
+1. **LIVE Evidence Engine** — candidate-SHA-bound evidence records, evidence classes, required-source checks, forbidden secret fields, exact-SHA Production convergence and explicit human release approval.
+2. **Intelligence-per-Dollar Router** — quality/reliability/latency/cost/privacy scoring, fast/deep/council/verified-critical planning, provider diversity and zero-cost policy preservation.
+3. **App Builder Success Runtime** — architecture → generation → build → database → tests → security → preview → publish/rollback stage receipts, working-app success metrics and bounded repair budget.
+4. **Bounded Autonomous Execution** — maximum 20-step task plans, per-step verification, constitutional token + human approval for high-risk work, rollback requirements and no authority expansion.
+5. **Long-Term Project Intelligence** — project-scoped decisions/preferences/failures/workflows/goals/architecture records, source digests, conflict review, next-action planning, no cross-user reuse and no raw secrets.
+6. **Cognitive Self-Heal 2.0** — failure classification, Root Cause Graph, repair candidates, sandbox/regression/rollback requirements; security and authorization failures fail closed to human review.
+7. **Cost Intelligence Engine** — per-task/monthly budgets, cost estimation, explicit paid admission, zero-cost blocking, inference-budget optimization and cost-per-success metrics.
+8. **Intent-driven LIUI Runtime** — intent-specific App Builder/Research/Security/Creative/Automation surfaces, adaptive Living Cards, reduced secondary chrome and non-hideable critical evidence/approval presentation.
+
+## 10 Production closure lanes
 
 1. Exact-SHA convergence — GitHub main SHA, Vercel Production source SHA and runtime verified SHA must be identical.
 2. Supabase durability — apply the approved Cognitive migrations only after merge to main; verify RLS and owner isolation; prove durable ledger writes by read-after-write evidence.
@@ -34,10 +45,6 @@ Preview readiness, fixtures, mocks, static CI and simulated evidence MUST NOT be
 - Production database mutation occurs only after the exact candidate is merged into main.
 - Production closure may be claimed only when the repository Production Cognitive Gate returns PASS using LIVE evidence.
 
-## Evidence manifest contract
+## Current Round 10 verification boundary
 
-Every evidence record should include: `evidenceId`, `class`, `candidateSha`, `source`, `observedAt`, `digest`, `verdict`, and redacted metadata. Production records additionally bind `githubMainSha`, `vercelProductionSha`, and `runtimeVerifiedSha`.
-
-## Stop conditions
-
-Immediately stop promotion on SHA drift, migration/RLS failure, provider count < 2, failed independent attestation, failed red-team invariant, browser/API/device regression, or absent human approval.
+The dedicated `LANERIQ Round 10 LIVE Platform Upgrade Gate` runs the eight-part contract suite plus Round 9 constitutional regression, App Builder zero-cost admission, Project Memory and Cognitive Self-Heal/Production-gate regressions. Passing this gate is CODE/CI evidence only. Vercel Preview success is Preview evidence only. Neither is Provider LIVE or Production evidence.
