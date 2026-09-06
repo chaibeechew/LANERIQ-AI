@@ -6,7 +6,9 @@ on:
       - ai-video-commercial-ga-hardening-v1
     paths:
       - 'lib/video/commercial-ga-gate.js'
+      - 'lib/video/commercial-ga-evidence-bundle.js'
       - 'scripts/video-commercial-ga-contract-tests.mjs'
+      - 'scripts/video-commercial-ga-evidence-bundle-tests.mjs'
       - '.github/workflows/ai-video-commercial-ga.yml'
       - 'lib/ai/creative-media-control-plane.js'
       - 'lib/ai/creative-media-observation-judge.js'
@@ -14,7 +16,9 @@ on:
   pull_request:
     paths:
       - 'lib/video/commercial-ga-gate.js'
+      - 'lib/video/commercial-ga-evidence-bundle.js'
       - 'scripts/video-commercial-ga-contract-tests.mjs'
+      - 'scripts/video-commercial-ga-evidence-bundle-tests.mjs'
       - '.github/workflows/ai-video-commercial-ga.yml'
       - 'lib/ai/creative-media-control-plane.js'
       - 'lib/ai/creative-media-observation-judge.js'
@@ -36,6 +40,8 @@ jobs:
       - run: npm ci
       - name: AI Video Commercial GA five-gate contract
         run: node scripts/video-commercial-ga-contract-tests.mjs
+      - name: AI Video GA release-bound evidence bundle contract
+        run: node scripts/video-commercial-ga-evidence-bundle-tests.mjs
       - name: Existing AI Video regression
         run: npm run test:video
       - name: Creative Media six-layer regression
