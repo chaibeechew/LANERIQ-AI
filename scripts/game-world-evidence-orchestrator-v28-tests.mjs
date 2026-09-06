@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {buildEvidenceOrchestratorV28,createRemainingEvidencePlanV28} from '../lib/game/game-world-evidence-orchestrator-v28.js';
+const input={seed:'v28',worldId:'v28-world',worldSizeMeters:9000,city:{sizeMeters:720,blockMeters:120,maxBuildings:48}};
+const a=buildEvidenceOrchestratorV28(input,{});
+assert.equal(a.readiness.internal100,true);
+assert.equal(a.readiness.marketBetaReady,true);
+assert.equal(a.readiness.production100,false);
+assert.equal(a.truth.simulationPromotedToReal,false);
+assert.equal(a.truth.preflightPromotedToReal,false);
+assert.equal(a.simulation.evidenceClass,'SIMULATED');
+assert.equal(a.preflight.evidenceClass,'STATIC_PREFLIGHT');
+assert.equal(a.scorecard.realDevice,false);assert.equal(a.scorecard.realEngines,false);
+assert.ok(createRemainingEvidencePlanV28(a).length>0);
+const sha='same-sha';const evidence={browserRuntimeMeasured:true,hardwareGpuMeasured:true,iosDeviceVerified:true,androidDeviceVerified:true,thermalSoakVerified:true,largeWorldSoakVerified:true,trafficCrowdSoakVerified:true,realGodotImportVerified:true,realUnityImportVerified:true,realUnrealImportVerified:true,openUsdConformanceVerified:true,gltfRoundTripVerified:true,githubMainMatchesProduction:true,productionMatchesRuntime:true,runtimeSmokeVerified:true,githubMainSha:sha,vercelProductionSha:sha,runtimeSha:sha};
+const b=buildEvidenceOrchestratorV28(input,evidence);
+assert.equal(b.readiness.production100,true);
+assert.equal(b.unresolved.length,0);
+console.log('Game World Evidence Orchestrator V28: PASS',JSON.stringify({betaReady:a.readiness.marketBetaReady,productionDefault:a.readiness.production100,productionWithRealEvidence:b.readiness.production100,remainingDefault:a.unresolved.length}));
