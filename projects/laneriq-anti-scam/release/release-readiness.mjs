@@ -45,6 +45,9 @@ export const ReleaseGateId = Object.freeze({
   L5_GOOGLE_PLAY_DECLARATIONS: 'L5.google_play_declarations',
   L5_PRIVACY_DATA_SAFETY: 'L5.privacy_policy_data_safety',
   L5_SIGNED_PRODUCTION_ARTIFACT: 'L5.production_signed_artifact',
+  L5_EXACT_MAIN_ALIGNMENT: 'L5.exact_main_alignment',
+  L5_MAIN_BRANCH_PROTECTION: 'L5.main_branch_protection_required_checks',
+  L5_PRODUCTION_SHA_CONVERGENCE: 'L5.production_release_exact_sha_convergence',
 });
 
 const REQUIRED_LAYERS = Object.freeze([
@@ -122,6 +125,9 @@ export function evaluateFiveLayerReadiness(evidence = {}) {
     googlePlayDeclarationsVerified: attested(evidence, 'googlePlayDeclarationsVerified', ReleaseGateId.L5_GOOGLE_PLAY_DECLARATIONS),
     privacyPolicyAndDataSafetyVerified: attested(evidence, 'privacyPolicyAndDataSafetyVerified', ReleaseGateId.L5_PRIVACY_DATA_SAFETY),
     productionSignedArtifactVerified: attested(evidence, 'productionSignedArtifactVerified', ReleaseGateId.L5_SIGNED_PRODUCTION_ARTIFACT),
+    exactMainAlignmentVerified: attested(evidence, 'exactMainAlignmentVerified', ReleaseGateId.L5_EXACT_MAIN_ALIGNMENT),
+    mainBranchProtectionVerified: attested(evidence, 'mainBranchProtectionVerified', ReleaseGateId.L5_MAIN_BRANCH_PROTECTION),
+    productionReleaseShaConvergenceVerified: attested(evidence, 'productionReleaseShaConvergenceVerified', ReleaseGateId.L5_PRODUCTION_SHA_CONVERGENCE),
   });
 
   const layers = Object.freeze([l1, l2, l3, l4, l5]);
