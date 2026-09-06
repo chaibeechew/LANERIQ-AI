@@ -1,0 +1,53 @@
+{
+  "schema": 1,
+  "product": "LANERIQ Anti Scam",
+  "tokenTemplate": {
+    "status": "PASS",
+    "gateId": "REPLACE_WITH_GATE_ID",
+    "proofRef": "REPLACE_WITH_IMMUTABLE_PROOF_REFERENCE",
+    "verifierId": "REPLACE_WITH_TRUSTED_VERIFIER_ID",
+    "measuredAtMs": 0
+  },
+  "gates": {
+    "L1": [
+      "L1.real_system_web_shield",
+      "L1.vpn_consent",
+      "L1.vpn_ipv4_ipv6_handoff",
+      "L1.signed_threat_reputation_android",
+      "L1.web_false_positive_benchmark"
+    ],
+    "L2": [
+      "L2.trusted_malware_reputation_provider",
+      "L2.trusted_scanner_or_sandbox_provider",
+      "L2.signed_malware_evidence_android",
+      "L2.malicious_corpus_benchmark",
+      "L2.benign_false_positive_benchmark"
+    ],
+    "L3": [
+      "L3.process_kill",
+      "L3.force_stop_boundary",
+      "L3.reboot_update_recovery",
+      "L3.notification_battery_thermal",
+      "L3.soak_24h",
+      "L3.oem_matrix",
+      "L3.app_builder_witness_coexistence"
+    ],
+    "L4": [
+      "L4.cloud_deadman_deployed",
+      "L4.scoped_pseudonym_key_management",
+      "L4.retention_rate_limit_regional_privacy",
+      "L4.production_signing_key_custody",
+      "L4.immutable_audit_storage",
+      "L4.canary_kill_switch_rollback"
+    ],
+    "L5": [
+      "L5.multi_region_active_active",
+      "L5.failover_slo",
+      "L5.staged_load_cost",
+      "L5.google_play_declarations",
+      "L5.privacy_policy_data_safety",
+      "L5.production_signed_artifact"
+    ]
+  },
+  "rule": "A gate is not PASS until its proof reference is immutable/auditable, the verifier is pinned in TRUSTED_RELEASE_EVIDENCE_KEYS.json, the token signature verifies, and the evidence is fresh for the release under review."
+}
