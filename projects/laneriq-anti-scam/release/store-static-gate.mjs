@@ -10,9 +10,14 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
   const appGradle = read('android/app/build.gradle');
   const manifest = read('android/app/src/main/AndroidManifest.xml');
   const guardian = read('android/app/src/main/java/ai/laneriq/antiscam/GuardianService.java');
+  const webShieldVpn = read('android/app/src/main/java/ai/laneriq/antiscam/WebShieldVpnService.java');
+  const webShieldContract = read('android/app/src/main/java/ai/laneriq/antiscam/WebShieldDataPlaneContract.java');
   const signedReputation = read('android/app/src/main/java/ai/laneriq/antiscam/SignedThreatReputationEvidence.java');
   const reputationStore = read('android/app/src/main/java/ai/laneriq/antiscam/LocalThreatReputationStore.java');
   const feedKeys = read('android/app/src/main/java/ai/laneriq/antiscam/TrustedThreatFeedKeys.java');
+  const malwareBroker = read('cloud/lib/malware-defense-broker.mjs');
+  const heartbeatHandler = read('cloud/lib/guardian-heartbeat-handler.mjs');
+  const deadmanSql = read('cloud/sql/001_guardian_deadman.sql');
   const prTruth = read('release/STORE_READINESS_2026.md');
   const signingContract = read('release/ANDROID_PRODUCTION_SIGNING.md');
 
@@ -35,6 +40,15 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
       && /anti-scam Guardian device-risk monitoring/i.test(manifest),
     specialUseFgsRuntimeType: /FOREGROUND_SERVICE_TYPE_SPECIAL_USE/.test(guardian)
       && /Build\.VERSION_CODES\.UPSIDE_DOWN_CAKE/.test(guardian),
+
+    l1VpnServicePlatformProtected: /android:name=['"]\.WebShieldVpnService['"]/.test(manifest)
+      && /android:permission=['"]android\.permission\.BIND_VPN_SERVICE['"]/.test(manifest)
+      && /android:name=['"]android\.net\.VpnService['"]/.test(manifest),
+    l1VpnConsentRequired: /VpnService\.prepare\(this\)/.test(webShieldVpn),
+    l1FakeTunnelForbidden: /isProductionDataPlaneReady\(\)/.test(webShieldVpn)
+      && /return false;/.test(webShieldContract)
+      && /markTunnel\(false, false, false/.test(webShieldVpn),
+
     signedReputationCryptoPathPresent: /SHA256withECDSA/.test(signedReputation)
       && /productionVerifier\(\)/.test(signedReputation)
       && /VerifiedEvidence/.test(signedReputation),
@@ -45,6 +59,23 @@ export function evaluateStaticStorePackage(root = process.cwd()) {
       && !/acceptAny|trustAll|allowAll/i.test(feedKeys)
       && /pinnedKeys\.get\(payload\.sourceId\)/.test(signedReputation)
       && /publicKeyBase64 == null/.test(signedReputation),
+    l2SharedMalwareBrokerHashBound: /HASH_BOUND_SIGNED_PROVIDER_MALICIOUS/.test(malwareBroker)
+      && /RAW_SAMPLE_UPLOAD_NOT_AUTHORIZED/.test(malwareBroker)
+      && /INVALID_MALWARE_RECEIPT_SIGNATURE/.test(malwareBroker)
+      && /receipt\.sha256/.test(malwareBroker),
+
+    l3RealDeviceHarnessPresent: exists('release/device-tests/android-guardian-matrix.sh')
+      && exists('release/l3-device-evidence.mjs'),
+
+    l4AttestationAndWitnessRequired: /APP_ATTESTATION_VERIFIER_NOT_CONFIGURED/.test(heartbeatHandler)
+      && /APP_INTEGRITY_NOT_VERIFIED/.test(heartbeatHandler)
+      && /INVALID_GUARDIAN_WITNESS_PROOF/.test(heartbeatHandler),
+    l4PrivateHeartbeatFieldsRejected: /GUARDIAN_PAYLOAD_FORBIDDEN_FIELDS/.test(heartbeatHandler),
+    l4DeadmanRlsAndReplayProtection: /enable row level security/i.test(deadmanSql)
+      && /revoke all on table public\.anti_scam_guardian_leases from anon, authenticated/i.test(deadmanSql)
+      && /p_lease_epoch < current_row\.lease_epoch/.test(deadmanSql)
+      && /p_heartbeat_sequence <= current_row\.heartbeat_sequence/.test(deadmanSql),
+
     privacyPolicyDraftPresent: exists('release/PRIVACY_POLICY_DRAFT.md'),
     playDeclarationDraftPresent: exists('release/GOOGLE_PLAY_DECLARATIONS_DRAFT.md'),
     signingContractPresent: exists('release/ANDROID_PRODUCTION_SIGNING.md')
