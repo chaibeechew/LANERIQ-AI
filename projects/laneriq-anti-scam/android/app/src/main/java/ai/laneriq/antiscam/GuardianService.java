@@ -116,6 +116,7 @@ public class GuardianService extends Service {
         DeviceRiskSnapshot snapshot = DeviceRiskSnapshot.capture(getContentResolver());
         boolean constrained = governor.shouldReduceBackgroundWork();
         selfIntegrity = selfIntegrityStore.probe();
+        AlertDeliveryIntegrity.Decision alertDelivery = AlertDeliveryIntegrity.capture(this);
 
         EmergencyModeStore.State currentEmergency = emergencyStore.read();
         EmergencyModePolicy.Decision emergencyDecision = EmergencyModePolicy.evaluate(
@@ -134,7 +135,7 @@ public class GuardianService extends Service {
 
         leaseStore.heartbeat(
                 snapshot.riskLevel,
-                "guardian,device-signals,event-dedup,resource-governor,emergency-mode,anti-tamper,self-integrity,lease-v3");
+                "guardian,device-signals,event-dedup,resource-governor,emergency-mode,anti-tamper,self-integrity,alert-integrity,lease-v3");
 
         ProtectionLeaseStore.Lease lease = leaseStore.read();
         EmergencyModeStore.State emergency = emergencyStore.read();
@@ -182,12 +183,16 @@ public class GuardianService extends Service {
             }
         }
         if (constrained) summary += " • reduced background cadence";
+        if (!alertDelivery.mayClaimUserAlertsAvailable) summary += " • alerts degraded";
 
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         nm.notify(NOTIFICATION_ID, buildProtectionNotification(summary));
 
         if (selfIntegrity.unexpectedSignerChange) {
             eventStore.recordOnce("self_integrity_mismatch", selfIntegrity.state.name(), 120_000L);
+        }
+        if (!alertDelivery.mayClaimUserAlertsAvailable) {
+            eventStore.recordOnce("alert_delivery_degraded", alertDelivery.state.name(), 120_000L);
         }
 
         if (snapshot.signalCount > 0 && !snapshot.fingerprint.equals(lastAlertFingerprint)) {
