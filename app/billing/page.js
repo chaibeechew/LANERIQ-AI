@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { publicCommercialOffers } from "../../config/commercial-offers.js";
 import CheckoutButton from "./CheckoutButton.js";
+import BillingHistory from "./BillingHistory.js";
 
 function dollars(minor) {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(Number(minor || 0) / 100);
@@ -26,7 +27,7 @@ export default async function BillingPage({ searchParams }) {
         <p style={{ maxWidth: 760, color: "#b8c9c1", lineHeight: 1.7 }}>Prices and entitlement terms are bound on the server. A browser cannot change the charged amount or grant itself paid access. Access is issued only after a signed payment-provider event is verified and persisted.</p>
       </section>
 
-      {checkout === "success" ? <div role="status" style={{ padding: 16, border: "1px solid #65d49b66", borderRadius: 16, marginBottom: 16 }}>Payment received by the hosted checkout. LANERIQ AI is verifying the signed provider event before enabling access. Refresh your account status shortly if access is not visible immediately.</div> : null}
+      {checkout === "success" ? <div role="status" style={{ padding: 16, border: "1px solid #65d49b66", borderRadius: 16, marginBottom: 16 }}>Payment received by the hosted checkout. LANERIQ AI is verifying the signed provider event before enabling access. Refresh your billing history shortly if access is not visible immediately.</div> : null}
       {checkout === "cancel" ? <div role="status" style={{ padding: 16, border: "1px solid #e5c76755", borderRadius: 16, marginBottom: 16 }}>Checkout was cancelled. No access is granted from a cancelled session.</div> : null}
 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(250px,1fr))", gap: 14 }}>
@@ -35,13 +36,15 @@ export default async function BillingPage({ searchParams }) {
           <h2 style={{ fontSize: 38, margin: "10px 0" }}>{dollars(offer.amountMinor)}</h2>
           <p style={{ minHeight: 64, color: "#a9bbb3", lineHeight: 1.55 }}>{offer.description}</p>
           <p style={{ fontSize: 12, color: "#80958c" }}>{offer.accessDays ? `${offer.accessDays} days · one payment · no automatic renewal` : "One project credit · one payment"}</p>
-          <CheckoutButton offerCode={offer.code} label={`Continue to secure checkout →`} />
+          <CheckoutButton offerCode={offer.code} label="Continue to secure checkout →" />
         </article>)}
       </section>
 
+      <BillingHistory />
+
       <section style={{ marginTop: 18, padding: 20, borderRadius: 20, background: "#071a14" }}>
         <h2>Commercial boundaries</h2>
-        <p style={{ color: "#a9bbb3", lineHeight: 1.65 }}>The launch checkout above covers LANERIQ AI access only. Project-specific Buyout Licenses, enterprise organization billing, creator marketplace settlement, Apple/Google developer fees, taxes, refunds and chargebacks keep their own verified workflows. Apple and Google fees are paid directly to those providers.</p>
+        <p style={{ color: "#a9bbb3", lineHeight: 1.65 }}>The launch checkout above covers LANERIQ AI access only. Refund review is tracked separately and actual money movement remains Admin-controlled and payment-provider verified. Project-specific Buyout Licenses, enterprise organization billing, creator marketplace settlement, Apple/Google developer fees and taxes keep their own verified workflows. Apple and Google fees are paid directly to those providers.</p>
       </section>
     </div>
   </main>;
