@@ -39,7 +39,7 @@ assert.doesNotMatch(route,/lib\/supabase\//);
 assert.doesNotMatch(route,/createClient|createAdminClient|getAppBuilderAccess|MULTIPLAYER_PROVIDER_TOKEN|MULTIPLAYER_MATCHMAKING_ENDPOINT/);
 
 for(const pattern of [/createGameMultiplayerDataAdapter/,/getMultiplayerProviderConfig/,/createMultiplayerTicket/,/server submission|provider submission/i,/MULTIPLAYER_SUBMISSION_IN_PROGRESS/,/LIVE_MULTIPLAYER_NOT_CONNECTED/,/productionEvidenceVerified:\s*false/,/same idempotency key after an uncertain acknowledgement/i,/will not start a duplicate ticket/i])assert.match(cloud,pattern);
-assert.ok(cloud.indexOf("beginSubmission")<cloud.indexOf("createMultiplayerTicket"),"Cloud data reservation/claim must precede provider execution.");
+assert.ok(cloud.indexOf("const begun = await adapter().beginSubmission")<cloud.indexOf("const ticket = await createMultiplayerTicket"),"Cloud data reservation/claim must precede provider execution.");
 assert.doesNotMatch(cloud,/MULTIPLAYER_PROVIDER_TOKEN/);
 
 for(const pattern of [/auth\.getUser\(\)/,/professional\?\.active/,/\.eq\("owner_id", user\.id\)/,/productType !== "mobile_game"/,/game\?\.enabled !== true/,/server_reserve_multiplayer_session/,/server_claim_multiplayer_provider_v2/,/server_finalize_multiplayer_provider_v2/,/server_update_multiplayer_session/])assert.match(dataAdapter,pattern);
