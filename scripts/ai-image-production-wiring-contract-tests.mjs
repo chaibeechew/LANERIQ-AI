@@ -8,7 +8,9 @@ const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('h
 
 const route=fs.readFileSync('app/api/images/generate/route.js','utf8');
 const readiness=fs.readFileSync('app/api/images/readiness/route.js','utf8');
+const marketReadiness=fs.readFileSync('app/api/images/market-readiness/route.js','utf8');
 const hardened=fs.readFileSync('lib/ai/image-production-hardened-runtime.js','utf8');
+const marketRuntime=fs.readFileSync('lib/ai/image-market-runtime.js','utf8');
 
 assert.match(route,/runImageProductionHardenedGeneration/);
 assert.doesNotMatch(route,/generateExternalImages/);
@@ -17,13 +19,30 @@ assert.match(route,/IMAGE_LEGACY_MODEL_EVIDENCE_REQUIRED/);
 assert.match(route,/AI image hardened generation failed - automatic refund/);
 assert.match(route,/independently observed/);
 assert.match(route,/byteHashBound:true/);
+assert.match(route,/AI_IMAGE_MARKET_EVENT/);
+assert.match(route,/generation_success/);
+assert.match(route,/generation_failure/);
+assert.match(route,/idempotent_replay/);
+assert.match(route,/latencyMs:Date\.now\(\)-modelStartedAt/);
+assert.match(route,/refundSucceeded/);
+assert.match(route,/evidenceOperationId/);
+assert.doesNotMatch(route,/emitMarketEvidence\([^\n]*prompt/,'Market telemetry must not log prompt material.');
 
 assert.match(readiness,/hardenedExecutionWired:true/);
 assert.match(readiness,/failClosedQualityGate:true/);
 assert.match(readiness,/independentObserverRequired:true/);
 assert.match(readiness,/observerByteHashBinding:true/);
-assert.match(readiness,/marketSalesReady:false/);
-assert.match(readiness,/truth:"EVIDENCE_REQUIRED"/);
+assert.match(readiness,/signedMarketEvidenceRequired:true/);
+assert.match(readiness,/marketSalesReady:market\.marketReady/);
+assert.match(readiness,/truth:market\.truth/);
+assert.match(marketReadiness,/evidenceBundleVerified/);
+assert.match(marketReadiness,/marketReady:readiness\.marketReady/);
+assert.doesNotMatch(marketReadiness,/SIGNING_SECRET|OBSERVER_TOKEN/);
+assert.match(marketRuntime,/IMAGE_MARKET_EVIDENCE_BUNDLE_B64/);
+assert.match(marketRuntime,/createHmac\('sha256'/);
+assert.match(marketRuntime,/VERCEL_ENV/);
+assert.match(marketRuntime,/VERCEL_GIT_COMMIT_SHA/);
+assert.match(marketRuntime,/VERCEL_GIT_COMMIT_REF/);
 
 assert.match(hardened,/isApprovedImageOutputUrl/);
 assert.match(hardened,/captureHttpsImage/);
@@ -83,4 +102,4 @@ assert.throws(()=>validateImageObserverEvidence({
   data:{requestId,observerKind:'laneriq-vision',observedBy:'laneriq-vision-prod',safetyPassed:true,provenanceVerified:true,outputValidated:true,images:perImage,artifactHash,signals,continuityObservations,observationHash,signature:'0'.repeat(64)},
 }),error=>error?.code==='IMAGE_OBSERVER_SIGNATURE_INVALID');
 
-console.log('AI Image Production runtime wiring contract passed.');
+console.log('AI Image Production runtime wiring and commercial telemetry contract passed.');
