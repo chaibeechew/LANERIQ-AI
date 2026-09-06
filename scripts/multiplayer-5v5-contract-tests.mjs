@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import "./moba-combat-integrity-v3-tests.mjs";
+import "./moba-network-competitive-v4-tests.mjs";
 import {getMultiplayerProviderConfig} from "../lib/game/multiplayer-provider-gateway.js";
 import {evaluateAdapterEvidence} from "../lib/game/multiplayer-adapter-v1.js";
 import {evaluateLiveTransportReadiness} from "../lib/game/live-multiplayer-transport-v1.js";
