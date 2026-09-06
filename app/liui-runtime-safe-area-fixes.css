@@ -1,0 +1,89 @@
+/* LANERIQ AI LIUI runtime safe-area + chrome collision fixes.
+   Presentation only. This file intentionally loads after the main LIUI layers. */
+
+/* The real AccountNav owns authenticated account/logout behavior.
+   Do not show a second static "LANERIQ User" profile affordance beside it. */
+.liuiReferenceProfile{
+  display:none!important;
+}
+
+/* Keep the real authenticated account control aligned with the LIUI top chrome. */
+body[data-liui-surface]:not([data-liui-surface="creation"]) .accountNav{
+  top:22px!important;
+  right:max(18px,env(safe-area-inset-right))!important;
+  z-index:9870!important;
+}
+
+@media(max-width:1000px){
+  /* Dynamic Island / status-bar aware workspace header. */
+  .liuiReferenceHeader{
+    top:max(10px,calc(env(safe-area-inset-top) + 4px))!important;
+    left:max(12px,env(safe-area-inset-left))!important;
+    right:max(12px,env(safe-area-inset-right))!important;
+  }
+
+  /* Real account control shares the same top row instead of dropping into content. */
+  body[data-liui-surface]:not([data-liui-surface="creation"]) .accountNav{
+    top:max(10px,calc(env(safe-area-inset-top) + 4px))!important;
+    right:max(12px,env(safe-area-inset-right))!important;
+  }
+
+  /* Workspace content starts below the safe-area-aware header. */
+  body[data-liui-surface]:not([data-liui-surface="creation"]):not([data-liui-surface="creations"]):not([data-liui-surface="templates"]):not([data-liui-surface="template-detail"]) :where(.page,.combinedPreview,.releasePage,.publishPage,.soolenCenter,.studioShell){
+    padding-top:max(84px,calc(env(safe-area-inset-top) + 76px))!important;
+  }
+
+  /* Portal pages use a logo anchor rather than the workspace rail/header. */
+  .liuiPortalBrandAnchor{
+    top:max(10px,calc(env(safe-area-inset-top) + 4px))!important;
+    left:max(12px,env(safe-area-inset-left))!important;
+  }
+  body[data-liui-surface="creations"] .projectsReference,
+  body[data-liui-surface="templates"] .referenceTemplates,
+  body[data-liui-surface="template-detail"] .templateReference{
+    padding-top:max(92px,calc(env(safe-area-inset-top) + 68px))!important;
+  }
+
+  /* Community has its own page wrapper, so reserve the same top chrome space explicitly. */
+  body[data-liui-surface="community"] .chatPage{
+    padding-top:max(118px,calc(env(safe-area-inset-top) + 82px))!important;
+    padding-bottom:max(126px,calc(env(safe-area-inset-bottom) + 108px))!important;
+  }
+
+  /* Landscape notches and Home Indicator must not clip the canonical navigation. */
+  .liuiRealBottomNav{
+    left:max(12px,env(safe-area-inset-left))!important;
+    right:max(12px,env(safe-area-inset-right))!important;
+    bottom:max(10px,env(safe-area-inset-bottom))!important;
+  }
+
+  /* Keep pages 15–18 step strip above the raised Home-Indicator-aware bottom nav. */
+  .liuiEighteenStepStrip{
+    left:max(12px,env(safe-area-inset-left))!important;
+    right:max(12px,env(safe-area-inset-right))!important;
+    bottom:max(88px,calc(env(safe-area-inset-bottom) + 82px))!important;
+  }
+  body[data-liui-page="15"] :where(.page),
+  body[data-liui-page="16"] :where(.page),
+  body[data-liui-page="17"] :where(.page),
+  body[data-liui-page="18"] :where(.publishPage,.page){
+    padding-bottom:max(162px,calc(env(safe-area-inset-bottom) + 148px))!important;
+  }
+}
+
+@media(max-width:560px){
+  /* On narrow phones keep one compact account trigger; Sign out remains in its menu. */
+  body[data-liui-surface]:not([data-liui-surface="creation"]) .accountNav .visibleLogout{
+    display:none!important;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .liuiReferenceHeader,
+  .liuiPortalBrandAnchor,
+  .liuiRealBottomNav,
+  .liuiEighteenStepStrip,
+  body[data-liui-surface] .accountNav{
+    transition:none!important;
+  }
+}
