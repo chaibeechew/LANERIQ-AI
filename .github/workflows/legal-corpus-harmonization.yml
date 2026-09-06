@@ -1,0 +1,31 @@
+name: LANERIQ Legal Corpus Harmonization Gate
+
+on:
+  pull_request:
+    paths:
+      - 'docs/legal/**'
+      - 'scripts/legal-corpus-harmonization-contract-tests.mjs'
+      - '.github/workflows/legal-corpus-harmonization.yml'
+  push:
+    branches:
+      - main
+      - 'batch161-legal-corpus-harmonization-2026-09-05'
+    paths:
+      - 'docs/legal/**'
+      - 'scripts/legal-corpus-harmonization-contract-tests.mjs'
+      - '.github/workflows/legal-corpus-harmonization.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  legal-corpus-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Cross-document legal corpus contract
+        run: node scripts/legal-corpus-harmonization-contract-tests.mjs
