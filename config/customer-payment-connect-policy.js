@@ -25,9 +25,10 @@ function clean(value,max=160){return String(value??'').trim().replace(/\s+/g,' '
 export function normalizeConnectSetupInput(input={}){
   const appId=clean(input.appId,80);
   const displayName=clean(input.displayName,120);
-  const country=clean(input.country,2).toLowerCase();
+  const rawCountry=String(input.country??'').trim();
+  if(rawCountry&&!COUNTRY.test(rawCountry))throw new Error('Country must be a two-letter code.');
+  const country=rawCountry.toLowerCase();
   const locale=clean(input.locale,20)||'en-US';
-  if(country&&!COUNTRY.test(country))throw new Error('Country must be a two-letter code.');
   return {appId:appId||null,displayName:displayName||null,country:country||null,locale};
 }
 export function assertStripeConnectedAccountId(value){const id=clean(value,120);if(!ACCOUNT.test(id))throw new Error('Stripe connected account id is invalid.');return id;}
