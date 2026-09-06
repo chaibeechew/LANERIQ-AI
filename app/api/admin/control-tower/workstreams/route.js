@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "../../../../../lib/supabase/server.js";
 import { canAccessControlTower } from "../../../../../lib/admin-access.js";
+import { isControlTowerReleaseFrozen } from "../../../../../lib/control-tower-state-machine.js";
 import {
   isControlTowerStorageMissing,
   validateControlTowerWorkstreamInput,
@@ -69,6 +70,22 @@ export async function POST(request) {
     const input = await request.json().catch(() => ({}));
     const validation = validateControlTowerWorkstreamInput(input);
     if (!validation.ok) return json({ error: validation.error }, 400);
+
+    const { data: release, error: releaseError } = await auth.supabase
+      .from("control_tower_releases")
+      .select("id,stage")
+      .eq("id", validation.value.release_id)
+      .maybeSingle();
+    if (releaseError) {
+      if (isControlTowerStorageMissing(releaseError)) {
+        return json({ error: "Control Tower storage migration is not active in this environment." }, 503);
+      }
+      throw releaseError;
+    }
+    if (!release) return json({ error: "Release does not exist." }, 400);
+    if (isControlTowerReleaseFrozen(release.stage)) {
+      return json({ error: `Release is frozen at ${release.stage}. Move it back through the governed state machine before adding workstreams.`, code: "RELEASE_FROZEN" }, 409);
+    }
 
     const { data, error } = await auth.supabase
       .from("control_tower_workstreams")
