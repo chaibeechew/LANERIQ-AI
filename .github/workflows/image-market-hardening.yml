@@ -1,0 +1,45 @@
+name: AI Image Market Hardening
+
+on:
+  pull_request:
+    paths:
+      - 'app/api/images/**'
+      - 'lib/ai/image-**'
+      - 'lib/ai/creative-media-**'
+      - 'scripts/image-market-hardening-contract-tests.mjs'
+      - '.github/workflows/image-market-hardening.yml'
+  push:
+    branches:
+      - ai-image-market-hardening-4-layer
+    paths:
+      - 'app/api/images/**'
+      - 'lib/ai/image-**'
+      - 'lib/ai/creative-media-**'
+      - 'scripts/image-market-hardening-contract-tests.mjs'
+      - '.github/workflows/image-market-hardening.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: image-market-hardening-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  image-market-hardening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: AI Image four-layer commercial hardening contract
+        run: node scripts/image-market-hardening-contract-tests.mjs
+      - name: Existing Creative Media 5-layer regression
+        run: node scripts/creative-media-six-layer-contract-tests.mjs
+      - name: Existing Image Studio provider regression
+        run: npm run test:image-provider
