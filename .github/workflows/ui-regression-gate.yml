@@ -1,0 +1,26 @@
+name: LANERIQ Canonical UI Regression Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  canonical-ui-regression:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact commit
+        uses: actions/checkout@v7
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Validate canonical UI regression contract
+        run: node scripts/ui-regression-gate.mjs
+      - name: Evidence boundary
+        run: echo "CODE/CI UI regression only. Production browser/mobile runtime evidence and GitHub main = Vercel Production = runtime exact-SHA convergence remain mandatory before Production completion."
